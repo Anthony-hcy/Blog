@@ -217,8 +217,8 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="alternate" type="application/rss+xml" title="${site.name} &raquo; RSS 2.0" href="${SITE_URL}${withBase(`/feed/index.xml`)}">
-  <link rel="alternate" type="application/atom+xml" title="${site.name} &raquo; ATOM 1.0" href="${SITE_URL}${withBase(`/feed/atom/index.xml`)}">
+  <link rel="alternate" type="application/rss+xml" title="${site.name} &raquo; RSS 2.0" href="${SITE_URL}/feed/index.xml">
+  <link rel="alternate" type="application/atom+xml" title="${site.name} &raquo; ATOM 1.0" href="${SITE_URL}/feed/atom/index.xml">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;600&display=swap">
   <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
@@ -253,7 +253,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta property="og:site_name" content="${site.name}">
   <meta property="og:type" content="${ogType}">
   <meta property="og:url" content="${fullUrl}">
-  <meta property="og:image" content="${SITE_URL}${withBase(`/logo.png`)}">
+  <meta property="og:image" content="${SITE_URL}/logo.png">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:card" content="summary">
@@ -267,7 +267,7 @@ function shellStart() {
   <div class="app-layout">
     <section class="app-main-column">
       <header class="mobile-header">
-        <a class="mobile-brand" href="${SITE_URL}${withBase(`/`)}" target="_self">
+        <a class="mobile-brand" href="${SITE_URL}/" target="_self">
           <img class="avatar" src="${withBase(`/logo.png`)}" alt="${site.name}">
           <span class="mobile-brand-copy">
             <strong>${site.name}</strong>
@@ -328,7 +328,7 @@ ${extraScripts}
 <script type="module" src="${withBase(`/assets/js/layout.js`)}"></script>
 <script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
 <script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>
-<script defer src="${withBase(`/assets/fontawesome/js/all.min.js`)}"></script>
+<script defer src="${withBase(`/assets/fontawesome/all.min.js`)}"></script>
 </body>
 </html>`;
 }
@@ -337,7 +337,7 @@ function sideInSite() {
   return `<section class="side-panel side-in-site">
     <h2><i class="fa-solid fa-compass panel-icon" aria-hidden="true"></i>In Site</h2>
     <nav class="in-site-links" aria-label="In site navigation">
-      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}${withBase(`/`)}" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="rss" href="${withBase(`/feed/index.xml`)}" target="_self"><i class="fa-solid fa-rss in-site-link-icon" aria-hidden="true"></i><span>RSS</span></a>
@@ -676,39 +676,39 @@ function buildFeed() {
     const bodyHtml = renderMarkdown(p.body).replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '');
     return `<item>
   <title>${escapeXml(p.title)}</title>
-  <link>${SITE_URL}${withBase(`/archives/${p.slug}/`)}</link>
-  <guid isPermaLink="true">${SITE_URL}${withBase(`/archives/${p.slug}/`)}</guid>
+  <link>${SITE_URL}/archives/${p.slug}/</link>
+  <guid isPermaLink="true">${SITE_URL}/archives/${p.slug}/</guid>
   <pubDate>${p.date.toUTCString()}</pubDate>
   <author>${escapeXml(site.author)}</author>
   <description><![CDATA[${escapeXml(bodyHtml)}]]></description>
 </item>`;
   }).join('');
   return `<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link><description>${escapeXml(site.description)}</description><docs>http://www.rssboard.org/rss-specification</docs><generator>blog-replica</generator><image><url>${SITE_URL}${withBase(`/logo.png`)}</url><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link></image><language>${site.lang}</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate><pubDate>${new Date().toUTCString()}</pubDate>${items}</channel></rss>`;
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link><description>${escapeXml(site.description)}</description><docs>http://www.rssboard.org/rss-specification</docs><generator>blog-replica</generator><image><url>${SITE_URL}/logo.png</url><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link></image><language>${site.lang}</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate><pubDate>${new Date().toUTCString()}</pubDate>${items}</channel></rss>`;
 }
 
 function buildAtom() {
   const items = _posts.slice(0, 20).map(p => `<entry>
   <title>${escapeXml(p.title)}</title>
-  <link href="${SITE_URL}${withBase(`/archives/${p.slug}/`)}"/>
-  <id>${SITE_URL}${withBase(`/archives/${p.slug}/`)}</id>
+  <link href="${SITE_URL}/archives/${p.slug}/"/>
+  <id>${SITE_URL}/archives/${p.slug}/</id>
   <updated>${p.date.toISOString()}</updated>
   <summary>${escapeXml(p.excerpt)}</summary>
   <author><name>${escapeXml(site.author)}</name></author>
 </entry>`).join('');
   return `<?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>${site.name}</title><link href="${SITE_URL}${withBase(`/`)}" rel="alternate"/><id>${SITE_URL}/</id><updated>${new Date().toISOString()}</updated>${items}</feed>`;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>${site.name}</title><link href="${SITE_URL}/" rel="alternate"/><id>${SITE_URL}/</id><updated>${new Date().toISOString()}</updated>${items}</feed>`;
 }
 
-// ---------- ExSearch 索引 ----------
+// ---------- ExSearch 索引（对齐原站格式：顶层仅 posts/pages，tags/categories 为对象数组） ----------
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
     title: p.title,
-    date: p.date.toISOString().slice(0, 16).replace('T', ' '),
+    date: p.dateText + ' 10:00:00+08:00',
     path: withBase(`/archives/${p.slug}/`),
     text: excerptFrom(p.body, 4000),
-    tags: p.tags,
-    categories: p.category ? [p.category] : [],
+    tags: p.tags.map(t => ({ name: t, slug: t, permalink: withBase(`/tag/${encodeURIComponent(t)}/`) })),
+    categories: p.category ? [{ name: p.category, slug: p.category, permalink: withBase(`/category/${encodeURIComponent(p.category)}/`) }] : [],
   }));
   let aboutText = '';
   const aboutPath = join(CONTENT_DIR, 'pages', 'about.md');
@@ -716,23 +716,17 @@ function buildSearchIndex() {
     const { body } = parseFrontmatter(readFileSync(aboutPath, 'utf-8'));
     aboutText = excerptFrom(body, 400);
   }
-  const pages = [{ title: 'About', path: withBase(`/about/`), text: aboutText, tags: [], categories: [] }];
-  const catMap = {}, tagMap = {};
-  posts.forEach(p => {
-    (p.categories || []).forEach(c => { catMap[c] = { name: c, slug: c, permalink: withBase(`/category/${encodeURIComponent(c)}/`) }; });
-    (p.tags || []).forEach(t => { tagMap[t] = { name: t, slug: t, permalink: withBase(`/tag/${encodeURIComponent(t)}/`) }; });
-  });
-  return JSON.stringify({
-    posts,
-    pages,
-    categories: Object.values(catMap),
-    tags: Object.values(tagMap),
-  });
+  const pages = [{ title: 'About', date: site.since + ' 10:00:00+08:00', path: withBase(`/about/`), text: aboutText, tags: [], categories: [] }];
+  return JSON.stringify({ posts, pages });
 }
 
 // ---------- 88x31 ----------
 function buildBadgesIndex() {
-  return JSON.stringify({ url_prefix: '/assets/img/88x31/', badges: [] });
+  const badges = Array.from({ length: 4 }, (_, i) => ({
+    name: 'badge-' + (i + 1),
+    file: 'badge-' + (i + 1) + '.png',
+  }));
+  return JSON.stringify({ url_prefix: withBase('/assets/img/88x31/'), badges });
 }
 
 // ---------- 404 ----------
@@ -740,7 +734,7 @@ function build404() {
   const html = headHtml(`404 - ${site.name}`) + shellStart() + `
 <div class="archive-title">404</div>
 <div class="archives-container">
-  <p>页面不存在。<a href="${SITE_URL}${withBase(`/`)}">回到首页</a></p>
+  <p>页面不存在。<a href="${SITE_URL}/">回到首页</a></p>
 </div>
 ` + shellEnd();
   return html;

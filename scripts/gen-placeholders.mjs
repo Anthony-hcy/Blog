@@ -80,3 +80,36 @@ for (const [slug, rgb] of Object.entries(covers)) {
 }
 
 console.log('Placeholders done.');
+
+// ---------- 88x31 占位徽章（简单双色） ----------
+function makePngTwo(w, h, top, bottom) {
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 2;
+  const raw = Buffer.alloc(h * (1 + w * 3));
+  for (let y = 0; y < h; y++) {
+    const row = y * (1 + w * 3);
+    raw[row] = 0;
+    const c = y < h / 2 ? top : bottom;
+    for (let x = 0; x < w; x++) {
+      const ppos = row + 1 + x * 3;
+      raw[ppos] = c[0]; raw[ppos + 1] = c[1]; raw[ppos + 2] = c[2];
+    }
+  }
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+const badgeDir = join(ROOT, 'static', 'assets', 'img', '88x31');
+mkdirSync(badgeDir, { recursive: true });
+const badgeStyles = [
+  [[224, 120, 64], [34, 32, 25]],
+  [[100, 130, 150], [34, 32, 25]],
+  [[90, 140, 110], [34, 32, 25]],
+  [[180, 100, 130], [34, 32, 25]],
+];
+badgeStyles.forEach(([top, bottom], i) => {
+  const out = join(badgeDir, 'badge-' + (i + 1) + '.png');
+  writeFileSync(out, makePngTwo(88, 31, top, bottom));
+  console.log('generated badge', 'badge-' + (i + 1) + '.png');
+});
