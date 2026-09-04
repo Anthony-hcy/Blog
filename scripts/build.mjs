@@ -20,6 +20,8 @@ const PAGE_SIZE = 10;
 // ---------- 配置 ----------
 const site = JSON.parse(readFileSync(join(ROOT, 'site.config.json'), 'utf-8')).site;
 const SITE_URL = site.url.replace(/\/+$/, '');
+const BASE = (site.base || '').replace(/\/+$/, '');
+const withBase = (path) => (typeof path === 'string' && path.startsWith('/') ? BASE + path : path || '');
 const EXSEARCH_HASH = 'search-index';
 
 // ---------- frontmatter 解析（极简 YAML 子集） ----------
@@ -59,7 +61,7 @@ renderer.image = (href, title, text) => {
     ? ` data-pswp-width="${dim.width}" data-pswp-height="${dim.height}"`
     : '';
   const flex = dim ? Math.round((dim.width / dim.height) * 10000) / 100 : 50;
-  return `<figure class="pswp-item" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${href}" alt="${escapeHtml(text || '')}" /></figure>`;
+  return `<figure class="pswp-item" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text || '')}" /></figure>`;
 };
 
 function renderMarkdown(md) {
@@ -205,7 +207,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
   return `<!DOCTYPE html>
-<html lang="${site.lang}" data-exsearch-api="/${EXSEARCH_HASH}.json">
+<html lang="${site.lang}" data-exsearch-api="${withBase(`/${EXSEARCH_HASH}.json`)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -215,12 +217,12 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="alternate" type="application/rss+xml" title="${site.name} &raquo; RSS 2.0" href="${SITE_URL}/feed/index.xml">
-  <link rel="alternate" type="application/atom+xml" title="${site.name} &raquo; ATOM 1.0" href="${SITE_URL}/feed/atom/index.xml">
+  <link rel="alternate" type="application/rss+xml" title="${site.name} &raquo; RSS 2.0" href="${SITE_URL}${withBase(`/feed/index.xml`)}">
+  <link rel="alternate" type="application/atom+xml" title="${site.name} &raquo; ATOM 1.0" href="${SITE_URL}${withBase(`/feed/atom/index.xml`)}">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;600&display=swap">
-  <link rel="preload" as="style" href="/assets/ExSearch/ExSearch.css" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="/assets/ExSearch/ExSearch.css"></noscript>
-  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
+  <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
   <script>
     window.ExSearchConfig = {
       root: '',
@@ -233,12 +235,12 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="shortcut icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="${withBase(`/favicon-96x96.png`)}" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="${withBase(`/favicon.svg`)}" />
+  <link rel="shortcut icon" href="${withBase(`/favicon.ico`)}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="${withBase(`/apple-touch-icon.png`)}" />
   <meta name="apple-mobile-web-app-title" content="${site.name}" />
-  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="manifest" href="${withBase(`/site.webmanifest`)}" />
   <meta name="application-name" content="${site.name}">
   <meta name="apple-mobile-web-app-title" content="${site.name}">
   <meta name="theme-color" content="#000000">
@@ -251,12 +253,12 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta property="og:site_name" content="${site.name}">
   <meta property="og:type" content="${ogType}">
   <meta property="og:url" content="${fullUrl}">
-  <meta property="og:image" content="${SITE_URL}/logo.png">
+  <meta property="og:image" content="${SITE_URL}${withBase(`/logo.png`)}">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:card" content="summary">
 </head>
-<body data-about-url="/about/"${bodyData}>`;
+<body data-about-url="${withBase(`/about/`)}"${bodyData}>`;
 }
 
 function shellStart() {
@@ -265,8 +267,8 @@ function shellStart() {
   <div class="app-layout">
     <section class="app-main-column">
       <header class="mobile-header">
-        <a class="mobile-brand" href="${SITE_URL}/" target="_self">
-          <img class="avatar" src="/logo.png" alt="${site.name}">
+        <a class="mobile-brand" href="${SITE_URL}${withBase(`/`)}" target="_self">
+          <img class="avatar" src="${withBase(`/logo.png`)}" alt="${site.name}">
           <span class="mobile-brand-copy">
             <strong>${site.name}</strong>
             <em>${site.subtitle}</em>
@@ -295,7 +297,7 @@ function shellEnd(extraScripts = '') {
   return `</main>
         <footer class="site-footer">
           <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
-          <a href="/feed/index.xml">RSS</a>
+          <a href="${withBase(`/feed/index.xml`)}">RSS</a>
         </footer>
       </div>
     </section>
@@ -323,10 +325,10 @@ function shellEnd(extraScripts = '') {
 </div>
 
 ${extraScripts}
-<script type="module" src="/assets/js/layout.js"></script>
-<script defer src="/assets/ExSearch/jquery.min.js"></script>
-<script defer src="/assets/ExSearch/ExSearch.js"></script>
-<script defer src="/assets/fontawesome/js/all.min.js"></script>
+<script type="module" src="${withBase(`/assets/js/layout.js`)}"></script>
+<script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
+<script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>
+<script defer src="${withBase(`/assets/fontawesome/js/all.min.js`)}"></script>
 </body>
 </html>`;
 }
@@ -335,11 +337,11 @@ function sideInSite() {
   return `<section class="side-panel side-in-site">
     <h2><i class="fa-solid fa-compass panel-icon" aria-hidden="true"></i>In Site</h2>
     <nav class="in-site-links" aria-label="In site navigation">
-      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="/archives/" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="/about/" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="rss" href="/feed/index.xml" target="_self"><i class="fa-solid fa-rss in-site-link-icon" aria-hidden="true"></i><span>RSS</span></a>
-      <a href="/portal.html" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}${withBase(`/`)}" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="rss" href="${withBase(`/feed/index.xml`)}" target="_self"><i class="fa-solid fa-rss in-site-link-icon" aria-hidden="true"></i><span>RSS</span></a>
+      <a href="${withBase(`/portal.html`)}" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
     </nav>
   </section>`;
 }
@@ -365,7 +367,7 @@ function sideSocial() {
 function sideBadges() {
   return `<section class="side-panel side-badges">
     <h2><i class="fa-solid fa-images panel-icon" aria-hidden="true"></i>88x31</h2>
-    <div class="badge-grid js-random-badges" data-badge-source="/88x31/index.json" data-badge-limit="4">
+    <div class="badge-grid js-random-badges" data-badge-source="${withBase(`/88x31/index.json`)}" data-badge-limit="4">
       <span class="badge-88x31-loading">Loading...</span>
     </div>
   </section>`;
@@ -374,7 +376,7 @@ function sideBadges() {
 function sideCategories() {
   const cats = categoriesWithCount();
   const items = cats.map(c => `
-      <a href="/category/${encodeURIComponent(c.name)}/" target="_self">
+      <a href="${withBase(`/category/${encodeURIComponent(c.name)}/`)}" target="_self">
         ${c.name}<sup class="taxonomy-count">${c.count}</sup>
       </a>`).join('');
   return `<section class="side-panel">
@@ -386,7 +388,7 @@ function sideCategories() {
 function sideTags() {
   const tags = tagsWithCount();
   const items = tags.map(t => `
-      <a href="/tag/${encodeURIComponent(t.name)}/" target="_self">
+      <a href="${withBase(`/tag/${encodeURIComponent(t.name)}/`)}" target="_self">
         #${t.name}<sup class="taxonomy-count">${t.count}</sup>
       </a>`).join('');
   return `<section class="side-panel">
@@ -398,23 +400,23 @@ function sideTags() {
 // ---------- feed 条目 ----------
 function entryArticle(post) {
   const banner = post.banner
-    ? `<a class="article-banner" href="/archives/${post.slug}/">
-      <img src="${post.banner}" alt="${post.title}" loading="lazy" decoding="async">
+    ? `<a class="article-banner" href="${withBase(`/archives/${post.slug}/`)}">
+      <img src="${withBase(post.banner)}" alt="${post.title}" loading="lazy" decoding="async">
       <span class="article-banner-shade" aria-hidden="true"></span>
       <h2 class="article-title article-title-overlay">${post.title}</h2>
     </a>`
-    : `<h2 class="article-title"><a href="/archives/${post.slug}/">${post.title}</a></h2>`;
+    : `<h2 class="article-title"><a href="${withBase(`/archives/${post.slug}/`)}">${post.title}</a></h2>`;
   return `<div class="entry-article">
     <div class="article-tag">
-      <a href="/category/${post.category}/">${escapeHtml(post.category)}</a>
+      <a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a>
     </div>
     ${banner}
     <p class="article-excerpt">${post.excerpt}</p>
     <div class="article-meta">
       <span>${post.dateText}</span>
       <span class="article-meta-spacer"></span>
-      <button class="index-metric-btn js-like-btn" data-like-url="/archives/${post.slug}/" type="button" aria-label="Like this post"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="/archives/${post.slug}/">0</span></button>
-      <a class="index-metric-btn pageview" href="/archives/${post.slug}/" aria-label="View this post"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="/archives/${post.slug}/">0</span></a>
+      <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this post"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
+      <a class="index-metric-btn pageview" href="${withBase(`/archives/${post.slug}/`)}" aria-label="View this post"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></a>
     </div>
   </div>`;
 }
@@ -435,7 +437,7 @@ function entryMemo(post) {
     : '';
   return `<div class="entry-memo pswp-gallery">
     <div class="memo-head">
-      <img class="memo-avatar" src="/logo.png" alt="${escapeHtml(site.author)}">
+      <img class="memo-avatar" src="${withBase(`/logo.png`)}" alt="${escapeHtml(site.author)}">
       <div class="memo-author">
         <strong>${escapeHtml(site.author)}</strong>
         <span>${post.dateText}</span>
@@ -444,7 +446,7 @@ function entryMemo(post) {
     <div class="memo-content">${contentHtml}</div>
     ${photosHtml}
     <div class="memo-meta">
-      <button class="index-metric-btn js-like-btn" data-like-url="/archives/${post.slug}/" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="/archives/${post.slug}/">0</span></button>
+      <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
     </div>
   </div>`;
 }
@@ -478,38 +480,38 @@ function buildIndexPage(posts, pageIndex, totalPages) {
   const html = headHtml(`${site.name} - ${site.subtitle}`, {
     pagePath: pageIndex === 1 ? '/' : `/page/${pageIndex}/`,
   }) + shellStart() + `
-<main class="feed" data-index-root="/" data-total-pages="${totalPages}">
+<main class="feed" data-index-root="${withBase(`/`)}" data-total-pages="${totalPages}">
   ${entries}
 </main>
 <div class="stream-status stream-status-bottom" id="stream-status-bottom" data-state="${pageIndex >= totalPages ? 'end' : 'idle'}" aria-live="polite">${statusText}</div>
-` + shellEnd(`<script type="module" src="/assets/js/index.js"></script>`);
+` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js`)}"></script>`);
   return html;
 }
 
 function katexHead() {
-  return `<link rel="preload" as="style" href="/assets/katex/katex.min.css" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="/assets/katex/katex.min.css"></noscript>
-<link rel="stylesheet" href="/assets/katex/katex.min.css">`;
+  return `<link rel="preload" as="style" href="${withBase(`/assets/katex/katex.min.css`)}" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}"></noscript>
+<link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}">`;
 }
 
 function postNav(prev, next) {
   const prevHtml = prev
-    ? `<a class="post-nav-item" href="/archives/${prev.slug}/"><span class="post-nav-label">Previous</span><span class="post-nav-title">${escapeHtml(prev.title)}</span></a>`
+    ? `<a class="post-nav-item" href="${withBase(`/archives/${prev.slug}/`)}"><span class="post-nav-label">Previous</span><span class="post-nav-title">${escapeHtml(prev.title)}</span></a>`
     : `<span class="post-nav-item is-empty"><span class="post-nav-label">Previous</span></span>`;
   const nextHtml = next
-    ? `<a class="post-nav-item" href="/archives/${next.slug}/"><span class="post-nav-label">Next</span><span class="post-nav-title">${escapeHtml(next.title)}</span></a>`
+    ? `<a class="post-nav-item" href="${withBase(`/archives/${next.slug}/`)}"><span class="post-nav-label">Next</span><span class="post-nav-title">${escapeHtml(next.title)}</span></a>`
     : `<span class="post-nav-item is-empty"><span class="post-nav-label">Next</span></span>`;
   return `<nav class="post-nav">${prevHtml}${nextHtml}</nav>`;
 }
 
 function buildPostPage(post, prev, next) {
   const categoryTag = post.category
-    ? `<div class="tag"><a href="/category/${post.category}/">${escapeHtml(post.category)}</a></div>`
+    ? `<div class="tag"><a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a></div>`
     : '';
   const bodyHtml = renderMarkdown(post.body);
-  const scripts = `<script defer src="/assets/katex/katex.min.js"></script>
-<script defer src="/assets/katex/auto-render.min.js"></script>
-<script type="module" src="/assets/js/post.js"></script>`;
+  const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
+<script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
+<script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -523,16 +525,16 @@ function buildPostPage(post, prev, next) {
     <span>${post.dateText}</span>
     <span class="author">${escapeHtml(site.author)}</span>
     <span class="article-meta-spacer"></span>
-    <button class="index-metric-btn js-like-btn" data-like-url="/archives/${post.slug}/" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="/archives/${post.slug}/">0</span></button>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="/archives/${post.slug}/">0</span></span>
-    <a class="index-metric-btn js-auth-edit" href="/portal.html?tab=publish&slug=${post.slug}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
+    <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
+    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></span>
+    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=publish&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </header>
 <article class="article-body pswp-gallery">
 ${bodyHtml}
 </article>
 <div class="article-like-row">
-  <button class="index-metric-btn js-like-btn" data-like-url="/archives/${post.slug}/" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="/archives/${post.slug}/">0</span></button>
+  <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
   <span class="like-hint">Enjoyed this one?</span>
 </div>
 ${postNav(prev, next)}
@@ -554,7 +556,7 @@ function buildMemoPage(post, prev, next) {
         `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
       ).join('')}</div>`
     : '';
-  const scripts = `<script type="module" src="/assets/js/post.js"></script>`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -567,9 +569,9 @@ function buildMemoPage(post, prev, next) {
   <div class="memo-meta">
     <span>${post.dateText}</span>
     <span class="memo-meta-spacer"></span>
-    <button class="index-metric-btn js-like-btn" data-like-url="/archives/${post.slug}/" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="/archives/${post.slug}/">0</span></button>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="/archives/${post.slug}/">0</span></span>
-    <a class="index-metric-btn js-auth-edit" href="/portal.html?tab=publish&slug=${post.slug}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
+    <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
+    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></span>
+    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=publish&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </div>
 ${postNav(prev, next)}
@@ -583,7 +585,7 @@ function buildArchivesPage() {
       ? `${site.author}: ${excerptFrom(p.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`
       : p.title;
     return `
-  <a href="/archives/${p.slug}/" class="archive-item">
+  <a href="${withBase(`/archives/${p.slug}/`)}" class="archive-item">
     <span class="post-title">${escapeHtml(title)}</span>
     <span class="time">${p.dateText}</span>
   </a>`;
@@ -598,7 +600,7 @@ function buildArchivesPage() {
 
 function buildTaxonomyPage(kind, name, posts) {
   const items = posts.map(p => `
-  <a href="/archives/${p.slug}/" class="archive-item">
+  <a href="${withBase(`/archives/${p.slug}/`)}" class="archive-item">
     <span class="post-title">${escapeHtml(p.type === 'memo' ? `${site.author}: ${excerptFrom(p.body, 60)}` : p.title)}</span>
     <span class="time">${p.dateText}</span>
   </a>`).join('');
@@ -620,9 +622,9 @@ function buildAboutPage() {
   const { body } = parseFrontmatter(md);
   const bodyHtml = renderMarkdown(body);
   const trackedUrls = _posts.map(p => `/archives/${p.slug}/`);
-  const scripts = `<script defer src="/assets/katex/katex.min.js"></script>
-<script defer src="/assets/katex/auto-render.min.js"></script>
-<script type="module" src="/assets/js/about.js"></script>`;
+  const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
+<script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
+<script type="module" src="${withBase(`/assets/js/about.js`)}"></script>`;
   const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() }) + shellStart() + `
 <section class="about-section">
   <div class="about-section-head">
@@ -674,28 +676,28 @@ function buildFeed() {
     const bodyHtml = renderMarkdown(p.body).replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '');
     return `<item>
   <title>${escapeXml(p.title)}</title>
-  <link>${SITE_URL}/archives/${p.slug}/</link>
-  <guid isPermaLink="true">${SITE_URL}/archives/${p.slug}/</guid>
+  <link>${SITE_URL}${withBase(`/archives/${p.slug}/`)}</link>
+  <guid isPermaLink="true">${SITE_URL}${withBase(`/archives/${p.slug}/`)}</guid>
   <pubDate>${p.date.toUTCString()}</pubDate>
   <author>${escapeXml(site.author)}</author>
   <description><![CDATA[${escapeXml(bodyHtml)}]]></description>
 </item>`;
   }).join('');
   return `<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link><description>${escapeXml(site.description)}</description><docs>http://www.rssboard.org/rss-specification</docs><generator>blog-replica</generator><image><url>${SITE_URL}/logo.png</url><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link></image><language>${site.lang}</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate><pubDate>${new Date().toUTCString()}</pubDate>${items}</channel></rss>`;
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link><description>${escapeXml(site.description)}</description><docs>http://www.rssboard.org/rss-specification</docs><generator>blog-replica</generator><image><url>${SITE_URL}${withBase(`/logo.png`)}</url><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link></image><language>${site.lang}</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate><pubDate>${new Date().toUTCString()}</pubDate>${items}</channel></rss>`;
 }
 
 function buildAtom() {
   const items = _posts.slice(0, 20).map(p => `<entry>
   <title>${escapeXml(p.title)}</title>
-  <link href="${SITE_URL}/archives/${p.slug}/"/>
-  <id>${SITE_URL}/archives/${p.slug}/</id>
+  <link href="${SITE_URL}${withBase(`/archives/${p.slug}/`)}"/>
+  <id>${SITE_URL}${withBase(`/archives/${p.slug}/`)}</id>
   <updated>${p.date.toISOString()}</updated>
   <summary>${escapeXml(p.excerpt)}</summary>
   <author><name>${escapeXml(site.author)}</name></author>
 </entry>`).join('');
   return `<?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>${site.name}</title><link href="${SITE_URL}/" rel="alternate"/><id>${SITE_URL}/</id><updated>${new Date().toISOString()}</updated>${items}</feed>`;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>${site.name}</title><link href="${SITE_URL}${withBase(`/`)}" rel="alternate"/><id>${SITE_URL}/</id><updated>${new Date().toISOString()}</updated>${items}</feed>`;
 }
 
 // ---------- ExSearch 索引 ----------
@@ -703,7 +705,7 @@ function buildSearchIndex() {
   const posts = _posts.map(p => ({
     title: p.title,
     date: p.date.toISOString().slice(0, 16).replace('T', ' '),
-    path: `/archives/${p.slug}/`,
+    path: withBase(`/archives/${p.slug}/`),
     text: excerptFrom(p.body, 4000),
     tags: p.tags,
     categories: p.category ? [p.category] : [],
@@ -714,11 +716,11 @@ function buildSearchIndex() {
     const { body } = parseFrontmatter(readFileSync(aboutPath, 'utf-8'));
     aboutText = excerptFrom(body, 400);
   }
-  const pages = [{ title: 'About', path: '/about/', text: aboutText, tags: [], categories: [] }];
+  const pages = [{ title: 'About', path: withBase(`/about/`), text: aboutText, tags: [], categories: [] }];
   const catMap = {}, tagMap = {};
   posts.forEach(p => {
-    (p.categories || []).forEach(c => { catMap[c] = { name: c, slug: c, permalink: `/category/${encodeURIComponent(c)}/` }; });
-    (p.tags || []).forEach(t => { tagMap[t] = { name: t, slug: t, permalink: `/tag/${encodeURIComponent(t)}/` }; });
+    (p.categories || []).forEach(c => { catMap[c] = { name: c, slug: c, permalink: withBase(`/category/${encodeURIComponent(c)}/`) }; });
+    (p.tags || []).forEach(t => { tagMap[t] = { name: t, slug: t, permalink: withBase(`/tag/${encodeURIComponent(t)}/`) }; });
   });
   return JSON.stringify({
     posts,
@@ -738,7 +740,7 @@ function build404() {
   const html = headHtml(`404 - ${site.name}`) + shellStart() + `
 <div class="archive-title">404</div>
 <div class="archives-container">
-  <p>页面不存在。<a href="${SITE_URL}/">回到首页</a></p>
+  <p>页面不存在。<a href="${SITE_URL}${withBase(`/`)}">回到首页</a></p>
 </div>
 ` + shellEnd();
   return html;

@@ -5,10 +5,11 @@
     "description": "我要与你坦诚相见",
     "author": "我",
     "lang": "zh-CN",
-    "url": "https://USERNAME.github.io/",
+    "url": "https://anthony-hcy.github.io/Blog",
+    "base": "/Blog",
     "since": "2026-09-04",
     "social": {
-      "github": "https://github.com/USERNAME",
+      "github": "https://github.com/Anthony-hcy",
       "weibo": "",
       "twitter": ""
     }
