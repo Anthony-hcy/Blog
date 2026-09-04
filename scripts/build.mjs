@@ -223,6 +223,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
   <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
+  <link rel="stylesheet" href="${withBase(`/assets/fontawesome/all.min.css`)}">
   <script>
     window.ExSearchConfig = {
       root: '',
@@ -328,7 +329,6 @@ ${extraScripts}
 <script type="module" src="${withBase(`/assets/js/layout.js`)}"></script>
 <script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
 <script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>
-<script defer src="${withBase(`/assets/fontawesome/all.min.js`)}"></script>
 </body>
 </html>`;
 }
