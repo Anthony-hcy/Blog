@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, existsSync, statSync, rmSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { marked } from 'marked';
+import { marked } from '../vendor/marked.esm.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -494,14 +494,31 @@ function katexHead() {
 <link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}">`;
 }
 
+function navTitle(post) {
+  // memo 与原站一致：显示「作者: 摘要」而非标题
+  if (post.type === 'memo') {
+    return `${site.author}: ${excerptFrom(post.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`;
+  }
+  return post.title;
+}
+
 function postNav(prev, next) {
   const prevHtml = prev
-    ? `<a class="post-nav-item" href="${withBase(`/archives/${prev.slug}/`)}"><span class="post-nav-label">Previous</span><span class="post-nav-title">${escapeHtml(prev.title)}</span></a>`
-    : `<span class="post-nav-item is-empty"><span class="post-nav-label">Previous</span></span>`;
+    ? `<a class="nav-item" href="${withBase(`/archives/${prev.slug}/`)}">
+    <div class="nav-label">prev</div>
+    <div class="nav-title">${escapeHtml(navTitle(prev))}</div>
+  </a>`
+    : `<span class="nav-item"></span>`;
   const nextHtml = next
-    ? `<a class="post-nav-item" href="${withBase(`/archives/${next.slug}/`)}"><span class="post-nav-label">Next</span><span class="post-nav-title">${escapeHtml(next.title)}</span></a>`
-    : `<span class="post-nav-item is-empty"><span class="post-nav-label">Next</span></span>`;
-  return `<nav class="post-nav">${prevHtml}${nextHtml}</nav>`;
+    ? `<a class="nav-item" href="${withBase(`/archives/${next.slug}/`)}">
+    <div class="nav-label">next</div>
+    <div class="nav-title">${escapeHtml(navTitle(next))}</div>
+  </a>`
+    : `<span class="nav-item"></span>`;
+  return `<nav class="post-nav">
+  ${prevHtml}
+  ${nextHtml}
+</nav>`;
 }
 
 function buildPostPage(post, prev, next) {
@@ -533,9 +550,10 @@ function buildPostPage(post, prev, next) {
 <article class="article-body pswp-gallery">
 ${bodyHtml}
 </article>
-<div class="article-like-row">
+<div class="article-like-row article-like-row-end article-like-row-surface">
+  <div class="article-like-row-caption">Enjoyed this one?</div>
   <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
-  <span class="like-hint">Enjoyed this one?</span>
+  <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></span>
 </div>
 ${postNav(prev, next)}
 ` + shellEnd(scripts);

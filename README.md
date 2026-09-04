@@ -14,9 +14,8 @@
 ## 快速开始
 
 ```bash
-npm install
-npm run build     # 生成 dist/
-npm run serve     # 本地预览 http://localhost:8080
+node scripts/build.mjs   # 生成 dist/（无需安装依赖，marked 已 vendor）
+python -m http.server 8080 --directory dist   # 本地预览 http://localhost:8080
 ```
 
 ## 目录结构

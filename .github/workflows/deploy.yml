@@ -19,11 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
+      # 无 npm 依赖（marked 已 vendor 进 vendor/），无需 setup-node / npm ci
       - run: node scripts/build.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

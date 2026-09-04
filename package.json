@@ -6,9 +6,6 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "serve": "npx http-server dist -p 8080 -c-1"
-  },
-  "dependencies": {
-    "marked": "^15.0.6"
+    "serve": "python -m http.server 8080 --directory dist"
   }
 }
