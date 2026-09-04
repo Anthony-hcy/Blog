@@ -21,7 +21,12 @@ const PAGE_SIZE = 10;
 const site = JSON.parse(readFileSync(join(ROOT, 'site.config.json'), 'utf-8')).site;
 const SITE_URL = site.url.replace(/\/+$/, '');
 const BASE = (site.base || '').replace(/\/+$/, '');
-const withBase = (path) => (typeof path === 'string' && path.startsWith('/') ? BASE + path : path || '');
+const withBase = (path) => {
+  if (typeof path !== 'string' || !path.startsWith('/')) return path || '';
+  // 已含 base 前缀则不再叠加（幂等），避免 /Blog/Blog/
+  if (BASE && path.startsWith(BASE + '/')) return path;
+  return BASE + path;
+};
 const EXSEARCH_HASH = 'search-index';
 
 // ---------- frontmatter 解析（极简 YAML 子集） ----------
@@ -55,13 +60,16 @@ function parseFrontmatter(md) {
 // ---------- Markdown 渲染（图片 → pswp-item 结构，带真实尺寸） ----------
 marked.setOptions({ gfm: true, breaks: false });
 const renderer = new marked.Renderer();
-renderer.image = (href, title, text) => {
-  const dim = imageSize(href || '');
+// marked v15 的 image 渲染器只接收一个 token 对象（含 href/title/text 字段）
+renderer.image = (token) => {
+  const href = (token && token.href) || '';
+  const text = (token && token.text) || '';
+  const dim = imageSize(href);
   const sizeAttrs = dim
     ? ` data-pswp-width="${dim.width}" data-pswp-height="${dim.height}"`
     : '';
   const flex = dim ? Math.round((dim.width / dim.height) * 10000) / 100 : 50;
-  return `<figure class="pswp-item" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text || '')}" /></figure>`;
+  return `<figure class="pswp-item" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" /></figure>`;
 };
 
 function renderMarkdown(md) {
