@@ -330,6 +330,9 @@ function sideTags() {
 
 function shellEnd(extraScripts = '') {
   return `</main>
+        <footer class="site-footer">
+          <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
+        </footer>
         </div>
     </section>
 
@@ -508,7 +511,7 @@ function buildPostPage(post, prev, next) {
     <span class="article-meta-spacer"></span>
     <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
     <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></span>
-    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=publish&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
+    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </header>
 <article class="article-body pswp-gallery">
@@ -553,7 +556,7 @@ function buildMemoPage(post, prev, next) {
     <span class="memo-meta-spacer"></span>
     <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
     <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></span>
-    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=publish&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
+    <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </div>
 ${postNav(prev, next)}
@@ -722,6 +725,20 @@ function build404() {
   return html;
 }
 
+// Portal 管理页：与 about/archives 相同的博客框架（头部/侧边栏/页脚），主内容区挂载管理界面
+function buildPortalPage() {
+  const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css`)}">
+<meta name="theme-color" content="#f5f5f7">`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js`)}"></script>`;
+  const html = headHtml(`Blog Portal - ${site.name}`, {
+    pagePath: '/portal.html',
+    extraHead: extraHead,
+  }) + shellStart() + `
+<div id="portal-root"></div>
+` + shellEnd(scripts);
+  return html;
+}
+
 // ---------- 写文件 ----------
 function writePage(relPath, content) {
   const abs = join(DIST, relPath);
@@ -788,6 +805,7 @@ writePage('about/index.html', buildAboutPage());
 
 // 其他
 writePage('404.html', build404());
+writePage('portal.html', buildPortalPage());
 writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
 writePage('88x31/index.json', buildBadgesIndex());
 

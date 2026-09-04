@@ -1,4 +1,7 @@
-/* Blog Portal — 纯前端管理面板，通过 GitHub REST API 操作仓库中的文章与图片 */
+/* Blog Portal — 纯前端管理面板（GitHub REST API）
+   重构版：双栏实时预览编辑器 + 图片自动插入 + 全部图片库 */
+import { marked } from './marked.esm.js';
+
 (function () {
   'use strict';
 
@@ -13,10 +16,16 @@
   var POSTS_DIR = 'content/posts';
   var IMG_DIR = 'static/assets/img';
   var WORKFLOW = 'deploy.yml';
+  var IMG_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
+  // 站点基础路径（/Blog/portal.html → /Blog/）
+  var BASE = location.pathname.replace(/portal\.html.*$/, '');
+  var ASSET_PREFIX = BASE + 'assets/img/';
 
   var state = { token: '', repo: '', author: '' };
-  var currentPostSlug = null; // 编辑中的文章 slug
-  var currentImgSlug = ''; // 当前浏览图片目录
+  var currentPostSlug = null;   // 编辑中的文章 slug（null = 新建）
+  var allPosts = [];            // 全部文章缓存
+  var allImages = [];           // 全部图片缓存（Tree API）
+  var searchQuery = '';
 
   // ---------- DOM ----------
   function $(id) { return document.getElementById(id); }
@@ -37,7 +46,9 @@
     signin: $('portal-signin'),
     postsList: $('posts-list'),
     postsCount: $('posts-count'),
+    postsSearch: $('posts-search'),
     btnNewPost: $('btn-new-post'),
+    editorStatus: $('editor-status'),
     edit: {
       title: $('edit-title'),
       slug: $('edit-slug'),
@@ -49,18 +60,31 @@
       banner: $('edit-banner'),
       body: $('edit-body'),
     },
+    editPreview: $('edit-preview'),
+    btnInsertImage: $('btn-insert-image'),
     btnCancelEdit: $('btn-cancel-edit'),
     btnSavePost: $('btn-save-post'),
     imgSlug: $('img-slug'),
     imgFile: $('img-file'),
+    btnBrowse: $('btn-browse'),
+    imgFileName: $('img-file-name'),
     btnUpload: $('btn-upload'),
     imgProgress: $('img-progress'),
-    imgDirLabel: $('img-dir-label'),
+    imgTotal: $('img-total'),
     imagesGrid: $('images-grid'),
     statusBuild: $('status-build'),
     statusCommit: $('status-commit'),
+    statusChanges: $('status-changes'),
     btnRebuild: $('btn-rebuild'),
     btnCommit: $('btn-commit'),
+    picker: $('img-picker'),
+    pickerScrim: $('img-picker-scrim'),
+    pickerClose: $('img-picker-close'),
+    pickerBrowse: $('picker-browse'),
+    pickerFile: $('picker-file'),
+    pickerFileName: $('picker-file-name'),
+    pickerProgress: $('picker-progress'),
+    pickerGrid: $('picker-grid'),
     toast: $('portal-toast'),
   };
 
@@ -83,6 +107,10 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  function safeSlug(s) {
+    return String(s || '').trim().replace(/[^a-zA-Z0-9\-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  }
+
   function formatDate(d) {
     if (!d) return '';
     var pad = function (n) { return n < 10 ? '0' + n : String(n); };
@@ -96,6 +124,14 @@
     document.querySelectorAll('.portal-tab').forEach(function (tab) {
       tab.classList.toggle('is-active', tab.dataset.tab === name);
     });
+    // 编辑页放宽容器（.portal-shell.is-editing → max-width 960px）
+    var shell = document.querySelector('.portal-shell');
+    if (shell) shell.classList.toggle('is-editing', name === 'edit');
+  }
+
+  // 图片仓库路径 → 站点访问 URL
+  function imgUrl(repoPath) {
+    return ASSET_PREFIX + repoPath.replace(IMG_DIR + '/', '');
   }
 
   // ---------- GitHub API ----------
@@ -115,7 +151,6 @@
       headers: headers,
       body: options.body,
     }).then(function (res) {
-      // 204 No Content（如 workflow_dispatch）没有响应体
       if (res.status === 204) return {};
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok) {
@@ -138,21 +173,14 @@
   function putFile(path, content, message) {
     return gh('/repos/' + state.repo + '/contents/' + path, {
       method: 'PUT',
-      body: {
-        message: message,
-        content: btoa(unescape(encodeURIComponent(content))),
-      },
+      body: { message: message, content: btoa(unescape(encodeURIComponent(content))) },
     });
   }
 
   function updateFile(path, content, message, sha) {
     return gh('/repos/' + state.repo + '/contents/' + path, {
       method: 'PUT',
-      body: {
-        message: message,
-        content: btoa(unescape(encodeURIComponent(content))),
-        sha: sha,
-      },
+      body: { message: message, content: btoa(unescape(encodeURIComponent(content))), sha: sha },
     });
   }
 
@@ -163,7 +191,7 @@
     });
   }
 
-  // ---------- frontmatter 序列化（与 build.mjs 解析器兼容） ----------
+  // ---------- frontmatter ----------
   function buildPostMarkdown(data) {
     var lines = ['---'];
     lines.push('title: ' + data.title);
@@ -181,23 +209,50 @@
     return lines.join('\n');
   }
 
-  // ---------- 页面渲染 ----------
+  function parseFrontmatter(raw) {
+    var data = {};
+    var body = raw;
+    var fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+    if (fm) {
+      fm[1].split(/\r?\n/).forEach(function (line) {
+        var idx = line.indexOf(':');
+        if (idx < 0) return;
+        var key = line.slice(0, idx).trim();
+        var val = line.slice(idx + 1).trim();
+        if (/^\[.*\]$/.test(val)) {
+          val = val.slice(1, -1).split(',').map(function (s) { return s.trim().replace(/^['"]|['"]$/g, ''); }).filter(Boolean);
+        } else {
+          val = val.replace(/^['"]|['"]$/g, '');
+        }
+        data[key] = val;
+      });
+      body = raw.slice(fm[0].length);
+    }
+    return { data: data, body: body.replace(/^\r?\n/, '') };
+  }
+
+  // ---------- Posts ----------
   function renderPosts(posts) {
-    el.postsCount.textContent = posts.length + ' posts';
+    var list = posts.filter(function (p) {
+      if (!searchQuery) return true;
+      return p.title.toLowerCase().indexOf(searchQuery) >= 0;
+    });
+    el.postsCount.textContent = list.length + ' / ' + posts.length + ' posts';
     el.postsList.innerHTML = '';
-    posts.forEach(function (p) {
+    list.forEach(function (p) {
       var item = document.createElement('div');
       item.className = 'post-item';
-      var typeBadge = p.type === 'memo'
-        ? '<span class="post-item-type">memo</span>'
-        : '';
       item.innerHTML =
         '<div class="post-item-main">' +
           '<div class="post-item-title">' + esc(p.title) + '</div>' +
-          '<div class="post-item-meta">' + typeBadge + esc(p.slug) + ' · ' + esc(p.dateText) + '</div>' +
+          '<div class="post-item-meta">' +
+            '<span class="post-item-type">' + (p.type === 'memo' ? 'memo' : 'post') + '</span>' +
+            '&nbsp;&nbsp;' + esc(p.dateFull || p.dateText) +
+            (p.category ? '&nbsp;&nbsp;' + esc(p.category) : '') +
+            '&nbsp;&nbsp;<span class="post-item-status">publish</span>' +
+          '</div>' +
         '</div>' +
         '<div class="post-item-actions">' +
-          '<button class="portal-btn" data-act="images" data-slug="' + esc(p.slug) + '" type="button">Images</button>' +
           '<button class="portal-btn" data-act="edit" data-slug="' + esc(p.slug) + '" type="button">Edit</button>' +
           '<button class="portal-btn" data-act="delete" data-slug="' + esc(p.slug) + '" type="button">Delete</button>' +
         '</div>';
@@ -212,83 +267,54 @@
         return getFile(POSTS_DIR + '/' + f.name).then(function (fileData) {
           var raw = '';
           try { raw = decodeURIComponent(escape(atob(fileData.content))); } catch (_) {}
-          var fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-          var data = {};
-          if (fm) {
-            fm[1].split(/\r?\n/).forEach(function (line) {
-              var idx = line.indexOf(':');
-              if (idx < 0) return;
-              data[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
-            });
-          }
+          var parsed = parseFrontmatter(raw);
+          var d = parsed.data;
           return {
             slug: f.name.replace(/\.md$/, ''),
-            title: data.title || f.name,
-            type: data.type === 'memo' ? 'memo' : 'post',
-            dateText: (data.date || '').slice(0, 10),
+            title: d.title || f.name,
+            type: d.type === 'memo' ? 'memo' : 'post',
+            dateText: (d.date || '').slice(0, 10),
+            dateFull: d.date || '',
+            category: d.category || '',
+            tags: Array.isArray(d.tags) ? d.tags : [],
+            excerpt: d.excerpt || '',
+            banner: d.banner || '',
+            body: parsed.body,
             sha: fileData.sha,
           };
         });
       }));
     }).then(function (posts) {
-      posts.sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
-      renderPosts(posts);
+      allPosts = posts.sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
+      renderPosts(allPosts);
     }).catch(function (e) {
       toast('加载文章失败: ' + e.message, true);
       renderPosts([]);
     });
   }
 
-  function fillEditForm(post) {
-    currentPostSlug = post ? post.slug : '';
-    el.edit.title.value = post ? post.title : '';
-    el.edit.slug.value = post ? post.slug : '';
-    el.edit.type.value = post && post.type === 'memo' ? 'memo' : 'post';
-    el.edit.category.value = post ? (post.category || '') : '';
-    el.edit.tags.value = post && post.tags ? post.tags.join(', ') : '';
-    el.edit.excerpt.value = post ? (post.excerpt || '') : '';
-    el.edit.banner.value = post ? (post.banner || '') : '';
-    el.edit.body.value = post ? post.body : '';
-    var d = post && post.date ? new Date(post.date.replace(' ', 'T')) : new Date();
-    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
-    el.edit.date.value = isNaN(d.getTime())
-      ? ''
-      : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  }
-
   function loadPostForEdit(slug) {
     getFile(POSTS_DIR + '/' + slug + '.md').then(function (fileData) {
       var raw = '';
       try { raw = decodeURIComponent(escape(atob(fileData.content))); } catch (_) {}
-      var fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-      var data = {};
-      var body = raw;
-      if (fm) {
-        fm[1].split(/\r?\n/).forEach(function (line) {
-          var idx = line.indexOf(':');
-          if (idx < 0) return;
-          var key = line.slice(0, idx).trim();
-          var val = line.slice(idx + 1).trim();
-          if (/^\[.*\]$/.test(val)) {
-            val = val.slice(1, -1).split(',').map(function (s) { return s.trim().replace(/^['"]|['"]$/g, ''); }).filter(Boolean);
-          } else {
-            val = val.replace(/^['"]|['"]$/g, '');
-          }
-          data[key] = val;
-        });
-        body = raw.slice(fm[0].length);
-      }
-      fillEditForm({
-        slug: slug,
-        title: data.title || '',
-        date: data.date || '',
-        type: data.type || 'post',
-        category: data.category || '',
-        tags: Array.isArray(data.tags) ? data.tags : [],
-        excerpt: data.excerpt || '',
-        banner: data.banner || '',
-        body: body.replace(/^\r?\n/, ''),
-      });
+      var parsed = parseFrontmatter(raw);
+      var d = parsed.data;
+      currentPostSlug = slug;
+      el.edit.title.value = d.title || '';
+      el.edit.slug.value = slug;
+      el.edit.type.value = d.type === 'memo' ? 'memo' : 'post';
+      el.edit.category.value = d.category || '';
+      el.edit.tags.value = Array.isArray(d.tags) ? d.tags.join(', ') : String(d.tags || '');
+      el.edit.excerpt.value = d.excerpt || '';
+      el.edit.banner.value = d.banner || '';
+      el.edit.body.value = parsed.body;
+      var dt = d.date ? new Date(String(d.date).replace(' ', 'T')) : new Date();
+      var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+      el.edit.date.value = isNaN(dt.getTime())
+        ? ''
+        : dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()) + 'T' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+      el.editorStatus.textContent = 'Editing: ' + slug;
+      updatePreview();
       showView('edit');
       window.scrollTo(0, 0);
     }).catch(function (e) {
@@ -296,8 +322,23 @@
     });
   }
 
-  function safeSlug(s) {
-    return String(s || '').trim().replace(/[^a-zA-Z0-9\-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  function fillNewPostForm() {
+    currentPostSlug = null;
+    el.edit.title.value = '';
+    el.edit.slug.value = '';
+    el.edit.type.value = 'post';
+    el.edit.category.value = '';
+    el.edit.tags.value = '';
+    el.edit.excerpt.value = '';
+    el.edit.banner.value = '';
+    el.edit.body.value = '';
+    var d = new Date();
+    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+    el.edit.date.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    el.editorStatus.textContent = 'New post';
+    updatePreview();
+    showView('edit');
+    window.scrollTo(0, 0);
   }
 
   function savePost() {
@@ -317,10 +358,10 @@
       body: el.edit.body.value,
     });
     var path = POSTS_DIR + '/' + slug + '.md';
-    var msg = 'Post: ' + slug;
+    var msg = (currentPostSlug ? 'Update post: ' : 'New post: ') + slug;
 
     el.btnSavePost.disabled = true;
-    // 若已存在则先取 sha
+    el.editorStatus.textContent = 'Saving…';
     getFile(path).then(function (fileData) {
       return updateFile(path, md, msg, fileData.sha);
     }).catch(function (e) {
@@ -329,12 +370,15 @@
       }
       throw e;
     }).then(function () {
-      toast('已保存并提交，等待自动构建…');
       el.btnSavePost.disabled = false;
+      el.editorStatus.textContent = 'Saved ✓';
+      toast('已保存并提交，等待自动构建…');
       loadPosts();
-      showView('posts');
+      currentPostSlug = slug;
+      setTimeout(function () { el.editorStatus.textContent = 'Editing: ' + slug; }, 2500);
     }).catch(function (e) {
       el.btnSavePost.disabled = false;
+      el.editorStatus.textContent = 'Save failed';
       toast('保存失败: ' + e.message, true);
     });
   }
@@ -351,48 +395,76 @@
     });
   }
 
-  // ---------- Images ----------
-  function renderImages(files) {
+  // ---------- 编辑器预览 ----------
+  var previewTimer = null;
+  function updatePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(function () {
+      try {
+        el.editPreview.innerHTML = marked.parse(el.edit.body.value || '');
+      } catch (e) {
+        el.editPreview.innerHTML = '<p style="color:var(--p-danger)">预览渲染失败</p>';
+      }
+    }, 200);
+  }
+
+  function insertMarkdownAtCursor(mdText) {
+    var ta = el.edit.body;
+    var start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+    var end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ta.value.length;
+    ta.setRangeText(mdText, start, end, 'end');
+    ta.focus();
+    updatePreview();
+  }
+
+  // ---------- Images（全部图片库） ----------
+  function loadAllImages() {
+    return gh('/repos/' + state.repo + '/git/trees/main?recursive=1').then(function (tree) {
+      var items = (tree.tree || []).filter(function (n) {
+        return n.type === 'blob' &&
+          n.path.indexOf(IMG_DIR + '/') === 0 &&
+          IMG_EXT.test(n.path);
+      });
+      allImages = items.map(function (n) {
+        return {
+          repoPath: n.path,
+          name: n.path.split('/').pop(),
+          dir: n.path.replace(IMG_DIR + '/', '').replace(/\/[^/]+$/, ''),
+          url: imgUrl(n.path),
+        };
+      }).sort(function (a, b) { return a.dir.localeCompare(b.dir) || a.name.localeCompare(b.name); });
+      return allImages;
+    });
+  }
+
+  function renderImagesGrid(images) {
     el.imagesGrid.innerHTML = '';
-    var safeSlugEnc = encodeURIComponent(safeSlug(currentImgSlug));
-    (files || []).forEach(function (f) {
+    (images || []).forEach(function (img) {
       var cell = document.createElement('div');
       cell.className = 'img-cell';
-      var ext = f.name.toLowerCase();
-      var isImg = /\.(png|jpe?g|gif|webp|svg|avif)$/.test(ext);
-      var src = isImg ? ('/assets/img/' + safeSlugEnc + '/' + encodeURIComponent(f.name)) : '';
       cell.innerHTML =
-        (isImg ? '<img src="' + src + '" alt="" loading="lazy">' : '<div class="img-cell-name">' + esc(f.name) + '</div>') +
-        '<div class="img-cell-name">' + esc(f.name) + '</div>' +
+        '<img src="' + esc(img.url) + '" alt="" loading="lazy">' +
+        '<div class="img-cell-name">' + esc(img.dir + '/' + img.name) + '</div>' +
         '<div class="img-cell-actions">' +
-          '<button class="portal-btn" data-act="copymd" data-name="' + esc(f.name) + '" type="button">Copy MD</button>' +
-          '<button class="portal-btn" data-act="delimg" data-name="' + esc(f.name) + '" data-sha="' + esc(f.sha) + '" type="button">Delete</button>' +
+          '<button class="portal-btn" data-act="copymd" data-url="' + esc(img.url) + '" type="button">Copy MD</button>' +
+          '<button class="portal-btn" data-act="toeditor" data-url="' + esc(img.url) + '" data-name="' + esc(img.name) + '" type="button">插入正文</button>' +
+          '<button class="portal-btn" data-act="delimg" data-name="' + esc(img.name) + '" data-repopath="' + esc(img.repoPath) + '" type="button">Delete</button>' +
         '</div>';
       el.imagesGrid.appendChild(cell);
     });
   }
 
-  function loadImages(slug) {
-    currentImgSlug = slug;
-    el.imgSlug.value = slug;
-    el.imgDirLabel.textContent = 'static/assets/img/' + slug + '/';
-    listDir(IMG_DIR + '/' + slug).then(function (files) {
-      renderImages(files || []);
+  function refreshImages() {
+    loadAllImages().then(function (images) {
+      el.imgTotal.textContent = '(' + images.length + ')';
+      renderImagesGrid(images);
     }).catch(function (e) {
-      if (e.message.indexOf('404') >= 0) {
-        renderImages([]);
-      } else {
-        toast('加载图片失败: ' + e.message, true);
-      }
+      toast('加载图片失败: ' + e.message, true);
     });
   }
 
-  function uploadImages() {
-    var slug = el.imgSlug.value.trim();
-    if (!slug) { toast('请填写 post slug', true); return; }
-    var files = el.imgFile.files;
-    if (!files || !files.length) { toast('请选择图片', true); return; }
-
+  function uploadFiles(files, dir, progressEl) {
+    if (!files || !files.length) { toast('请选择图片', true); return Promise.reject(); }
     var tasks = [];
     for (var i = 0; i < files.length; i++) {
       (function (file) {
@@ -401,7 +473,7 @@
           reader.onload = function () {
             var base64 = String(reader.result).split(',')[1] || '';
             var safeName = file.name.replace(/[^\w.\-]/g, '_');
-            var path = IMG_DIR + '/' + slug + '/' + safeName;
+            var path = IMG_DIR + '/' + dir + '/' + safeName;
             gh('/repos/' + state.repo + '/contents/' + path, {
               method: 'PUT',
               body: { message: 'Upload image: ' + safeName, content: base64 },
@@ -412,27 +484,93 @@
         }));
       })(files[i]);
     }
-
-    el.btnUpload.disabled = true;
-    el.imgProgress.hidden = false;
-    el.imgProgress.textContent = '上传中 0/' + tasks.length + ' …';
     var done = 0;
-    tasks.forEach(function (task) {
-      task.then(function () {
+    if (progressEl) { progressEl.hidden = false; progressEl.textContent = '上传中 0/' + tasks.length + ' …'; }
+    return Promise.all(tasks.map(function (task) {
+      return task.then(function () {
         done++;
-        el.imgProgress.textContent = '上传中 ' + done + '/' + tasks.length + ' …';
-        if (done === tasks.length) {
-          el.imgProgress.textContent = '上传完成';
-          el.btnUpload.disabled = false;
-          el.imgFile.value = '';
-          toast('图片已上传');
-          loadImages(slug);
-        }
-      }, function (e) {
-        el.btnUpload.disabled = false;
-        el.imgProgress.textContent = '';
-        toast('上传失败: ' + e.message, true);
+        if (progressEl) progressEl.textContent = '上传中 ' + done + '/' + tasks.length + ' …';
       });
+    })).then(function () {
+      if (progressEl) progressEl.textContent = '上传完成';
+      return tasks.length;
+    });
+  }
+
+  function uploadImagesMain() {
+    var slug = safeSlug(el.imgSlug.value);
+    var dir = slug || 'gallery';
+    el.btnUpload.disabled = true;
+    uploadFiles(el.imgFile.files, dir, el.imgProgress).then(function () {
+      el.btnUpload.disabled = false;
+      el.imgFile.value = '';
+      el.imgFileName.textContent = '选取文件：未选择文件';
+      toast('图片已上传到 ' + dir + '/');
+      refreshImages();
+    }).catch(function (e) {
+      el.btnUpload.disabled = false;
+      if (e && e.message) toast('上传失败: ' + e.message, true);
+    });
+  }
+
+  // ---------- 图片选择面板（编辑器内插入） ----------
+  function openPicker() {
+    el.picker.hidden = false;
+    el.pickerScrim.hidden = false;
+    renderPickerGrid();
+    // 若尚未加载过图片（首次打开），自动拉取
+    if (!allImages.length) {
+      loadAllImages().then(function () { renderPickerGrid(); }).catch(function () {});
+    }
+  }
+
+  function closePicker() {
+    el.picker.hidden = true;
+    el.pickerScrim.hidden = true;
+    el.pickerFile.value = '';
+    el.pickerFileName.textContent = '选取文件：未选择文件';
+    el.pickerProgress.hidden = true;
+  }
+
+  function renderPickerGrid() {
+    el.pickerGrid.innerHTML = '';
+    allImages.slice().reverse().slice(0, 24).forEach(function (img) {
+      var item = document.createElement('div');
+      item.className = 'picker-item';
+      item.title = img.dir + '/' + img.name;
+      item.innerHTML =
+        '<img src="' + esc(img.url) + '" alt="" loading="lazy">' +
+        '<div class="picker-item-name">' + esc(img.name) + '</div>';
+      item.addEventListener('click', function () {
+        var md = '![](' + img.url + ')';
+        insertMarkdownAtCursor(md);
+        closePicker();
+      });
+      el.pickerGrid.appendChild(item);
+    });
+  }
+
+  function uploadFromPicker() {
+    // 优先用当前编辑文章 slug（含新建时已填写的），否则 gallery
+    var dir = safeSlug(currentPostSlug) || safeSlug(el.edit.slug.value) || 'gallery';
+    el.pickerBrowse.disabled = true;
+    uploadFiles(el.pickerFile.files, dir, el.pickerProgress).then(function (count) {
+      el.pickerBrowse.disabled = false;
+      el.pickerFile.value = '';
+      el.pickerFileName.textContent = '选取文件：未选择文件';
+      // 把刚上传的第一张插入光标处
+      var uploadedName = '';
+      // 从 Tree API 重新拉取后插入最新一张
+      return loadAllImages().then(function () {
+        renderPickerGrid();
+        var last = allImages[allImages.length - 1];
+        if (last && last.dir === dir) {
+          insertMarkdownAtCursor('![](' + last.url + ')');
+        }
+      });
+    }).catch(function (e) {
+      el.pickerBrowse.disabled = false;
+      if (e && e.message) toast('上传失败: ' + e.message, true);
     });
   }
 
@@ -446,7 +584,6 @@
     }).catch(function () {
       el.statusCommit.textContent = '获取失败';
     });
-
     gh('/repos/' + state.repo + '/actions/workflows/' + WORKFLOW + '/runs?per_page=3').then(function (data) {
       var runs = data.workflow_runs || [];
       if (!runs.length) {
@@ -454,11 +591,9 @@
         return;
       }
       var latest = runs[0];
-      var status = latest.status === 'completed'
-        ? latest.conclusion || 'completed'
-        : latest.status;
-      el.statusBuild.textContent = status + ' @ ' + latest.head_sha.slice(0, 7);
-    }).catch(function (e) {
+      el.statusBuild.textContent = (latest.status === 'completed' ? (latest.conclusion || 'completed') : latest.status) +
+        ' @ ' + latest.head_sha.slice(0, 7);
+    }).catch(function () {
       el.statusBuild.textContent = '获取失败';
     });
   }
@@ -491,6 +626,8 @@
       el.account.textContent = state.repo;
       showView('posts');
       loadPosts();
+      refreshImages();
+      loadStatus();
     } else {
       showView('login');
     }
@@ -525,24 +662,30 @@
     tab.addEventListener('click', function () {
       var name = tab.dataset.tab;
       showView(name);
-      if (name === 'posts') loadPosts();
-      if (name === 'images') loadImages(currentImgSlug || '');
+      if (name === 'posts') renderPosts(allPosts);
+      if (name === 'edit') { if (!currentPostSlug && !el.edit.title.value) fillNewPostForm(); else updatePreview(); }
+      if (name === 'images') refreshImages();
       if (name === 'status') loadStatus();
-      if (name === 'edit' && !currentPostSlug) fillEditForm(null);
     });
   });
 
   el.signin.addEventListener('click', signIn);
   el.signout.addEventListener('click', signOut);
-  el.btnNewPost.addEventListener('click', function () {
-    currentPostSlug = '';
-    fillEditForm(null);
-    showView('edit');
-  });
-  el.btnCancelEdit.addEventListener('click', function () {
-    showView('posts');
-  });
+  el.btnNewPost.addEventListener('click', fillNewPostForm);
+  el.btnCancelEdit.addEventListener('click', function () { showView('posts'); });
   el.btnSavePost.addEventListener('click', savePost);
+  el.postsSearch.addEventListener('input', function () {
+    searchQuery = el.postsSearch.value.trim().toLowerCase();
+    renderPosts(allPosts);
+  });
+
+  // 编辑器正文输入 → 实时预览
+  ['title', 'slug', 'type', 'category', 'tags', 'excerpt', 'banner', 'body'].forEach(function (field) {
+    var node = el.edit[field];
+    if (node && field === 'body') {
+      node.addEventListener('input', updatePreview);
+    }
+  });
 
   el.postsList.addEventListener('click', function (e) {
     var btn = e.target.closest('button[data-act]');
@@ -550,31 +693,64 @@
     var act = btn.dataset.act;
     var slug = btn.dataset.slug;
     if (act === 'edit') loadPostForEdit(slug);
-    if (act === 'images') { showView('images'); loadImages(slug); }
     if (act === 'delete') deletePost(slug);
   });
 
-  el.btnUpload.addEventListener('click', uploadImages);
+  // Images 页操作
+  el.btnBrowse.addEventListener('click', function () { el.imgFile.click(); });
+  el.imgFile.addEventListener('change', function () {
+    var files = el.imgFile.files;
+    el.imgFileName.textContent = files && files.length
+      ? '选取文件：' + Array.from(files).map(function (f) { return f.name; }).join(', ')
+      : '选取文件：未选择文件';
+  });
+  el.btnUpload.addEventListener('click', uploadImagesMain);
 
   el.imagesGrid.addEventListener('click', function (e) {
     var btn = e.target.closest('button[data-act]');
     if (!btn) return;
     var act = btn.dataset.act;
-    var name = btn.dataset.name;
     if (act === 'copymd') {
-      var md = '![' + name.replace(/\.[^.]+$/, '') + '](/assets/img/' + currentImgSlug + '/' + name + ')';
+      var md = '![](' + btn.dataset.url + ')';
       (navigator.clipboard ? navigator.clipboard.writeText(md) : Promise.reject())
         .then(function () { toast('已复制 Markdown 引用'); })
         .catch(function () { toast('复制失败，请手动复制'); });
     }
+    if (act === 'toeditor') {
+      var md2 = '![](' + btn.dataset.url + ')';
+      insertMarkdownAtCursor(md2);
+      showView('edit');
+      toast('已插入到正文');
+    }
     if (act === 'delimg') {
-      if (!window.confirm('确定删除图片 ' + name + ' 吗？')) return;
-      deleteFile(IMG_DIR + '/' + currentImgSlug + '/' + name, 'Delete image: ' + name, btn.dataset.sha)
-        .then(function () { toast('已删除'); loadImages(currentImgSlug); })
-        .catch(function (err) { toast('删除失败: ' + err.message, true); });
+      if (!window.confirm('确定删除图片 ' + btn.dataset.name + ' 吗？')) return;
+      var repoPath = btn.dataset.repopath;
+      var dirPart = repoPath.replace(IMG_DIR + '/', '');
+      var fileName = dirPart.split('/').pop();
+      var dir = dirPart.replace('/' + fileName, '');
+      getFile(repoPath).then(function (fd) {
+        return deleteFile(repoPath, 'Delete image: ' + fileName, fd.sha);
+      }).then(function () {
+        toast('已删除');
+        refreshImages();
+      }).catch(function (err) { toast('删除失败: ' + err.message, true); });
     }
   });
 
+  // 图片选择面板
+  el.btnInsertImage.addEventListener('click', openPicker);
+  el.pickerClose.addEventListener('click', closePicker);
+  el.pickerScrim.addEventListener('click', closePicker);
+  el.pickerBrowse.addEventListener('click', function () { el.pickerFile.click(); });
+  el.pickerFile.addEventListener('change', function () {
+    var files = el.pickerFile.files;
+    el.pickerFileName.textContent = files && files.length
+      ? '选取文件：' + Array.from(files).map(function (f) { return f.name; }).join(', ')
+      : '选取文件：未选择文件';
+    if (files && files.length) uploadFromPicker();
+  });
+
+  // Status
   el.btnRebuild.addEventListener('click', rebuildSite);
   el.btnCommit.addEventListener('click', function () {
     toast('文章/图片保存时已自动提交（Commit 由 GitHub API 完成）');

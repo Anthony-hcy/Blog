@@ -119,17 +119,8 @@
 .post-item-actions .portal-btn { flex: 1; padding: 7px 10px; font-size: 13px; border-radius: 999px; }
 
 /* --- Images 网格（2 列） --- */
-.images-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.img-cell { background: var(--p-card); border: 1px solid var(--p-border); border-radius: 10px; overflow: hidden; }
-.img-cell img { width: 100%; height: 110px; object-fit: cover; display: block; background: var(--p-bg); }
-.img-cell-name {
-  font-size: 11px; color: var(--p-text-2); padding: 6px 8px 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.img-cell-actions { display: flex; gap: 2px; padding: 0 8px 8px; }
-.img-cell-actions .portal-btn { background: none; border: 0; padding: 4px 6px; font-size: 12px; }
-.img-cell-actions [data-act="copymd"] { color: var(--p-accent); }
-.img-cell-actions [data-act="delimg"] { color: var(--p-danger); }
+.images-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.images-grid img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; display: block; }
 
 /* --- Status --- */
 .portal-stat-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--p-border); gap: 10px; }
@@ -167,99 +158,6 @@
   font-size: 14px; font-family: inherit; outline: none;
 }
 .portal-search:focus { border-color: var(--p-accent); }
-
-/* ========== 双栏编辑器 ========== */
-/* 编辑页放宽容器（仅 Edit 页签时 body 加 .is-editing 类切换） */
-.portal-shell.is-editing { max-width: 960px; }
-
-.editor-toolbar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin-bottom: 12px;
-}
-.editor-toolbar-spacer { flex: 1; }
-.editor-status { font-size: 13px; color: var(--p-text-2); }
-
-/* 默认单栏（防拥挤）；容器 ≥900px 时才双栏（容器查询，与视口无关） */
-.portal-shell { container-type: inline-size; }
-.editor-split {
-  display: grid; grid-template-columns: 1fr; gap: 14px;
-  align-items: start;
-}
-@container (min-width: 900px) {
-  .editor-split { grid-template-columns: 1fr 1fr; }
-}
-
-.editor-left { min-width: 0; }
-.editor-body-field textarea { min-height: 320px; }
-
-.editor-right {
-  position: sticky; top: 12px;
-  background: var(--p-card); border: 1px solid var(--p-border);
-  border-radius: var(--p-radius); padding: 16px 18px;
-  max-height: calc(100vh - 40px); overflow-y: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-/* 预览排版 */
-.editor-preview { font-size: 15px; line-height: 1.7; color: var(--p-text); word-break: break-word; }
-.editor-preview h1, .editor-preview h2, .editor-preview h3, .editor-preview h4 {
-  font-weight: 700; line-height: 1.3; margin: 1.2em 0 0.5em;
-}
-.editor-preview h1 { font-size: 24px; }
-.editor-preview h2 { font-size: 20px; }
-.editor-preview h3 { font-size: 17px; }
-.editor-preview h4 { font-size: 15px; }
-.editor-preview p { margin: 0.7em 0; }
-.editor-preview a { color: var(--p-accent); text-decoration: underline; }
-.editor-preview img { max-width: 100%; border-radius: 8px; margin: 0.6em 0; }
-.editor-preview pre {
-  background: var(--p-bg); border: 1px solid var(--p-border);
-  border-radius: 8px; padding: 12px; overflow-x: auto; margin: 0.8em 0;
-}
-.editor-preview code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px; background: var(--p-bg); padding: 2px 5px; border-radius: 4px;
-}
-.editor-preview pre code { background: none; padding: 0; }
-.editor-preview blockquote {
-  border-left: 3px solid var(--p-accent); margin: 0.8em 0;
-  padding: 4px 14px; color: var(--p-text-2); background: var(--p-bg);
-  border-radius: 0 8px 8px 0;
-}
-.editor-preview ul, .editor-preview ol { margin: 0.7em 0; padding-left: 1.6em; }
-.editor-preview li { margin: 0.25em 0; }
-.editor-preview hr { border: 0; border-top: 1px solid var(--p-border); margin: 1.2em 0; }
-.editor-preview table { border-collapse: collapse; margin: 0.8em 0; width: 100%; }
-.editor-preview th, .editor-preview td { border: 1px solid var(--p-border); padding: 6px 10px; }
-.editor-preview th { background: var(--p-bg); }
-.editor-preview del { color: var(--p-text-3); }
-
-/* ========== 图片选择面板 ========== */
-.img-picker {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(760px, 92vw); max-height: 80vh;
-  background: var(--p-card); border: 1px solid var(--p-border);
-  border-radius: 14px; z-index: 120; display: flex; flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-}
-.img-picker-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--p-border);
-  font-size: 15px; font-weight: 600;
-}
-.img-picker-close { background: none; border: 0; font-size: 16px; cursor: pointer; color: var(--p-text-2); }
-.img-picker-body { padding: 14px 16px; overflow-y: auto; }
-.picker-hint { font-size: 13px; color: var(--p-text-2); margin: 12px 0 8px; }
-.picker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 560px) { .picker-grid { grid-template-columns: repeat(3, 1fr); } }
-.picker-item { cursor: pointer; border: 2px solid transparent; border-radius: 8px; overflow: hidden; transition: border-color .15s; }
-.picker-item:hover { border-color: var(--p-accent); }
-.picker-item img { width: 100%; height: 80px; object-fit: cover; display: block; background: var(--p-bg); }
-.picker-item-name { font-size: 10px; color: var(--p-text-2); padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.img-picker-scrim {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 110;
-}
 
 /* ========== 图片库总数 ========== */
 .img-total { font-size: 13px; color: var(--p-text-2); font-weight: 400; }
