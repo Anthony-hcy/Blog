@@ -1,0 +1,16 @@
+{
+  "site": {
+    "name": "我的博客",
+    "subtitle": "我要与你坦诚相见",
+    "description": "我要与你坦诚相见",
+    "author": "我",
+    "lang": "zh-CN",
+    "url": "https://USERNAME.github.io/",
+    "since": "2026-09-04",
+    "social": {
+      "github": "https://github.com/USERNAME",
+      "weibo": "",
+      "twitter": ""
+    }
+  }
+}

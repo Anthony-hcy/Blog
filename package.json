@@ -1,0 +1,14 @@
+{
+  "name": "blog-replica",
+  "version": "1.0.0",
+  "description": "A static blog replica (AtWill-style) deployed on GitHub Pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "npx http-server dist -p 8080 -c-1"
+  },
+  "dependencies": {
+    "marked": "^15.0.6"
+  }
+}
