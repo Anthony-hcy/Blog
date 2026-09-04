@@ -235,9 +235,8 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <link rel="icon" type="image/png" href="${withBase(`/favicon-96x96.png`)}" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="${withBase(`/favicon.svg`)}" />
-  <link rel="shortcut icon" href="${withBase(`/favicon.ico`)}" />
+  <link rel="icon" type="image/jpeg" href="${withBase(`/favicon.jpg`)}?v=2" />
+  <link rel="shortcut icon" href="${withBase(`/favicon.jpg`)}?v=2" />
   <link rel="apple-touch-icon" sizes="180x180" href="${withBase(`/apple-touch-icon.png`)}" />
   <meta name="apple-mobile-web-app-title" content="${site.name}" />
   <link rel="manifest" href="${withBase(`/site.webmanifest`)}" />
@@ -259,15 +258,6 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="twitter:card" content="summary">
 </head>
 <body data-about-url="${withBase(`/about/`)}"${bodyData}>`;
-}
-
-function topNav() {
-  return `<nav class="top-nav" aria-label="Site navigation">
-  <a class="top-nav-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self">Home</a>
-  <a class="top-nav-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self">Archives</a>
-  <a class="top-nav-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self">About</a>
-  <a class="top-nav-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" href="${withBase(`/portal.html`)}" target="_self" aria-hidden="true" style="display:none">Portal</a>
-</nav>`;
 }
 
 function shellStart() {
@@ -292,18 +282,75 @@ function shellStart() {
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
             <span class="sr-only">search</span>
           </a>
+          <button class="mobile-menu-toggle js-menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu-panel" aria-label="Open side menu">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            <span class="sr-only">menu</span>
+          </button>
         </div>
       </header>
-      ${topNav()}
       <div class="container">
         <main class="layout-main">`;
 }
 
+function sideInSite() {
+  return `<section class="side-panel side-in-site">
+    <h2><i class="fa-solid fa-compass panel-icon" aria-hidden="true"></i>In Site</h2>
+    <nav class="in-site-links" aria-label="In site navigation">
+      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
+      <a href="${withBase(`/portal.html`)}" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
+    </nav>
+  </section>`;
+}
+
+function sideCategories() {
+  const cats = categoriesWithCount();
+  const items = cats.map(c => `
+      <a href="${withBase(`/category/${encodeURIComponent(c.name)}/`)}" target="_self">
+        ${escapeHtml(c.name)}<sup class="taxonomy-count">${c.count}</sup>
+      </a>`).join('');
+  return `<section class="side-panel">
+    <h2><i class="fa-solid fa-folder-open panel-icon" aria-hidden="true"></i>Categories</h2>
+    <div class="taxonomy-list">${items}</div>
+  </section>`;
+}
+
+function sideTags() {
+  const tags = tagsWithCount();
+  const items = tags.map(t => `
+      <a href="${withBase(`/tag/${encodeURIComponent(t.name)}/`)}" target="_self">
+        #${escapeHtml(t.name)}<sup class="taxonomy-count">${t.count}</sup>
+      </a>`).join('');
+  return `<section class="side-panel">
+    <h2><i class="fa-solid fa-hashtag panel-icon" aria-hidden="true"></i>Tags</h2>
+    <div class="taxonomy-list">${items}</div>
+  </section>`;
+}
+
 function shellEnd(extraScripts = '') {
   return `</main>
-      </div>
+        </div>
     </section>
+
+    <div class="app-side-column">
+      <aside class="mobile-menu-panel js-menu-panel" id="mobile-menu-panel" aria-hidden="true">
+        <div class="mobile-menu-head">
+          <span>Menu</span>
+          <button class="mobile-menu-close js-menu-close" type="button" aria-label="Close side menu">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            <span class="sr-only">close</span>
+          </button>
+        </div>
+        <div class="mobile-menu-body">
+          ${sideInSite()}
+          ${sideCategories()}
+          ${sideTags()}
+        </div>
+      </aside>
+    </div>
   </div>
+  <div class="mobile-menu-scrim js-menu-scrim" aria-hidden="true"></div>
 </div>
 
 ${extraScripts}
