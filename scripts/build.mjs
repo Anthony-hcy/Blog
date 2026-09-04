@@ -217,12 +217,11 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="alternate" type="application/rss+xml" title="${site.name} &raquo; RSS 2.0" href="${SITE_URL}/feed/index.xml">
-  <link rel="alternate" type="application/atom+xml" title="${site.name} &raquo; ATOM 1.0" href="${SITE_URL}/feed/atom/index.xml">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;600&display=swap">
   <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
   <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
+  <link rel="stylesheet" href="${withBase(`/assets/custom.css`)}">
   <link rel="stylesheet" href="${withBase(`/assets/fontawesome/all.min.css`)}">
   <script>
     window.ExSearchConfig = {
@@ -262,6 +261,15 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
 <body data-about-url="${withBase(`/about/`)}"${bodyData}>`;
 }
 
+function topNav() {
+  return `<nav class="top-nav" aria-label="Site navigation">
+  <a class="top-nav-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self">Home</a>
+  <a class="top-nav-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self">Archives</a>
+  <a class="top-nav-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self">About</a>
+  <a class="top-nav-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" href="${withBase(`/portal.html`)}" target="_self" aria-hidden="true" style="display:none">Portal</a>
+</nav>`;
+}
+
 function shellStart() {
   return `
 <div class="app-shell js-app-shell">
@@ -284,45 +292,18 @@ function shellStart() {
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
             <span class="sr-only">search</span>
           </a>
-          <button class="mobile-menu-toggle js-menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu-panel" aria-label="Open side menu">
-            <i class="fa-solid fa-bars" aria-hidden="true"></i>
-            <span class="sr-only">menu</span>
-          </button>
         </div>
       </header>
+      ${topNav()}
       <div class="container">
         <main class="layout-main">`;
 }
 
 function shellEnd(extraScripts = '') {
   return `</main>
-        <footer class="site-footer">
-          <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
-          <a href="${withBase(`/feed/index.xml`)}">RSS</a>
-        </footer>
       </div>
     </section>
-
-    <div class="app-side-column">
-      <aside class="mobile-menu-panel js-menu-panel" id="mobile-menu-panel" aria-hidden="true">
-        <div class="mobile-menu-head">
-          <span>Menu</span>
-          <button class="mobile-menu-close js-menu-close" type="button" aria-label="Close side menu">
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            <span class="sr-only">close</span>
-          </button>
-        </div>
-        <div class="mobile-menu-body">
-          ${sideInSite()}
-          ${sideSocial()}
-          ${sideBadges()}
-          ${sideCategories()}
-          ${sideTags()}
-        </div>
-      </aside>
-    </div>
   </div>
-  <div class="mobile-menu-scrim js-menu-scrim" aria-hidden="true"></div>
 </div>
 
 ${extraScripts}
@@ -331,70 +312,6 @@ ${extraScripts}
 <script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>
 </body>
 </html>`;
-}
-
-function sideInSite() {
-  return `<section class="side-panel side-in-site">
-    <h2><i class="fa-solid fa-compass panel-icon" aria-hidden="true"></i>In Site</h2>
-    <nav class="in-site-links" aria-label="In site navigation">
-      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="rss" href="${withBase(`/feed/index.xml`)}" target="_self"><i class="fa-solid fa-rss in-site-link-icon" aria-hidden="true"></i><span>RSS</span></a>
-      <a href="${withBase(`/portal.html`)}" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
-    </nav>
-  </section>`;
-}
-
-function sideSocial() {
-  const items = [];
-  if (site.social.weibo) items.push({ name: 'weibo', icon: 'fa-weibo', href: site.social.weibo });
-  if (site.social.twitter) items.push({ name: 'twitter', icon: 'fa-x-twitter', href: site.social.twitter });
-  if (site.social.github) items.push({ name: 'github', icon: 'fa-github', href: site.social.github });
-  const links = items.map(s => `
-      <a class="site-nav-link" href="${s.href}" aria-label="${s.name}" title="${s.name}" target="_blank">
-        <i class="fa-brands ${s.icon}" aria-hidden="true"></i>
-        <span class="sr-only">${s.name}</span>
-      </a>`).join('');
-  return `<section class="side-panel side-social">
-    <h2><i class="fa-solid fa-share-nodes panel-icon" aria-hidden="true"></i>Social</h2>
-    <nav class="site-nav" aria-label="Social links">
-      ${links}
-    </nav>
-  </section>`;
-}
-
-function sideBadges() {
-  return `<section class="side-panel side-badges">
-    <h2><i class="fa-solid fa-images panel-icon" aria-hidden="true"></i>88x31</h2>
-    <div class="badge-grid js-random-badges" data-badge-source="${withBase(`/88x31/index.json`)}" data-badge-limit="4">
-      <span class="badge-88x31-loading">Loading...</span>
-    </div>
-  </section>`;
-}
-
-function sideCategories() {
-  const cats = categoriesWithCount();
-  const items = cats.map(c => `
-      <a href="${withBase(`/category/${encodeURIComponent(c.name)}/`)}" target="_self">
-        ${c.name}<sup class="taxonomy-count">${c.count}</sup>
-      </a>`).join('');
-  return `<section class="side-panel">
-    <h2><i class="fa-solid fa-folder-open panel-icon" aria-hidden="true"></i>Categories</h2>
-    <div class="taxonomy-list">${items}</div>
-  </section>`;
-}
-
-function sideTags() {
-  const tags = tagsWithCount();
-  const items = tags.map(t => `
-      <a href="${withBase(`/tag/${encodeURIComponent(t.name)}/`)}" target="_self">
-        #${t.name}<sup class="taxonomy-count">${t.count}</sup>
-      </a>`).join('');
-  return `<section class="side-panel">
-    <h2><i class="fa-solid fa-tag panel-icon" aria-hidden="true"></i>Tags</h2>
-    <div class="taxonomy-list">${items}</div>
-  </section>`;
 }
 
 // ---------- feed 条目 ----------
@@ -824,8 +741,6 @@ writePage('about/index.html', buildAboutPage());
 
 // 其他
 writePage('404.html', build404());
-writePage('feed/index.xml', buildFeed());
-writePage('feed/atom/index.xml', buildAtom());
 writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
 writePage('88x31/index.json', buildBadgesIndex());
 

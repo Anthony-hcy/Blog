@@ -1,0 +1,48 @@
+/* custom.css — 布局定制：无侧边栏，顶栏导航 */
+.app-side-column { display: none; }
+.mobile-menu-toggle { display: none !important; }
+.mobile-menu-scrim { display: none !important; }
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--rule-light);
+  background: rgba(10, 9, 7, 0.6);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  position: sticky;
+  top: 65px;
+  z-index: 20;
+}
+.top-nav::-webkit-scrollbar { display: none; }
+
+.top-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: color .2s, background .2s;
+}
+.top-nav-link:hover { color: var(--accent); }
+.top-nav-link.is-active {
+  color: var(--accent);
+  background: var(--surface);
+}
+
+@media (max-width: 819px) {
+  .top-nav { top: 65px; padding: 5px 10px; }
+  .top-nav-link { font-size: 11px; padding: 5px 10px; }
+}
+
+/* 无侧边栏时主列自动全宽（app-layout 是 flex，main 已 flex:1） */
+.app-main-column { width: 100%; }
