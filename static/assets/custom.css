@@ -6,3 +6,10 @@
   --serif: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
   --sans: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
 }
+
+/* ===== 主页 memo：文字与图片左对齐（去掉原主题 48px 缩进） ===== */
+.entry-memo .memo-content { padding-left: 0; }
+
+/* ===== 说说位置标注（微信式，蓝色小字） ===== */
+.memo-location { margin-top: 10px; font-size: 13px; color: #0a84ff; }
+.memo-location i { margin-right: 4px; }

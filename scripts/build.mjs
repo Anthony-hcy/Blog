@@ -201,6 +201,7 @@ function loadPosts() {
       // 显示用日期（按原文+08:00 截取，避免 toISOString 的 UTC 偏移）：文章到日，说说带时分
       dateText: rawDate ? rawDate.replace('T', ' ').slice(0, type === 'memo' ? 16 : 10) : '',
       type,
+      location: data.location || '',
       category: data.category || '未分类',
       tags,
       excerpt: data.excerpt || excerptFrom(body),
@@ -423,6 +424,7 @@ function entryMemo(post) {
       </div>
     </div>
     <div class="memo-content">${contentHtml}</div>
+    ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
     ${photosHtml}
   </div>`;
 }
@@ -553,6 +555,7 @@ function buildMemoPage(post, prev, next) {
   }) + shellStart() + `
 <div class="memo-page pswp-gallery">
   <div class="memo-content">${contentHtml}</div>
+  ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
   ${photosHtml}
   <div class="memo-meta">
     <span>${post.dateText}</span>

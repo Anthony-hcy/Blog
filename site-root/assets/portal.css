@@ -30,9 +30,9 @@
 /* --- 顶部：标题 + Sign Out 蓝色链接 --- */
 .portal-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 4px 12px;
+  padding: 10px 4px 8px;
 }
-.portal-title { font-size: 26px; font-weight: 700; letter-spacing: 0.2px; color: var(--p-text); }
+.portal-title { font-size: 22px; font-weight: 700; letter-spacing: 0.2px; color: var(--p-text); }
 .portal-header-actions { display: flex; align-items: center; gap: 10px; }
 .portal-account { font-size: 13px; color: var(--p-text-2); }
 #portal-signout {

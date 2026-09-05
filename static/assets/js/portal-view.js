@@ -170,6 +170,7 @@
     if (data.tags && data.tags.length) lines.push('tags: [' + data.tags.join(', ') + ']');
     if (data.excerpt) lines.push('excerpt: ' + data.excerpt);
     if (data.banner) lines.push('banner: ' + data.banner);
+    if (data.location) lines.push('location: ' + data.location);
     lines.push('draft: false');
     lines.push('---');
     lines.push('');
@@ -243,9 +244,9 @@
       '#portal-root .editor-preview-md table { border-collapse:collapse; margin:0.8em 0; }',
       '#portal-root .editor-preview-md th, #portal-root .editor-preview-md td { border:1px solid var(--p-border); padding:6px 10px; }',
       '#portal-root .edit-card { padding:20px 18px 18px; }',
-      '#portal-root .memo-composer { background:var(--p-card); border:1px solid var(--p-border); border-radius:var(--p-radius); padding:14px 16px 18px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); }',
-      '#portal-root .memo-topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }',
-      '#portal-root .memo-topbar-btn { background:none; border:0; padding:6px 8px; font-size:16px; color:var(--p-text); cursor:pointer; }',
+      '#portal-root .memo-composer { background:var(--p-card); border:1px solid var(--p-border); border-radius:var(--p-radius); padding:8px 12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); }',
+      '#portal-root .memo-topbar { display:flex; justify-content:space-between; align-items:center; margin:0 -8px 6px; }',
+      '#portal-root .memo-topbar-btn { background:none; border:0; padding:6px 2px; font-size:16px; color:var(--p-text); cursor:pointer; }',
       '#portal-root .memo-publish-btn { background:#07c160; border:0; color:#fff; font-size:15px; font-weight:600; padding:9px 26px; border-radius:9px; cursor:pointer; }',
       '#portal-root .memo-publish-btn:disabled { opacity:.45; cursor:default; }',
       '#portal-root .memo-textarea { width:100%; min-height:150px; border:0; outline:none; resize:vertical; background:transparent; color:var(--p-text); font-family:inherit; font-size:17px; line-height:1.7; }',
@@ -255,6 +256,11 @@
       '#portal-root .memo-photos .memo-photo-rm { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; border:0; background:var(--p-danger); color:#fff; cursor:pointer; font-size:12px; line-height:1; }',
       '#portal-root .memo-photo-add { aspect-ratio:1/1; background:var(--p-btn-bg); border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:26px; color:var(--p-text-3); }',
       '#portal-root .memo-photo-add:hover { color:var(--p-accent); }',
+      '#portal-root .memo-loc-row { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--p-border); color:var(--p-text-3); }',
+      '#portal-root .memo-loc-input { flex:1; border:0; outline:none; background:transparent; font-size:15px; color:var(--p-text); }',
+      '#portal-root .memo-loc-input::placeholder { color:var(--p-text-3); }',
+      '#portal-root #btn-upload { min-width:44px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); color:var(--p-text); font-size:15px; }',
+      '#portal-root #btn-upload:hover { border-color:var(--p-accent); color:var(--p-accent); }',
       '#portal-root .portal-btn-lg { min-height:44px; padding:10px 22px; font-size:15px; border-radius:10px; }',
       '#portal-root .portal-edit-actions { display:flex; gap:10px; margin-top:14px; }',
       '#portal-root .portal-edit-actions .portal-btn { flex:1; }',
@@ -382,7 +388,7 @@
     portalRoot.innerHTML =
       '<div class="portal-shell' + (currentTab === 'edit' ? ' is-editing' : '') + '">' +
         '<header class="portal-header">' +
-          '<h1 class="portal-title">Blog Portal</h1>' +
+          '<h1 class="portal-title">Portal</h1>' +
           '<div class="portal-header-actions">' +
             '<span class="portal-account" id="portal-account" hidden></span>' +
             '<button id="portal-signout" type="button" hidden>Sign Out</button>' +
@@ -484,6 +490,10 @@
           '</div>' +
           '<textarea id="memo-text" class="memo-textarea" placeholder="这一刻的想法…"></textarea>' +
           '<div class="memo-photos" id="memo-photos"></div>' +
+          '<div class="memo-loc-row">' +
+            '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>' +
+            '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置">' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="portal-edit-actions">' +
@@ -496,8 +506,7 @@
   function renderImagesView() {
     return '<section class="portal-view" id="view-images" hidden>' +
       '<div class="portal-toolbar">' +
-        '<button class="portal-btn portal-btn-primary portal-btn-lg" id="btn-upload" type="button">⬆ 上传图片</button>' +
-        '<input type="text" id="img-slug" class="portal-search" placeholder="目录（留空存 gallery）">' +
+        '<button class="view-btn" id="btn-upload" type="button" title="上传图片"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>' +
         '<input type="file" id="img-file" multiple accept="image/*" style="display:none">' +
       '</div>' +
       '<div class="portal-progress" id="img-progress" hidden></div>' +
@@ -618,6 +627,12 @@
     if (name === 'posts') renderPosts(allPosts, '');
     if (name === 'images') { if (!allImages.length) loadAllImages().then(renderImages); else renderImages(); }
     if (name === 'status') loadStatus();
+    if (name === 'edit') {
+      // 手机端打开 Edit 默认进发说说；正在编辑的内容不被打断
+      var isEmpty = !editingSlug && !portalRoot.querySelector('#edit-title').value &&
+        !portalRoot.querySelector('#edit-body').value && !portalRoot.querySelector('#memo-text').value;
+      if (isEmpty) setEditMode(window.matchMedia && window.matchMedia('(max-width: 560px)').matches ? 'memo' : 'post');
+    }
   }
 
   // =================================================================
@@ -767,6 +782,7 @@
     memoPhotos = [];
     renderMemoPhotos();
     portalRoot.querySelector('#memo-text').value = '';
+    portalRoot.querySelector('#memo-loc').value = '';
     switchTab('edit');
   }
 
@@ -793,6 +809,7 @@
       portalRoot.querySelector('#edit-excerpt').value = d.excerpt || '';
       portalRoot.querySelector('#edit-banner').value = d.banner || '';
       portalRoot.querySelector('#memo-text').value = isMemo ? parsed.body.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim() : '';
+      portalRoot.querySelector('#memo-loc').value = isMemo ? (d.location || '') : '';
       // 提取 memo 图片
       memoPhotos = [];
       if (isMemo) {
@@ -916,6 +933,7 @@
       slug: slug,
       type: 'memo',
       category: '碎碎念',
+      location: portalRoot.querySelector('#memo-loc').value.trim(),
       tags: [],
       excerpt: '',
       banner: '',
@@ -1082,7 +1100,7 @@
     var input = portalRoot.querySelector('#img-file');
     var files = input.files;
     if (!files || !files.length) { toast('请选择图片', true); return; }
-    var dir = safeSlug(portalRoot.querySelector('#img-slug').value) || 'gallery';
+    var dir = 'gallery';
     var progress = portalRoot.querySelector('#img-progress');
     progress.hidden = false;
     uploadImagesBatch(files, dir, progress).then(function () {
@@ -1235,13 +1253,11 @@
       });
       box.appendChild(cell);
     });
-    // 微信式 "+" 格：最多 9 张
-    if (memoPhotos.length < 9) {
-      var add = document.createElement('div');
-      add.className = 'memo-photo-add';
-      add.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
-      box.appendChild(add);
-    }
+    // 微信式 "+" 格
+    var add = document.createElement('div');
+    add.className = 'memo-photo-add';
+    add.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+    box.appendChild(add);
   }
 
   // =================================================================
