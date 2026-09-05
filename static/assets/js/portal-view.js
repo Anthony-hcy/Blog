@@ -34,6 +34,7 @@
   var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
+  var AMAP_KEY = (document.body && document.body.dataset.amapKey || '').trim();
   var portalRoot = null;
   var cssLoaded = false;
   var markedLib = null;
@@ -260,6 +261,8 @@
       '#portal-root .memo-loc-row { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--p-border); color:var(--p-text-3); }',
       '#portal-root .memo-loc-input { flex:1; border:0; outline:none; background:transparent; font-size:15px; color:var(--p-text); }',
       '#portal-root .memo-loc-input::placeholder { color:var(--p-text-3); }',
+      '#portal-root .memo-loc-btn { background:none; border:0; padding:4px 6px; color:var(--p-accent); cursor:pointer; font-size:15px; }',
+      '#portal-root .memo-loc-btn:disabled { opacity:.5; cursor:default; }',
       '#portal-root #btn-upload { min-width:44px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); color:var(--p-text); font-size:15px; }',
       '#portal-root #btn-upload:hover { border-color:var(--p-accent); color:var(--p-accent); }',
       '#portal-root .portal-btn-lg { min-height:44px; padding:10px 22px; font-size:15px; border-radius:10px; }',
@@ -494,6 +497,7 @@
           '<div class="memo-loc-row">' +
             '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>' +
             '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置">' +
+            '<button class="memo-loc-btn" id="btn-locate" type="button" title="自动定位到区/县"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i></button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -567,6 +571,12 @@
     portalRoot.querySelector('#memo-photos').addEventListener('click', function (e) {
       if (e.target.closest('.memo-photo-add')) openPicker();
     });
+    var locBtn = portalRoot.querySelector('#btn-locate');
+    if (AMAP_KEY) {
+      locBtn.addEventListener('click', function () { locateAmap(locBtn); });
+    } else {
+      locBtn.hidden = true; // 未配置高德 key 则不显示自动定位
+    }
 
     // 模式切换
     portalRoot.querySelectorAll('.mode-btn').forEach(function (btn) {
@@ -908,6 +918,42 @@
     commitPost(slug, md, title);
   }
 
+  // 高德自动定位：GPS(WGS-84) → 高德坐标(GCJ-02) → 逆地理到区/县
+  function locateAmap(btn) {
+    if (!AMAP_KEY) { toast('定位服务未配置', true); return; }
+    if (!navigator.geolocation) { toast('浏览器不支持定位', true); return; }
+    var oldText = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = '…';
+    function fail(msg) {
+      toast(msg, true);
+      btn.disabled = false;
+      btn.innerHTML = oldText;
+    }
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var ll = pos.coords.longitude.toFixed(6) + ',' + pos.coords.latitude.toFixed(6);
+      fetch('https://restapi.amap.com/v3/assistant/coordinate/convert?key=' + AMAP_KEY + '&locations=' + ll + '&coordsys=gps')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.status !== '1' || !d.locations) throw new Error('坐标转换失败');
+          return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + d.locations).then(function (r) { return r.json(); });
+        })
+        .then(function (d) {
+          if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
+          var a = d.regeocode.addressComponent || {};
+          var text = [a.province, a.city, a.district].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
+          if (!text) { fail('未获取到地名，请手动输入'); return; }
+          portalRoot.querySelector('#memo-loc').value = text;
+          toast('已定位：' + text);
+          btn.disabled = false;
+          btn.innerHTML = oldText;
+        })
+        .catch(function () { fail('定位失败，请稍后再试或手动输入'); });
+    }, function (err) {
+      fail(err && err.code === 1 ? '你拒绝了定位授权' : '定位失败，请检查手机定位服务');
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }
+
   function saveMemoMode() {
     var text = portalRoot.querySelector('#memo-text').value.trim();
     if (!text && !memoPhotos.length) { toast('写点什么或传张图吧', true); return; }
@@ -975,7 +1021,9 @@
   function loadAllImages() {
     return gh('/repos/' + state.repo + '/git/trees/main?recursive=1').then(function (tree) {
       var items = (tree.tree || []).filter(function (n) {
-        return n.type === 'blob' && n.path.indexOf(IMG_DIR + '/') === 0 && IMG_EXT.test(n.path);
+        // 头像池（avatars/）不算站点图片，不进 Images 页
+        return n.type === 'blob' && n.path.indexOf(IMG_DIR + '/') === 0 && IMG_EXT.test(n.path) &&
+          n.path.indexOf(IMG_DIR + '/avatars/') !== 0;
       });
       // 按文件名倒序：日期序号命名（2026.09.05-01）天然按时间排，最新的在最前
       allImages = items.map(function (n) {
