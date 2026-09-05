@@ -188,14 +188,17 @@ function loadPosts() {
     const draft = String(data.draft ?? '').trim().toLowerCase();
     if (draft === 'true' || draft === '1' || draft === 'yes') continue;
     const slug = data.slug || file.replace(/\.md$/, '');
-    const date = new Date(String(data.date || '').replace(' ', 'T'));
+    const rawDate = String(data.date || '').trim();
+    const date = new Date(rawDate.replace(' ', 'T'));
     const tags = Array.isArray(data.tags) ? data.tags : String(data.tags || '').split(',').filter(Boolean);
+    const type = data.type === 'memo' ? 'memo' : 'post';
     posts.push({
       slug,
       title: data.title || slug,
       date,
-      dateText: Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10),
-      type: data.type === 'memo' ? 'memo' : 'post',
+      // 显示用日期（按原文+08:00 截取，避免 toISOString 的 UTC 偏移）：文章到日，说说带时分
+      dateText: rawDate ? rawDate.replace('T', ' ').slice(0, type === 'memo' ? 16 : 10) : '',
+      type,
       category: data.category || '未分类',
       tags,
       excerpt: data.excerpt || excerptFrom(body),
@@ -390,8 +393,6 @@ function entryArticle(post) {
     <div class="article-meta">
       <span>${post.dateText}</span>
       <span class="article-meta-spacer"></span>
-      <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this post"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
-      <a class="index-metric-btn pageview" href="${withBase(`/archives/${post.slug}/`)}" aria-label="View this post"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pageview-count" data-pageview-url="${withBase(`/archives/${post.slug}/`)}">0</span></a>
     </div>
   </div>`;
 }
@@ -420,9 +421,6 @@ function entryMemo(post) {
     </div>
     <div class="memo-content">${contentHtml}</div>
     ${photosHtml}
-    <div class="memo-meta">
-      <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
-    </div>
   </div>`;
 }
 
@@ -517,7 +515,6 @@ function buildPostPage(post, prev, next) {
     <span>${post.dateText}</span>
     <span class="author">${escapeHtml(site.author)}</span>
     <span class="article-meta-spacer"></span>
-    <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
     <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">0</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
@@ -525,11 +522,6 @@ function buildPostPage(post, prev, next) {
 <article class="article-body pswp-gallery">
 ${bodyHtml}
 </article>
-<div class="article-like-row article-like-row-end article-like-row-surface">
-  <div class="article-like-row-caption">Enjoyed this one?</div>
-  <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this article"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
-  <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="js-pv-mirror">0</span></span>
-</div>
 ${postNav(prev, next)}
 ` + shellEnd(scripts);
   return html;
@@ -562,7 +554,6 @@ function buildMemoPage(post, prev, next) {
   <div class="memo-meta">
     <span>${post.dateText}</span>
     <span class="memo-meta-spacer"></span>
-    <button class="index-metric-btn js-like-btn" data-like-url="${withBase(`/archives/${post.slug}/`)}" type="button" aria-label="Like this memo"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="js-like-count" data-like-url="${withBase(`/archives/${post.slug}/`)}">0</span></button>
     <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">0</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
@@ -652,11 +643,6 @@ function buildAboutPage() {
       <p class="about-stat-value js-about-views" id="busuanzi_value_site_pv">--</p>
       <p class="about-stat-meta">Tracked pageviews</p>
     </article>
-    <article class="about-stat-card">
-      <p class="about-stat-label">Likes</p>
-      <p class="about-stat-value js-about-likes">--</p>
-      <p class="about-stat-meta">Received likes</p>
-    </article>
   </div>
 </section>
 ` + shellEnd(scripts);
@@ -697,7 +683,7 @@ function buildAtom() {
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
     title: p.title,
-    date: p.dateText + ' 10:00:00+08:00',
+    date: p.type === 'memo' ? p.dateText + ':00+08:00' : p.dateText + ' 10:00:00+08:00',
     path: withBase(`/archives/${p.slug}/`),
     text: excerptFrom(p.body, 4000),
     tags: p.tags.map(t => ({ name: t, slug: t, permalink: withBase(`/tag/${encodeURIComponent(t)}/`) })),
