@@ -9,6 +9,7 @@
     email: 'portal_auth_email',
     repo: 'portal_repo',
     author: 'portal_author',
+    last_loc: 'portal_last_loc',
   };
   var API = 'https://api.github.com';
   var POSTS_DIR = 'content/posts';
@@ -796,7 +797,8 @@
     memoPhotos = [];
     renderMemoPhotos();
     portalRoot.querySelector('#memo-text').value = '';
-    portalRoot.querySelector('#memo-loc').value = '';
+    // 自动填上次使用的位置（个人发布绝大多数在同一地点，免去重复手打）
+    portalRoot.querySelector('#memo-loc').value = readLS(LS.last_loc);
     switchTab('edit');
   }
 
@@ -1088,13 +1090,15 @@
       dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
         ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
     }
+    var locVal = portalRoot.querySelector('#memo-loc').value.trim();
+    if (locVal) writeLS(LS.last_loc, locVal); // 记住本次位置，下次自动填入
     var md = buildPostMarkdown({
       title: text.slice(0, 40) || 'memo',
       date: dateStr,
       slug: slug,
       type: 'memo',
       category: '碎碎念',
-      location: portalRoot.querySelector('#memo-loc').value.trim(),
+      location: locVal,
       tags: [],
       excerpt: '',
       banner: '',
