@@ -65,10 +65,14 @@
 
   function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
-  function nowDateTimeLocal() {
-    var d = new Date();
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
-      'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  // 时间框：未选值时用自绘「yy/mm/dd --:--」盖住系统占位（原生控件空态格式由系统渲染，改不了）
+  function syncDatePlaceholder() {
+    var input = portalRoot.querySelector('#edit-date');
+    var ph = portalRoot.querySelector('#edit-date-ph');
+    if (!input || !ph) return;
+    var empty = !input.value;
+    input.classList.toggle('is-empty', empty);
+    ph.classList.toggle('is-visible', empty);
   }
 
   function imgUrl(repoPath) {
@@ -89,7 +93,7 @@
     if (_datedSeq.prefix !== prefix) {
       var max = 0;
       allImages.forEach(function (img) {
-        var m = img.name.match(new RegExp('^' + prefix.replace(/\./g, '\.') + '-(\d+)\.'));
+        var m = img.name.match(new RegExp('^' + prefix.replace(/\./g, '\\.') + '-(\\d+)\\.'));
         if (m) max = Math.max(max, parseInt(m[1], 10));
       });
       _datedSeq.prefix = prefix;
@@ -237,6 +241,10 @@
       '#portal-root .mode-btn.is-active { border-color:var(--p-accent); color:var(--p-accent); font-weight:600; background:#eef6ff; }',
       '#portal-root .editor-ce { border:1px solid var(--p-border); border-radius:10px; padding:16px 18px; background:var(--p-card); line-height:1.8; outline:none; font-size:15px; }',
       '#portal-root .editor-ce:focus { border-color:var(--p-accent); }',
+      '#portal-root .date-wrap { position:relative; display:block; }',
+      '#portal-root .date-wrap .date-ph { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--p-text-3); font-size:15px; pointer-events:none; display:none; }',
+      '#portal-root .date-wrap .date-ph.is-visible { display:block; }',
+      '#portal-root .date-wrap input.is-empty { color:transparent; }',
       '#portal-root .details-opt summary { cursor:pointer; color:var(--p-accent); font-size:13px; margin:10px 0 6px; }',
       '#portal-root .memo-photos { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }',
       '#portal-root .memo-photos .memo-photo { position:relative; }',
@@ -245,16 +253,18 @@
       '#portal-root .portal-edit-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }',
       '#portal-root .img-grid-mini { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }',
       '#portal-root .img-mini { position:relative; border:1px solid var(--p-border); border-radius:8px; overflow:hidden; }',
-      '#portal-root .img-mini img { width:100%; height:90px; object-fit:cover; display:block; }',
-      '#portal-root .img-mini-actions { position:absolute; inset:0; display:none; align-items:center; justify-content:center; gap:8px; background:rgba(0,0,0,.45); }',
+      '#portal-root .img-mini img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; cursor:zoom-in; }',
+      '#portal-root .img-mini-actions { position:absolute; left:0; right:0; bottom:0; display:none; align-items:center; justify-content:center; gap:8px; padding:8px 0; background:linear-gradient(transparent, rgba(0,0,0,.6)); }',
       '#portal-root .img-mini:hover .img-mini-actions { display:flex; }',
-      '#portal-root .img-mini-actions button { border:0; border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; }',
+      '#portal-root .img-mini-actions button { border:0; border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; }',
+      '@media (hover: none) { #portal-root .img-mini-actions { display:flex; } }',
       '@media (max-width:560px) {',
       '  #portal-root .portal-shell { padding:0 12px 40px; }',
       '  #portal-root .ce-toolbar-mini button { min-width:40px; font-size:14px; }',
       '  #portal-root .editor-ce { min-height:240px; font-size:15px; }',
       '  #portal-root .memo-photos { grid-template-columns:repeat(3,1fr); }',
       '  #portal-root .portal-field input, #portal-root .portal-field textarea, #portal-root .portal-field select { font-size:16px; }',
+      '  #portal-root .date-wrap .date-ph { font-size:16px; }',
       '}',
     ].join('\n');
     document.head.appendChild(style);
@@ -420,12 +430,12 @@
           '<label class="portal-field"><span>标题</span>' +
             '<input type="text" id="edit-title" placeholder="文章标题"></label>' +
           '<label class="portal-field"><span>时间</span>' +
-            '<input type="datetime-local" id="edit-date"></label>' +
+            '<span class="date-wrap"><input type="datetime-local" id="edit-date"><span class="date-ph" id="edit-date-ph">yy/mm/dd --:--</span></span></label>' +
           '<div class="ce-toolbar ce-toolbar-mini">' +
             '<button type="button" data-cmd="bold" title="加粗"><b>B</b></button>' +
             '<button type="button" data-cmd="italic" title="斜体"><i>I</i></button>' +
             '<button type="button" data-cmd="h2" title="标题">H2</button>' +
-            '<button type="button" id="btn-insert-image" title="添加图片">🖼</button>' +
+            '<button type="button" id="btn-insert-image" title="添加图片"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="editor-ce" id="edit-ce" contenteditable="true" data-placeholder="开始写点什么…"></div>' +
           '<textarea id="edit-source" class="editor-source" rows="14" style="display:none;width:100%;border:1px solid var(--p-border);border-radius:10px;padding:12px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.6;background:var(--p-card);color:var(--p-text);outline:none;"></textarea>' +
@@ -453,7 +463,7 @@
         '<div class="portal-card edit-card">' +
           '<textarea id="memo-text" rows="5" placeholder="说点什么…" style="width:100%;border:1px solid var(--p-border);border-radius:12px;padding:14px;font-size:16px;line-height:1.7;background:var(--p-card);color:var(--p-text);outline:none;resize:vertical;font-family:inherit;"></textarea>' +
           '<div class="memo-add-row">' +
-            '<button class="portal-btn" id="btn-memo-add-photo" type="button">🖼 添加图片</button>' +
+            '<button class="portal-btn" id="btn-memo-add-photo" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> 添加图片</button>' +
           '</div>' +
           '<div class="memo-photos" id="memo-photos"></div>' +
         '</div>' +
@@ -512,6 +522,12 @@
       renderPosts(allPosts, this.value.trim().toLowerCase());
     });
 
+    // 时间框：选值/清空时同步占位覆盖层
+    var dateInput = portalRoot.querySelector('#edit-date');
+    dateInput.addEventListener('input', syncDatePlaceholder);
+    dateInput.addEventListener('change', syncDatePlaceholder);
+    syncDatePlaceholder();
+
     var srcModeBtn = portalRoot.querySelector('#btn-source-mode');
     if (srcModeBtn) srcModeBtn.addEventListener('click', toggleSourceMode);
     portalRoot.querySelector('#btn-insert-image').addEventListener('click', openPicker);
@@ -541,13 +557,13 @@
     // 图片网格操作（Images 页）
     portalRoot.querySelector('#images-grid').addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-act]');
-      if (!btn) return;
-      var act = btn.dataset.act;
-      if (act === 'copymd') {
-        var md = '![](' + btn.dataset.url + ')';
-        (navigator.clipboard ? navigator.clipboard.writeText(md) : Promise.reject())
-          .then(function () { toast('已复制'); }).catch(function () { toast('复制失败'); });
+      if (!btn) {
+        // 点击图片本体（非按钮）→ 查看大图
+        var pic = e.target.closest('.img-mini img');
+        if (pic) openLightbox(pic.getAttribute('src'));
+        return;
       }
+      var act = btn.dataset.act;
       if (act === 'delimg') {
         var repoPath = btn.dataset.repopath;
         var name = btn.dataset.name;
@@ -708,10 +724,10 @@
             dateFull: d.date || '',
             sha: fileData.sha,
           };
-        });
+        }).catch(function () { return null; }); // 单文件失败（如删除后目录缓存未更新致 404）只跳过该文件，不拖垮整个列表
       }));
-    }).then(function (posts) {
-      allPosts = posts.sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
+    }).then(function (list) {
+      allPosts = list.filter(Boolean).sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
       renderPosts(allPosts, '');
     }).catch(function (e) {
       toast('加载文章失败: ' + e.message, true);
@@ -723,7 +739,9 @@
     editingSlug = null;
     setEditMode('post');
     portalRoot.querySelector('#edit-title').value = '';
-    portalRoot.querySelector('#edit-date').value = nowDateTimeLocal();
+    // 新建文章时间留空 → 显示自绘占位「yy/mm/dd --:--」，保存时自动用发布时刻
+    portalRoot.querySelector('#edit-date').value = '';
+    syncDatePlaceholder();
     portalRoot.querySelector('#edit-slug').value = '';
     portalRoot.querySelector('#edit-category').value = '';
     portalRoot.querySelector('#edit-tags').value = '';
@@ -749,10 +767,11 @@
       var isMemo = d.type === 'memo';
       setEditMode(isMemo ? 'memo' : 'post');
       portalRoot.querySelector('#edit-title').value = d.title || '';
-      var dt = d.date ? new Date(String(d.date).replace(' ', 'T')) : new Date();
-      portalRoot.querySelector('#edit-date').value = isNaN(dt.getTime())
-        ? nowDateTimeLocal()
-        : dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()) + 'T' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes());
+      var dt = d.date ? new Date(String(d.date).replace(' ', 'T')) : null;
+      portalRoot.querySelector('#edit-date').value = (dt && !isNaN(dt.getTime()))
+        ? dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()) + 'T' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes())
+        : '';
+      syncDatePlaceholder();
       portalRoot.querySelector('#edit-slug').value = slug;
       portalRoot.querySelector('#edit-category').value = d.category || '';
       portalRoot.querySelector('#edit-tags').value = Array.isArray(d.tags) ? d.tags.join(', ') : String(d.tags || '');
@@ -919,7 +938,11 @@
       title: title,
       date: portalRoot.querySelector('#edit-date').value
         ? portalRoot.querySelector('#edit-date').value.replace('T', ' ') + ':00+08:00'
-        : new Date().toISOString().slice(0, 16).replace('T', ' ') + ':00+08:00',
+        : (function () {
+            var n = new Date();
+            return n.getFullYear() + '-' + pad2(n.getMonth() + 1) + '-' + pad2(n.getDate()) +
+              ' ' + pad2(n.getHours()) + ':' + pad2(n.getMinutes()) + ':00+08:00';
+          })(),
       slug: slug,
       type: 'post',
       category: portalRoot.querySelector('#edit-category').value.trim(),
@@ -1007,11 +1030,22 @@
       cell.innerHTML =
         '<img src="' + esc(img.rawUrl) + '" alt="" loading="lazy">' +
         '<div class="img-mini-actions">' +
-          '<button data-act="copymd" data-url="' + esc(img.url) + '" type="button">复制</button>' +
           '<button data-act="delimg" data-name="' + esc(img.name) + '" data-repopath="' + esc(img.repoPath) + '" type="button">删除</button>' +
         '</div>';
       grid.appendChild(cell);
     });
+  }
+
+  // 点击缩略图 → 黑底全屏查看大图，点任意处关闭
+  function openLightbox(src) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    var img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.4);';
+    overlay.appendChild(img);
+    overlay.addEventListener('click', function () { overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   function uploadImages() {
@@ -1288,12 +1322,29 @@
     }
     if (act === 'delete') {
       if (!window.confirm('确定删除文章 ' + slug + ' 吗？')) return;
+      // 先从本地移除并立即重渲染（目录 API 有缓存，删除后立刻拉列表可能仍含已删文件导致 404）
+      var idx = -1, removed = null;
+      allPosts.forEach(function (p, i) { if (p.slug === slug) idx = i; });
+      if (idx >= 0) {
+        removed = allPosts[idx];
+        allPosts.splice(idx, 1);
+        var q = (portalRoot.querySelector('#posts-search') || {}).value || '';
+        renderPosts(allPosts, q.trim().toLowerCase());
+      }
       getFile(POSTS_DIR + '/' + slug + '.md').then(function (fileData) {
         return deleteFile(POSTS_DIR + '/' + slug + '.md', 'Delete post: ' + slug, fileData.sha);
       }).then(function () {
         toast('已删除');
         loadPosts();
-      }).catch(function (err) { toast('删除失败: ' + err.message, true); });
+      }).catch(function (err) {
+        if (removed) {
+          allPosts.push(removed);
+          allPosts.sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
+          var q2 = (portalRoot.querySelector('#posts-search') || {}).value || '';
+          renderPosts(allPosts, q2.trim().toLowerCase());
+        }
+        toast('删除失败: ' + err.message, true);
+      });
     }
   });
 

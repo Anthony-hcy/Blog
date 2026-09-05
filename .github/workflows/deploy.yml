@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       # 无 npm 依赖（marked 已 vendor 进 vendor/），无需 setup-node / npm ci
       - run: node scripts/build.mjs
-      - uses: actions/configure-pages@v5
+      # configure-pages 已省略：Pages 站点早已配置好（build_type=workflow），省 ~1s
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
