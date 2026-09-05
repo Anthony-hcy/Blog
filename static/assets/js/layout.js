@@ -570,3 +570,17 @@ function initLayout() {
 }
 
 initLayout();
+
+// PWA：注册 Service Worker（/Blog/ 子路径与根路径部署均兼容）
+function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  var m = location.pathname.match(/^(\/[^/]+)?\//);
+  var base = (m && m[1] ? m[1] : '') + '/';
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register(base + 'sw.js').catch(function() {
+      /* 注册失败不影响页面 */
+    });
+  });
+}
+
+initServiceWorker();

@@ -445,7 +445,7 @@
               '<label class="portal-field"><span>Slug（留空自动生成）</span>' +
                 '<input type="text" id="edit-slug" placeholder="自动生成"></label>' +
               '<label class="portal-field"><span>分类</span>' +
-                '<input type="text" id="edit-category" placeholder="留空不填"></label>' +
+                '<input type="text" id="edit-category" placeholder="留空默认小作文"></label>' +
             '</div>' +
             '<div class="portal-grid">' +
               '<label class="portal-field"><span>标签（逗号分隔）</span>' +
@@ -945,7 +945,7 @@
           })(),
       slug: slug,
       type: 'post',
-      category: portalRoot.querySelector('#edit-category').value.trim(),
+      category: portalRoot.querySelector('#edit-category').value.trim() || '小作文',
       tags: portalRoot.querySelector('#edit-tags').value.split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean),
       excerpt: portalRoot.querySelector('#edit-excerpt').value.trim(),
       banner: portalRoot.querySelector('#edit-banner').value.trim(),
@@ -970,7 +970,7 @@
         ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00',
       slug: slug,
       type: 'memo',
-      category: '',
+      category: '碎碎念',
       tags: [],
       excerpt: '',
       banner: '',

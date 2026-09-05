@@ -92,8 +92,8 @@ function initAboutStats() {
   const runtimeValueEl = section.querySelector('.js-about-runtime-value');
   const runtimeMetaEl = section.querySelector('.js-about-runtime-meta');
   const commentsEl = section.querySelector('.js-about-comments');
-  const viewsEl = section.querySelector('.js-about-views');
   const likesEl = section.querySelector('.js-about-likes');
+  // Views 卡片已改由不蒜子（#busuanzi_value_site_pv）填充，这里不再接管
 
   const runningDate = parseDate(section.dataset.runningSince || '');
   if (runningDate) {
@@ -108,7 +108,6 @@ function initAboutStats() {
 
   if (!api) {
     setText(commentsEl, '--');
-    setText(viewsEl, '--');
     setText(likesEl, '--');
     return;
   }
@@ -123,15 +122,6 @@ function initAboutStats() {
     })
     .catch(function() {
       setText(commentsEl, '--');
-    });
-
-  fetchTotalCount(api, 'pageviews', trackedUrls)
-    .then(function(total) {
-      if (total === null) return;
-      setText(viewsEl, formatNumber(total));
-    })
-    .catch(function() {
-      setText(viewsEl, '--');
     });
 
   fetchTotalCount(api, 'likes', trackedUrls)

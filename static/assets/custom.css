@@ -1,2 +1,8 @@
-/* custom.css — 布局定制 */
-/* 侧边栏仅保留 In Site 导航面板（Social/88x31/Categories/Tags 已移除） */
+/* custom.css — 布局与字体定制 */
+
+/* ===== 全站字体：霞鹜文楷（屏幕版，切片 webfont，由 build.mjs 头部引入） ===== */
+/* CDN 未加载成功时自动回退到系统字体，页面不会坏 */
+:root {
+  --serif: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+  --sans: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+}
