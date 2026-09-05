@@ -981,7 +981,7 @@
     return loadScript().then(function () { return plugin('AMap.Geolocation'); }).then(function () {
       return new Promise(function (resolve, reject) {
         var geo = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
-        geo.getPosition(function (status, result) {
+        geo.getCurrentPosition(function (status, result) {
           if (status === 'complete' && result && result.position) {
             resolve({ type: 'loc', loc: result.position.lng.toFixed(6) + ',' + result.position.lat.toFixed(6) });
             return;
