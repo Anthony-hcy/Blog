@@ -918,18 +918,38 @@
     commitPost(slug, md, title);
   }
 
-  // 高德自动定位：GPS(WGS-84) → 高德坐标(GCJ-02) → 逆地理到区/县
+  // 恢复定位按钮状态
+  function locateReset(btn, oldText) {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+  }
+
+  // 高德 IP 定位兜底：国内安卓浏览器（含 PWA）网页定位依赖谷歌服务常被墙，
+  // 失败时改用高德 IP 定位（只到城市级，用户可手动补充区县）
+  function ipLocate(btn, oldText, note) {
+    return fetch('https://restapi.amap.com/v3/ip?key=' + AMAP_KEY)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var city = Array.isArray(d.city) ? '' : (d.city || '');
+        var text = [d.province, city].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
+        if (d.status !== '1' || !text) throw new Error('ip locate failed');
+        portalRoot.querySelector('#memo-loc').value = text;
+        toast((note ? note + '，' : '') + '网络定位到：' + text + '（可手动补充区县）');
+        locateReset(btn, oldText);
+      })
+      .catch(function () {
+        toast('自动定位失败，请手动输入位置', true);
+        locateReset(btn, oldText);
+      });
+  }
+
+  // 高德自动定位：优先 GPS（WGS-84 → GCJ-02 → 逆地理到区/县）；失败退回 IP 定位（城市级）
   function locateAmap(btn) {
     if (!AMAP_KEY) { toast('定位服务未配置', true); return; }
-    if (!navigator.geolocation) { toast('浏览器不支持定位', true); return; }
+    if (!navigator.geolocation) { ipLocate(btn, btn.innerHTML, '浏览器不支持定位'); return; }
     var oldText = btn.innerHTML;
     btn.disabled = true;
     btn.textContent = '…';
-    function fail(msg) {
-      toast(msg, true);
-      btn.disabled = false;
-      btn.innerHTML = oldText;
-    }
     navigator.geolocation.getCurrentPosition(function (pos) {
       var ll = pos.coords.longitude.toFixed(6) + ',' + pos.coords.latitude.toFixed(6);
       fetch('https://restapi.amap.com/v3/assistant/coordinate/convert?key=' + AMAP_KEY + '&locations=' + ll + '&coordsys=gps')
@@ -942,16 +962,21 @@
           if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
           var a = d.regeocode.addressComponent || {};
           var text = [a.province, a.city, a.district].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
-          if (!text) { fail('未获取到地名，请手动输入'); return; }
+          if (!text) throw new Error('未获取到地名');
           portalRoot.querySelector('#memo-loc').value = text;
           toast('已定位：' + text);
-          btn.disabled = false;
-          btn.innerHTML = oldText;
+          locateReset(btn, oldText);
         })
-        .catch(function () { fail('定位失败，请稍后再试或手动输入'); });
+        .catch(function () { ipLocate(btn, oldText, '精确定位失败'); });
     }, function (err) {
-      fail(err && err.code === 1 ? '你拒绝了定位授权' : '定位失败，请检查手机定位服务');
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+      if (err && err.code === 1) { // 用户拒绝授权：不偷偷用 IP 定位
+        toast('你拒绝了定位授权，可手动输入位置', true);
+        locateReset(btn, oldText);
+        return;
+      }
+      var why = err && err.code === 3 ? '定位超时' : '手机定位服务不可用';
+      ipLocate(btn, oldText, why); // 改用高德 IP 定位兜底
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
   }
 
   function saveMemoMode() {
