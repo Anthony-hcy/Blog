@@ -26,6 +26,8 @@
   var state = { token: '', repo: '', author: '' };
   var currentTab = 'posts';
   var editingSlug = null;
+  var editingDate = '';   // 正在编辑的文章原时间（编辑 memo 时保留原时间）
+  var editingType = '';   // 正在编辑的文章原类型（memo|post），防止跨模式误覆盖
   var editMode = 'post'; // post | memo
   var allPosts = [];
   var allImages = [];
@@ -719,12 +721,14 @@
             type: d.type === 'memo' ? 'memo' : 'post',
             dateText: (d.date || '').slice(0, 10),
             dateFull: d.date || '',
+            dateMs: Date.parse(String(d.date || '').replace(' ', 'T')) || 0,
             sha: fileData.sha,
           };
         }).catch(function () { return null; }); // 单文件失败（如删除后目录缓存未更新致 404）只跳过该文件，不拖垮整个列表
       }));
     }).then(function (list) {
-      allPosts = list.filter(Boolean).sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
+      // 按真实时间戳倒序（localeCompare 会忽略时分，导致同日内容顺序错乱）
+      allPosts = list.filter(Boolean).sort(function (a, b) { return (b.dateMs || 0) - (a.dateMs || 0); });
       renderPosts(allPosts, '');
     }).catch(function (e) {
       toast('加载文章失败: ' + e.message, true);
@@ -734,6 +738,8 @@
 
   function newPost() {
     editingSlug = null;
+    editingDate = '';
+    editingType = '';
     setEditMode('post');
     portalRoot.querySelector('#edit-title').value = '';
     // 新建文章时间留空 → 显示自绘占位「yy/mm/dd --:--」，保存时自动用发布时刻
@@ -760,6 +766,8 @@
       var d = parsed.data;
       editingSlug = slug;
       var isMemo = d.type === 'memo';
+      editingDate = d.date || '';
+      editingType = isMemo ? 'memo' : 'post';
       setEditMode(isMemo ? 'memo' : 'post');
       portalRoot.querySelector('#edit-title').value = d.title || '';
       var dt = d.date ? new Date(String(d.date).replace(' ', 'T')) : null;
@@ -873,13 +881,22 @@
       return '![' + p.name.replace(/\.[^.]+$/, '') + '](' + p.url + ')';
     }).join('\n');
     var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
-    var now = new Date();
-    var slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
-      '-' + pad2(now.getHours()) + pad2(now.getMinutes());
+    var slug, dateStr;
+    if (editingSlug && editingType === 'memo') {
+      // 编辑已有说说：原地更新，复用原 slug 和原发布时间
+      slug = editingSlug;
+      dateStr = editingDate;
+    }
+    if (!slug) {
+      var now = new Date();
+      slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
+        '-' + pad2(now.getHours()) + pad2(now.getMinutes());
+      dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
+        ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
+    }
     var md = buildPostMarkdown({
       title: text.slice(0, 40) || 'memo',
-      date: now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
-        ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00',
+      date: dateStr,
       slug: slug,
       type: 'memo',
       category: '碎碎念',
@@ -960,6 +977,75 @@
     document.body.appendChild(overlay);
   }
 
+  // 压缩大图（手机原图动辄 3-8MB，是加载慢的主因）：
+  // 长边压到 ≤1600px、转 JPEG 质量 0.85；GIF/SVG/小图/压不动的原图保持原样
+  function compressImageFile(file) {
+    return new Promise(function (resolve) {
+      function fallback() { resolve({ name: file.name, blob: file }); }
+      if (!/^image\//.test(file.type || '')) return fallback();
+      if (/^image\/(gif|svg\+xml)$/.test(file.type)) return fallback();
+      if (file.size <= 600 * 1024) return fallback();
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        try {
+          var maxSide = 1600;
+          var w = img.naturalWidth || img.width;
+          var h = img.naturalHeight || img.height;
+          var scale = Math.min(1, maxSide / Math.max(w, h, 1));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(w * scale));
+          canvas.height = Math.max(1, Math.round(h * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function (blob) {
+            if (!blob || blob.size >= file.size) return fallback(); // 没收益就用原图
+            resolve({ name: file.name.replace(/\.[^.]+$/, '') + '.jpg', blob: blob });
+          }, 'image/jpeg', 0.85);
+        } catch (_) { fallback(); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); fallback(); };
+      img.src = url;
+    });
+  }
+
+  // 批量上传：先按顺序压缩，再按顺序分配日期序号文件名，并行提交
+  // 返回 [{name, url, rawUrl}]
+  function uploadImagesBatch(files, dir, progressEl) {
+    var arr = Array.prototype.slice.call(files || []);
+    if (!arr.length) return Promise.reject(new Error('未选择图片'));
+    if (progressEl) { progressEl.hidden = false; progressEl.textContent = '处理中…'; }
+    return Promise.all(arr.map(compressImageFile)).then(function (prepared) {
+      if (progressEl) progressEl.textContent = '上传中 0/' + arr.length + ' …';
+      var done = 0;
+      var tasks = prepared.map(function (f) {
+        var ext = ((f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
+        var safeName = datedName(ext); // 同步按选择顺序分配序号
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            var base64 = String(reader.result).split(',')[1] || '';
+            gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + dir + '/' + safeName, {
+              method: 'PUT',
+              body: { message: 'Upload image: ' + safeName, content: base64 },
+            }).then(function () {
+              done++;
+              if (progressEl) progressEl.textContent = '上传中 ' + done + '/' + arr.length + ' …';
+              resolve({
+                name: safeName,
+                url: ASSET_PREFIX + dir + '/' + safeName,
+                rawUrl: rawImgUrl(IMG_DIR + '/' + dir + '/' + safeName),
+              });
+            }, reject);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(f.blob);
+        });
+      });
+      return Promise.all(tasks);
+    });
+  }
+
   function uploadImages() {
     var input = portalRoot.querySelector('#img-file');
     var files = input.files;
@@ -967,32 +1053,7 @@
     var dir = safeSlug(portalRoot.querySelector('#img-slug').value) || 'gallery';
     var progress = portalRoot.querySelector('#img-progress');
     progress.hidden = false;
-    var tasks = [];
-    for (var i = 0; i < files.length; i++) {
-      (function (file) {
-        tasks.push(new Promise(function (resolve, reject) {
-          var reader = new FileReader();
-          reader.onload = function () {
-            var base64 = String(reader.result).split(',')[1] || '';
-            var ext = file.name.split('.').pop() || 'png';
-            var safeName = datedName(ext);
-            gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + dir + '/' + safeName, {
-              method: 'PUT',
-              body: { message: 'Upload image: ' + safeName, content: base64 },
-            }).then(resolve, reject);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        }));
-      })(files[i]);
-    }
-    var done = 0;
-    Promise.all(tasks.map(function (t) {
-      return t.then(function () {
-        done++;
-        progress.textContent = '上传中 ' + done + '/' + tasks.length + ' …';
-      });
-    })).then(function () {
+    uploadImagesBatch(files, dir, progress).then(function () {
       progress.textContent = '上传完成';
       input.value = '';
       toast('图片已上传到 ' + dir + '/');
@@ -1073,31 +1134,11 @@
       var dir = safeSlug(editingSlug) || safeSlug(portalRoot.querySelector('#edit-slug').value) || 'gallery';
       var progress = overlay.querySelector('#picker-progress');
       progress.hidden = false;
-      var tasks = [];
-      for (var i = 0; i < files.length; i++) {
-        (function (file) {
-          tasks.push(new Promise(function (resolve, reject) {
-            var reader = new FileReader();
-            reader.onload = function () {
-              var base64 = String(reader.result).split(',')[1] || '';
-              var ext = file.name.split('.').pop() || 'png';
-              var safeName = datedName(ext);
-              gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + dir + '/' + safeName, {
-                method: 'PUT',
-                body: { message: 'Upload image: ' + safeName, content: base64 },
-              }).then(function () { resolve({ url: ASSET_PREFIX + dir + '/' + safeName, rawUrl: 'https://raw.githubusercontent.com/' + state.repo + '/main/' + IMG_DIR + '/' + dir + '/' + safeName, name: safeName, dataUrl: 'data:image/' + ext + ';base64,' + base64 }); }, reject);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }));
-        })(files[i]);
-      }
-      var done = 0;
-      Promise.all(tasks.map(function (t) { return t.then(function (r) { done++; progress.textContent = '上传中 ' + done + '/' + tasks.length + ' …'; return r; }); }))
+      uploadImagesBatch(files, dir, progress)
         .then(function (results) {
           progress.textContent = '上传完成';
           results.forEach(function (r) {
-            useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
+            useImage(r.url, r.rawUrl || r.url, r.name);
             // 立即把新图加进 allImages，重开弹层即可见
             allImages.push({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl });
           });
@@ -1235,7 +1276,7 @@
       }).catch(function (err) {
         if (removed) {
           allPosts.push(removed);
-          allPosts.sort(function (a, b) { return b.dateText.localeCompare(a.dateText); });
+          allPosts.sort(function (a, b) { return (b.dateMs || 0) - (a.dateMs || 0); });
           var q2 = (portalRoot.querySelector('#posts-search') || {}).value || '';
           renderPosts(allPosts, q2.trim().toLowerCase());
         }
