@@ -207,6 +207,8 @@ function memoAvatar(post) {
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
+  // 删光所有文章后 GitHub 会把空的 content/posts/ 目录一并删除，此时按无文章构建
+  if (!existsSync(POSTS_DIR)) return posts;
   for (const file of readdirSync(POSTS_DIR)) {
     if (!file.endsWith('.md')) continue;
     const md = readFileSync(join(POSTS_DIR, file), 'utf-8');
