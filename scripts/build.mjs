@@ -180,6 +180,30 @@ function groupPhotos(figures) {
   return rows;
 }
 
+// ---------- memo 随机头像池 ----------
+// 把头像图放进 static/assets/img/avatars/（命名任意），每条 memo 按 slug 稳定分配一张
+let _avatarPool = null;
+function avatarPool() {
+  if (_avatarPool) return _avatarPool;
+  _avatarPool = [];
+  const dir = join(ASSETS_SRC, 'assets', 'img', 'avatars');
+  try {
+    for (const f of readdirSync(dir)) {
+      if (/\.(jpe?g|png|webp|gif)$/i.test(f)) _avatarPool.push(withBase(`/assets/img/avatars/${f}`));
+    }
+  } catch (_) { /* 目录不存在则无随机头像 */ }
+  return _avatarPool;
+}
+
+// slug 稳定哈希：同一 memo 永远同一头像；头像池变化时会重新洗牌
+function memoAvatar(post) {
+  const pool = avatarPool();
+  if (!pool.length) return withBase(`/logo.png`);
+  let h = 0;
+  for (const ch of post.slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return pool[h % pool.length];
+}
+
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
@@ -201,6 +225,7 @@ function loadPosts() {
       // 显示用日期（按原文+08:00 截取，避免 toISOString 的 UTC 偏移）：文章到日，说说带时分
       dateText: rawDate ? rawDate.replace('T', ' ').slice(0, type === 'memo' ? 16 : 10) : '',
       type,
+      avatar: data.avatar || '',
       location: data.location || '',
       category: data.category || '未分类',
       tags,
@@ -417,7 +442,7 @@ function entryMemo(post) {
     : '';
   return `<div class="entry-memo pswp-gallery">
     <div class="memo-head">
-      <img class="memo-avatar" src="${withBase(`/logo.png`)}" alt="${escapeHtml(site.author)}">
+      <img class="memo-avatar" src="${post.avatar ? withBase(post.avatar) : memoAvatar(post)}" alt="${escapeHtml(site.author)}">
       <div class="memo-author">
         <strong>${escapeHtml(site.author)}</strong>
         <span>${post.dateText}</span>
