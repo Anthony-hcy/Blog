@@ -297,7 +297,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:card" content="summary">
 </head>
-<body data-about-url="${withBase(`/about/`)}" data-amap-key="${site.amapKey || ''}"${bodyData}>`;
+<body data-about-url="${withBase(`/about/`)}" data-amap-key="${site.amapKey || ''}" data-amap-js-key="${site.amapJsKey || ''}"${bodyData}>`;
 }
 
 function shellStart() {

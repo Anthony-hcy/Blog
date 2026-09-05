@@ -35,6 +35,7 @@
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
   var AMAP_KEY = (document.body && document.body.dataset.amapKey || '').trim();
+  var AMAP_JS_KEY = (document.body && document.body.dataset.amapJsKey || '').trim();
   var portalRoot = null;
   var cssLoaded = false;
   var markedLib = null;
@@ -943,6 +944,33 @@
       });
   }
 
+  // 高德 JS API 定位（国内最可靠：GPS/基站/IP 综合定位，不走被墙的谷歌服务）
+  function amapJsLocate() {
+    return new Promise(function (resolve, reject) {
+      if (!AMAP_JS_KEY) { reject(new Error('no js key')); return; }
+      function init() {
+        try {
+          AMap.plugin('AMap.Geolocation', function () {
+            var geo = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+            geo.getPosition(function (status, result) {
+              if (status === 'complete' && result.position) {
+                resolve(result.position.lng.toFixed(6) + ',' + result.position.lat.toFixed(6));
+              } else {
+                reject(new Error((result && result.message) || 'AMap 定位失败'));
+              }
+            });
+          });
+        } catch (e) { reject(e); }
+      }
+      if (window.AMap) { init(); return; }
+      var sc = document.createElement('script');
+      sc.src = 'https://webapi.amap.com/maps?v=1.4.15&key=' + AMAP_JS_KEY + '&plugin=AMap.Geolocation';
+      sc.onload = function () { init(); };
+      sc.onerror = function () { reject(new Error('高德 JS 加载失败')); };
+      document.head.appendChild(sc);
+    });
+  }
+
   // 高德自动定位：优先 GPS（WGS-84 → GCJ-02 → 逆地理到区/县）；失败退回 IP 定位（城市级）
   function locateAmap(btn) {
     if (!AMAP_KEY) { toast('定位服务未配置', true); return; }
@@ -950,6 +978,23 @@
     var oldText = btn.innerHTML;
     btn.disabled = true;
     btn.textContent = '…';
+    // 有 JS Key 时优先走高德 JS 定位（GCJ-02 直出，免坐标转换）
+    if (AMAP_JS_KEY) {
+      amapJsLocate().then(function (loc) {
+        return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + loc)
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
+            var a = d.regeocode.addressComponent || {};
+            var text = [a.province, a.city, a.district].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
+            if (!text) throw new Error('未获取到地名');
+            portalRoot.querySelector('#memo-loc').value = text;
+            toast('已定位：' + text);
+            locateReset(btn, oldText);
+          });
+      }).catch(function (e) { ipLocate(btn, oldText, '高德定位失败（' + (e && e.message ? e.message : '未知') + '）'); });
+      return;
+    }
     navigator.geolocation.getCurrentPosition(function (pos) {
       var ll = pos.coords.longitude.toFixed(6) + ',' + pos.coords.latitude.toFixed(6);
       fetch('https://restapi.amap.com/v3/assistant/coordinate/convert?key=' + AMAP_KEY + '&locations=' + ll + '&coordsys=gps')
