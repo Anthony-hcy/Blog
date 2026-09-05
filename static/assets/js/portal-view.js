@@ -36,6 +36,7 @@
 
   var AMAP_KEY = (document.body && document.body.dataset.amapKey || '').trim();
   var AMAP_JS_KEY = (document.body && document.body.dataset.amapJsKey || '').trim();
+  var AMAP_JS_CODE = (document.body && document.body.dataset.amapJsCode || '').trim();
   var portalRoot = null;
   var cssLoaded = false;
   var markedLib = null;
@@ -964,6 +965,10 @@
         } catch (e) { reject(e); }
       }
       if (window.AMap) { init(); return; }
+      // 2021-12 之后申请的 JS Key 必须配安全密钥（官方要求：必须在脚本加载之前设置）
+      if (AMAP_JS_CODE) {
+        window._AMapSecurityConfig = { securityJsCode: AMAP_JS_CODE };
+      }
       var sc = document.createElement('script');
       sc.src = 'https://webapi.amap.com/maps?v=1.4.15&key=' + AMAP_JS_KEY + '&plugin=AMap.Geolocation';
       sc.onload = function () { init(); };
