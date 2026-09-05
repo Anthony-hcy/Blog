@@ -60,7 +60,7 @@ function parseFrontmatter(md) {
 }
 
 // ---------- Markdown 渲染（图片 → pswp-item 结构，带真实尺寸） ----------
-marked.setOptions({ gfm: true, breaks: false });
+marked.setOptions({ gfm: true, breaks: true }); // 单换行也换行（说说/朋友圈式书写习惯）
 const renderer = new marked.Renderer();
 // marked v15 的 image 渲染器只接收一个 token 对象（含 href/title/text 字段）
 renderer.image = (token) => {
@@ -732,6 +732,7 @@ function buildPortalPage() {
   const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js`)}"></script>`;
   const html = headHtml(`Blog Portal - ${site.name}`, {
     pagePath: '/portal.html',
+    bodyData: ' class="page-portal"',
     extraHead: extraHead,
   }) + shellStart() + `
 <div id="portal-root"></div>

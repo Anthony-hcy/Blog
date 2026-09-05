@@ -205,6 +205,7 @@
     if (markedLib) return Promise.resolve(markedLib);
     return import(BASE + 'assets/marked.esm.js').then(function (m) {
       markedLib = m.marked;
+      if (markedLib.setOptions) markedLib.setOptions({ gfm: true, breaks: true }); // 与博客构建渲染一致：单换行换行
       return markedLib;
     }).catch(function () {
       return null;
@@ -249,7 +250,7 @@
       '#portal-root .memo-topbar-btn { background:none; border:0; padding:6px 2px; font-size:16px; color:var(--p-text); cursor:pointer; }',
       '#portal-root .memo-publish-btn { background:#07c160; border:0; color:#fff; font-size:15px; font-weight:600; padding:9px 26px; border-radius:9px; cursor:pointer; }',
       '#portal-root .memo-publish-btn:disabled { opacity:.45; cursor:default; }',
-      '#portal-root .memo-textarea { width:100%; min-height:150px; border:0; outline:none; resize:vertical; background:transparent; color:var(--p-text); font-family:inherit; font-size:17px; line-height:1.7; }',
+      '#portal-root .memo-textarea { width:100%; min-height:150px; border:0; outline:none; resize:vertical; background:transparent; color:var(--p-text); font-family:inherit; font-size:17px; line-height:1.7; resize:none; }',
       '#portal-root .memo-photos { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }',
       '#portal-root .memo-photos .memo-photo { position:relative; }',
       '#portal-root .memo-photos .memo-photo img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; display:block; }',
