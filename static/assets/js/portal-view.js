@@ -243,8 +243,18 @@
       '#portal-root .editor-preview-md table { border-collapse:collapse; margin:0.8em 0; }',
       '#portal-root .editor-preview-md th, #portal-root .editor-preview-md td { border:1px solid var(--p-border); padding:6px 10px; }',
       '#portal-root .edit-card { padding:20px 18px 18px; }',
-      '#portal-root .memo-add-row { margin:12px 0 4px; }',
-      '#portal-root .memo-add-row .portal-btn { width:100%; padding:10px 0; font-size:15px; border-radius:10px; }',
+      '#portal-root .memo-composer { background:var(--p-card); border:1px solid var(--p-border); border-radius:var(--p-radius); padding:14px 16px 18px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); }',
+      '#portal-root .memo-topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }',
+      '#portal-root .memo-topbar-btn { background:none; border:0; padding:6px 8px; font-size:16px; color:var(--p-text); cursor:pointer; }',
+      '#portal-root .memo-publish-btn { background:#07c160; border:0; color:#fff; font-size:15px; font-weight:600; padding:9px 26px; border-radius:9px; cursor:pointer; }',
+      '#portal-root .memo-publish-btn:disabled { opacity:.45; cursor:default; }',
+      '#portal-root .memo-textarea { width:100%; min-height:150px; border:0; outline:none; resize:vertical; background:transparent; color:var(--p-text); font-family:inherit; font-size:17px; line-height:1.7; }',
+      '#portal-root .memo-photos { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }',
+      '#portal-root .memo-photos .memo-photo { position:relative; }',
+      '#portal-root .memo-photos .memo-photo img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; display:block; }',
+      '#portal-root .memo-photos .memo-photo-rm { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; border:0; background:var(--p-danger); color:#fff; cursor:pointer; font-size:12px; line-height:1; }',
+      '#portal-root .memo-photo-add { aspect-ratio:1/1; background:var(--p-btn-bg); border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:26px; color:var(--p-text-3); }',
+      '#portal-root .memo-photo-add:hover { color:var(--p-accent); }',
       '#portal-root .portal-btn-lg { min-height:44px; padding:10px 22px; font-size:15px; border-radius:10px; }',
       '#portal-root .portal-edit-actions { display:flex; gap:10px; margin-top:14px; }',
       '#portal-root .portal-edit-actions .portal-btn { flex:1; }',
@@ -256,10 +266,6 @@
       '#portal-root .date-wrap .date-ph.is-visible { display:block; }',
       '#portal-root .date-wrap input.is-empty { color:transparent; }',
       '#portal-root .details-opt summary { cursor:pointer; color:var(--p-accent); font-size:13px; margin:10px 0 6px; }',
-      '#portal-root .memo-photos { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }',
-      '#portal-root .memo-photos .memo-photo { position:relative; }',
-      '#portal-root .memo-photos img { width:100%; height:90px; object-fit:cover; border-radius:8px; display:block; }',
-      '#portal-root .memo-photos .memo-photo-rm { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; border:0; background:var(--p-danger); color:#fff; cursor:pointer; font-size:12px; line-height:1; }',
       '#portal-root .portal-edit-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }',
       '#portal-root .img-grid-mini { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }',
       '#portal-root .img-mini { position:relative; border:1px solid var(--p-border); border-radius:8px; overflow:hidden; }',
@@ -469,13 +475,14 @@
           '</details>' +
         '</div>' +
       '</div>' +
-      // 发说说模式（手机优先，朋友圈风格）
+      // 发说说模式（微信朋友圈风格：顶栏 取消/发表，大输入区，方形九宫格照片）
       '<div id="memo-fields" style="display:none">' +
-        '<div class="portal-card edit-card">' +
-          '<textarea id="memo-text" rows="5" placeholder="说点什么…" style="width:100%;border:1px solid var(--p-border);border-radius:12px;padding:14px;font-size:16px;line-height:1.7;background:var(--p-card);color:var(--p-text);outline:none;resize:vertical;font-family:inherit;"></textarea>' +
-          '<div class="memo-add-row">' +
-            '<button class="portal-btn" id="btn-memo-add-photo" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> 添加图片</button>' +
+        '<div class="memo-composer">' +
+          '<div class="memo-topbar">' +
+            '<button class="memo-topbar-btn" id="btn-memo-cancel" type="button">取消</button>' +
+            '<button class="memo-publish-btn" id="btn-memo-publish" type="button">发表</button>' +
           '</div>' +
+          '<textarea id="memo-text" class="memo-textarea" placeholder="这一刻的想法…"></textarea>' +
           '<div class="memo-photos" id="memo-photos"></div>' +
         '</div>' +
       '</div>' +
@@ -544,7 +551,12 @@
       btn.addEventListener('click', function () { setEditorView(btn.dataset.view); });
     });
     portalRoot.querySelector('#btn-insert-image').addEventListener('click', openPicker);
-    portalRoot.querySelector('#btn-memo-add-photo').addEventListener('click', openPicker);
+    // 朋友圈风格发说说：顶栏发表/取消 + 九宫格 "+" 添加照片
+    portalRoot.querySelector('#btn-memo-publish').addEventListener('click', savePost);
+    portalRoot.querySelector('#btn-memo-cancel').addEventListener('click', function () { switchTab('posts'); });
+    portalRoot.querySelector('#memo-photos').addEventListener('click', function (e) {
+      if (e.target.closest('.memo-photo-add')) openPicker();
+    });
 
     // 模式切换
     portalRoot.querySelectorAll('.mode-btn').forEach(function (btn) {
@@ -811,6 +823,10 @@
     var isPost = mode === 'post';
     portalRoot.querySelector('#post-fields').style.display = isPost ? '' : 'none';
     portalRoot.querySelector('#memo-fields').style.display = isPost ? 'none' : '';
+    // 朋友圈式发说说的顶栏自带 取消/发表，隐藏底部共用按钮行
+    var actions = portalRoot.querySelector('.portal-edit-actions');
+    if (actions) actions.hidden = !isPost;
+    if (!isPost) renderMemoPhotos(); // 确保九宫格 "+" 格已渲染
   }
 
   // 编辑/预览切换：编辑 = Markdown 文本框，预览 = marked 渲染
@@ -910,7 +926,9 @@
 
   function commitPost(slug, md, title) {
     var btn = portalRoot.querySelector('#btn-save-post');
-    btn.disabled = true;
+    var memoBtn = portalRoot.querySelector('#btn-memo-publish');
+    if (btn) btn.disabled = true;
+    if (memoBtn) memoBtn.disabled = true;
     var path = POSTS_DIR + '/' + slug + '.md';
     var msg = (editingSlug ? 'Update post: ' : 'New post: ') + slug;
     getFile(path).then(function (fileData) {
@@ -919,13 +937,15 @@
       if (e.status === 404 || e.message.indexOf('Not Found') >= 0 || e.message.indexOf('404') >= 0) return putFile(path, md, msg);
       throw e;
     }).then(function () {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
+      if (memoBtn) memoBtn.disabled = false;
       toast('已发布，等待自动构建…');
       editingSlug = slug;
       loadPosts();
       setTimeout(function () { switchTab('posts'); }, 1200);
     }).catch(function (e) {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
+      if (memoBtn) memoBtn.disabled = false;
       toast('发布失败: ' + e.message, true);
     });
   }
@@ -1046,6 +1066,7 @@
                 name: safeName,
                 url: ASSET_PREFIX + dir + '/' + safeName,
                 rawUrl: rawImgUrl(IMG_DIR + '/' + dir + '/' + safeName),
+                dataUrl: String(reader.result),
               });
             }, reject);
           };
@@ -1150,7 +1171,7 @@
         .then(function (results) {
           progress.textContent = '上传完成';
           results.forEach(function (r) {
-            useImage(r.url, r.rawUrl || r.url, r.name);
+            useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
             // 立即把新图加进 allImages，重开弹层即可见
             allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl });
           });
@@ -1214,6 +1235,13 @@
       });
       box.appendChild(cell);
     });
+    // 微信式 "+" 格：最多 9 张
+    if (memoPhotos.length < 9) {
+      var add = document.createElement('div');
+      add.className = 'memo-photo-add';
+      add.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+      box.appendChild(add);
+    }
   }
 
   // =================================================================
