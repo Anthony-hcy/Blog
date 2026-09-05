@@ -29,7 +29,7 @@
   var editMode = 'post'; // post | memo
   var allPosts = [];
   var allImages = [];
-  var sourceMode = false;
+  var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
   var portalRoot = null;
@@ -223,13 +223,23 @@
       '#portal-root .portal-view { display:none; }',
       '#portal-root .portal-view.is-active { display:block; }',
       '#portal-root [hidden] { display:none !important; }',
-      '#portal-root .editor-ce { min-height:360px; }',
-      '#portal-root .editor-ce:empty::before { content: attr(data-placeholder); color:var(--p-text-3); pointer-events:none; }',
-      '#portal-root .editor-ce img { max-width:100%; border-radius:8px; margin:0.4em 0; }',
-      '#portal-root .ce-toolbar { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }',
-      '#portal-root .ce-toolbar-mini { justify-content:flex-start; gap:8px; margin:2px 0 10px; }',
-      '#portal-root .ce-toolbar-mini button { min-width:44px; padding:7px 0; text-align:center; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); cursor:pointer; font-size:15px; color:var(--p-text); }',
-      '#portal-root .ce-toolbar-mini button:hover { border-color:var(--p-accent); color:var(--p-accent); }',
+      '#portal-root .editor-view-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }',
+      '#portal-root .view-switch { display:flex; border:1px solid var(--p-border); border-radius:9px; overflow:hidden; }',
+      '#portal-root .view-btn { min-width:64px; padding:8px 12px; text-align:center; border:0; background:var(--p-btn-bg); cursor:pointer; font-size:14px; color:var(--p-text-2); }',
+      '#portal-root .view-switch .view-btn.is-active { background:var(--p-card); color:var(--p-accent); font-weight:600; }',
+      '#portal-root .view-switch .view-btn + .view-btn { border-left:1px solid var(--p-border); }',
+      '#portal-root .editor-view-row > .view-btn { min-width:44px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); color:var(--p-text); font-size:15px; }',
+      '#portal-root .editor-view-row > .view-btn:hover { border-color:var(--p-accent); color:var(--p-accent); }',
+      '#portal-root .edit-body { width:100%; min-height:320px; border:1px solid var(--p-border); border-radius:10px; padding:14px 16px; background:var(--p-card); color:var(--p-text); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; line-height:1.7; outline:none; resize:vertical; }',
+      '#portal-root .edit-body:focus { border-color:var(--p-accent); }',
+      '#portal-root .editor-preview-md { border:1px solid var(--p-border); border-radius:10px; padding:14px 16px; min-height:320px; background:var(--p-card); font-size:15px; line-height:1.8; color:var(--p-text); word-break:break-word; overflow-wrap:anywhere; }',
+      '#portal-root .editor-preview-md img { max-width:100%; border-radius:8px; margin:0.4em 0; }',
+      '#portal-root .editor-preview-md pre { background:var(--p-bg); border:1px solid var(--p-border); border-radius:8px; padding:12px; overflow-x:auto; margin:0.8em 0; }',
+      '#portal-root .editor-preview-md code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; }',
+      '#portal-root .editor-preview-md pre code { background:none; padding:0; }',
+      '#portal-root .editor-preview-md blockquote { border-left:3px solid var(--p-accent); margin:0.8em 0; padding:4px 14px; color:var(--p-text-2); background:var(--p-bg); border-radius:0 8px 8px 0; }',
+      '#portal-root .editor-preview-md table { border-collapse:collapse; margin:0.8em 0; }',
+      '#portal-root .editor-preview-md th, #portal-root .editor-preview-md td { border:1px solid var(--p-border); padding:6px 10px; }',
       '#portal-root .edit-card { padding:20px 18px 18px; }',
       '#portal-root .memo-add-row { margin:12px 0 4px; }',
       '#portal-root .memo-add-row .portal-btn { width:100%; padding:10px 0; font-size:15px; border-radius:10px; }',
@@ -239,8 +249,6 @@
       '#portal-root .mode-switch { display:flex; gap:8px; margin-bottom:14px; }',
       '#portal-root .mode-btn { flex:1; padding:9px 0; text-align:center; border:1px solid var(--p-border); border-radius:9px; background:var(--p-card); cursor:pointer; font-size:14px; color:var(--p-text-2); }',
       '#portal-root .mode-btn.is-active { border-color:var(--p-accent); color:var(--p-accent); font-weight:600; background:#eef6ff; }',
-      '#portal-root .editor-ce { border:1px solid var(--p-border); border-radius:10px; padding:16px 18px; background:var(--p-card); line-height:1.8; outline:none; font-size:15px; }',
-      '#portal-root .editor-ce:focus { border-color:var(--p-accent); }',
       '#portal-root .date-wrap { position:relative; display:block; }',
       '#portal-root .date-wrap .date-ph { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--p-text-3); font-size:15px; pointer-events:none; display:none; }',
       '#portal-root .date-wrap .date-ph.is-visible { display:block; }',
@@ -260,8 +268,8 @@
       '@media (hover: none) { #portal-root .img-mini-actions { display:flex; } }',
       '@media (max-width:560px) {',
       '  #portal-root .portal-shell { padding:0 12px 40px; }',
-      '  #portal-root .ce-toolbar-mini button { min-width:40px; font-size:14px; }',
-      '  #portal-root .editor-ce { min-height:240px; font-size:15px; }',
+      '  #portal-root .view-btn { min-width:56px; font-size:13px; }',
+      '  #portal-root .edit-body { min-height:240px; font-size:14px; }',
       '  #portal-root .memo-photos { grid-template-columns:repeat(3,1fr); }',
       '  #portal-root .portal-field input, #portal-root .portal-field textarea, #portal-root .portal-field select { font-size:16px; }',
       '  #portal-root .date-wrap .date-ph { font-size:16px; }',
@@ -431,14 +439,15 @@
             '<input type="text" id="edit-title" placeholder="文章标题"></label>' +
           '<label class="portal-field"><span>时间</span>' +
             '<span class="date-wrap"><input type="datetime-local" id="edit-date"><span class="date-ph" id="edit-date-ph">yy/mm/dd --:--</span></span></label>' +
-          '<div class="ce-toolbar ce-toolbar-mini">' +
-            '<button type="button" data-cmd="bold" title="加粗"><b>B</b></button>' +
-            '<button type="button" data-cmd="italic" title="斜体"><i>I</i></button>' +
-            '<button type="button" data-cmd="h2" title="标题">H2</button>' +
-            '<button type="button" id="btn-insert-image" title="添加图片"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>' +
+          '<div class="editor-view-row">' +
+            '<div class="view-switch">' +
+              '<button type="button" class="view-btn is-active" data-view="edit">编辑</button>' +
+              '<button type="button" class="view-btn" data-view="preview">预览</button>' +
+            '</div>' +
+            '<button type="button" class="view-btn" id="btn-insert-image" title="添加图片"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>' +
           '</div>' +
-          '<div class="editor-ce" id="edit-ce" contenteditable="true" data-placeholder="开始写点什么…"></div>' +
-          '<textarea id="edit-source" class="editor-source" rows="14" style="display:none;width:100%;border:1px solid var(--p-border);border-radius:10px;padding:12px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.6;background:var(--p-card);color:var(--p-text);outline:none;"></textarea>' +
+          '<textarea id="edit-body" class="edit-body" placeholder="用 Markdown 写点什么…"></textarea>' +
+          '<div class="editor-preview-md" id="edit-preview-md" hidden></div>' +
           '<details class="details-opt">' +
             '<summary>更多选项（slug/分类/标签/摘要/封面）</summary>' +
             '<div class="portal-grid">' +
@@ -528,8 +537,10 @@
     dateInput.addEventListener('change', syncDatePlaceholder);
     syncDatePlaceholder();
 
-    var srcModeBtn = portalRoot.querySelector('#btn-source-mode');
-    if (srcModeBtn) srcModeBtn.addEventListener('click', toggleSourceMode);
+    // 编辑/预览切换
+    portalRoot.querySelectorAll('.view-switch .view-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { setEditorView(btn.dataset.view); });
+    });
     portalRoot.querySelector('#btn-insert-image').addEventListener('click', openPicker);
     portalRoot.querySelector('#btn-memo-add-photo').addEventListener('click', openPicker);
 
@@ -537,20 +548,6 @@
     portalRoot.querySelectorAll('.mode-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setEditMode(btn.dataset.mode);
-      });
-    });
-
-    // 富文本工具栏（最简：B / I / H2）
-    portalRoot.querySelectorAll('.ce-toolbar [data-cmd]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var ce = portalRoot.querySelector('#edit-ce');
-        ce.focus();
-        var cmd = btn.dataset.cmd;
-        if (cmd === 'h2') {
-          document.execCommand('formatBlock', false, 'h2');
-        } else {
-          document.execCommand(cmd, false, null);
-        }
       });
     });
 
@@ -747,13 +744,11 @@
     portalRoot.querySelector('#edit-tags').value = '';
     portalRoot.querySelector('#edit-excerpt').value = '';
     portalRoot.querySelector('#edit-banner').value = '';
-    portalRoot.querySelector('#edit-ce').innerHTML = '';
-    portalRoot.querySelector('#edit-source').value = '';
-    sourceMode = false;
+    portalRoot.querySelector('#edit-body').value = '';
+    setEditorView('edit');
     memoPhotos = [];
     renderMemoPhotos();
     portalRoot.querySelector('#memo-text').value = '';
-    setSourceModeUI(false);
     switchTab('edit');
   }
 
@@ -788,13 +783,8 @@
         }
       }
       renderMemoPhotos();
-      // 文章正文 → contenteditable（marked 渲染）
-      loadMarked().then(function (md) {
-        var bodyHtml = md ? md.parse(parsed.body) : esc(parsed.body);
-        portalRoot.querySelector('#edit-ce').innerHTML = bodyHtml;
-        portalRoot.querySelector('#edit-source').value = parsed.body;
-      });
-      setSourceModeUI(false);
+      portalRoot.querySelector('#edit-body').value = parsed.body;
+      setEditorView('edit');
       switchTab('edit');
       window.scrollTo(0, 0);
     }).catch(function (e) {
@@ -815,104 +805,28 @@
     portalRoot.querySelector('#memo-fields').style.display = isPost ? 'none' : '';
   }
 
-  function setSourceModeUI(on) {
-    sourceMode = on;
-    var ce = portalRoot.querySelector('#edit-ce');
-    var src = portalRoot.querySelector('#edit-source');
-    if (!ce || !src) return;
-    ce.style.display = on ? 'none' : '';
-    src.style.display = on ? '' : 'none';
-    var btn = portalRoot.querySelector('#btn-source-mode');
-    if (btn) btn.textContent = on ? '富文本模式' : '源码模式';
-  }
-
-  function toggleSourceMode() {
-    var ce = portalRoot.querySelector('#edit-ce');
-    var src = portalRoot.querySelector('#edit-source');
-    if (sourceMode) {
-      // 回到富文本：源码 → marked 渲染
+  // 编辑/预览切换：编辑 = Markdown 文本框，预览 = marked 渲染
+  function setEditorView(view) {
+    editorView = view;
+    var body = portalRoot.querySelector('#edit-body');
+    var preview = portalRoot.querySelector('#edit-preview-md');
+    if (!body || !preview) return;
+    portalRoot.querySelectorAll('.view-switch .view-btn').forEach(function (b) {
+      b.classList.toggle('is-active', b.dataset.view === view);
+    });
+    if (view === 'preview') {
+      body.hidden = true;
       loadMarked().then(function (md) {
-        ce.innerHTML = md ? md.parse(src.value || '') : esc(src.value || '');
-        setSourceModeUI(false);
+        if (editorView !== 'preview') return; // 用户已切回编辑
+        preview.innerHTML = md ? md.parse(body.value || '') : '<p>' + esc(body.value || '') + '</p>';
+        preview.hidden = false;
       });
     } else {
-      src.value = serializeEditor();
-      setSourceModeUI(true);
+      preview.hidden = true;
+      body.hidden = false;
     }
   }
 
-  // contenteditable → markdown
-  function serializeEditor() {
-    var ce = portalRoot.querySelector('#edit-ce');
-    var blocks = [];
-    Array.prototype.forEach.call(ce.childNodes, function (node) {
-      if (node.nodeType === 3) { // text
-        var t = node.textContent.trim();
-        if (t) blocks.push(t);
-        return;
-      }
-      if (node.nodeType !== 1) return;
-      var tag = node.tagName.toLowerCase();
-      if (tag === 'p' || tag === 'div') {
-        var text = serializeInline(node);
-        if (text.trim()) blocks.push(text.trim());
-        return;
-      }
-      if (/^h[1-6]$/.test(tag)) {
-        var level = parseInt(tag[1], 10);
-        var hText = serializeInline(node).trim();
-        if (hText) blocks.push('#'.repeat(level) + ' ' + hText);
-        return;
-      }
-      if (tag === 'blockquote') {
-        var qText = serializeInline(node).trim();
-        if (qText) blocks.push('> ' + qText);
-        return;
-      }
-      if (tag === 'ul' || tag === 'ol') {
-        Array.prototype.forEach.call(node.children, function (li) {
-          var liText = serializeInline(li).trim();
-          if (liText) blocks.push((tag === 'ol' ? '1. ' : '- ') + liText);
-        });
-        return;
-      }
-      if (tag === 'img') {
-        var src = node.getAttribute('data-site-url') || node.getAttribute('src') || '';
-        var alt = node.getAttribute('alt') || '';
-        if (src) blocks.push('![' + alt + '](' + src + ')');
-        return;
-      }
-      var other = serializeInline(node).trim();
-      if (other) blocks.push(other);
-    });
-    return blocks.join('\n\n');
-  }
-
-  function serializeInline(node) {
-    var out = '';
-    Array.prototype.forEach.call(node.childNodes, function (child) {
-      if (child.nodeType === 3) {
-        out += child.textContent;
-        return;
-      }
-      if (child.nodeType !== 1) return;
-      var tag = child.tagName.toLowerCase();
-      if (tag === 'br') { out += '\n'; return; }
-      if (tag === 'img') {
-        out += '![' + (child.getAttribute('alt') || '') + '](' +
-          (child.getAttribute('data-site-url') || child.getAttribute('src') || '') + ')';
-        return;
-      }
-      var inner = serializeInline(child);
-      if (tag === 'strong' || tag === 'b') out += '**' + inner + '**';
-      else if (tag === 'em' || tag === 'i') out += '*' + inner + '*';
-      else if (tag === 'a') out += '[' + inner + '](' + (child.getAttribute('href') || '') + ')';
-      else if (tag === 'code') out += '`' + inner + '`';
-      else if (tag === 'h1' || tag === 'h2' || tag === 'h3') out += '#' + inner + '\n\n';
-      else out += inner;
-    });
-    return out;
-  }
 
   // =================================================================
   // 保存
@@ -928,9 +842,7 @@
   function savePostMode() {
     var title = portalRoot.querySelector('#edit-title').value.trim();
     if (!title) { toast('请填写标题', true); return; }
-    var body = sourceMode
-      ? portalRoot.querySelector('#edit-source').value
-      : serializeEditor();
+    var body = portalRoot.querySelector('#edit-body').value.replace(/\r\n/g, '\n');
     var slug = safeSlug(portalRoot.querySelector('#edit-slug').value) ||
       safeSlug(title.toLowerCase().replace(/\s+/g, '-')) ||
       'post-' + Date.now();
@@ -1218,30 +1130,14 @@
 
   function useImage(siteUrl, rawUrl, name, dataUrl) {
     if (editMode === 'post') {
-      // 插入光标处：contenteditable 插入 <img>（显示优先 dataUrl 立即可见，正文序列化用站点路径）
-      var ce = portalRoot.querySelector('#edit-ce');
-      ce.focus();
-      var sel = window.getSelection();
-      var img = document.createElement('img');
-      img.src = dataUrl || rawUrl || siteUrl;
-      img.setAttribute('data-site-url', siteUrl);
-      img.alt = name;
-      if (sel && sel.rangeCount) {
-        var range = sel.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(img);
-        range.setStartAfter(img);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      } else {
-        ce.appendChild(document.createElement('br'));
-        ce.appendChild(img);
-      }
-      // 同步源码（若源码模式）
-      if (sourceMode) {
-        portalRoot.querySelector('#edit-source').value = serializeEditor();
-      }
+      // Markdown 光标处插入图片语法；若当前在预览则切回编辑
+      setEditorView('edit');
+      var ta = portalRoot.querySelector('#edit-body');
+      var mdText = '\n![' + (name || 'image') + '](' + siteUrl + ')\n';
+      var start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+      var end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ta.value.length;
+      ta.setRangeText(mdText, start, end, 'end');
+      ta.focus();
     } else {
       // 说说模式：加入集中图集
       memoPhotos.push({ url: siteUrl, rawUrl: rawUrl || siteUrl, name: name, dataUrl: dataUrl || '' });
