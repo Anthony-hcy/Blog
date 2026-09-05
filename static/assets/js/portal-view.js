@@ -559,7 +559,7 @@
       if (!btn) {
         // 点击图片本体（非按钮）→ 查看大图
         var pic = e.target.closest('.img-mini img');
-        if (pic) openLightbox(pic.getAttribute('src'));
+        if (pic) openLightbox(pic.currentSrc || pic.getAttribute('src'));
         return;
       }
       var act = btn.dataset.act;
@@ -579,7 +579,7 @@
         }).then(function () {
           toast('已删除');
         }).catch(function (err) {
-          if (removedImg) allImages.push(removedImg);
+          if (removedImg) allImages.unshift(removedImg); // 列表已是时间倒序，失败恢复插回最前
           renderImages();
           toast('删除失败: ' + err.message, true);
         });
@@ -938,6 +938,7 @@
       var items = (tree.tree || []).filter(function (n) {
         return n.type === 'blob' && n.path.indexOf(IMG_DIR + '/') === 0 && IMG_EXT.test(n.path);
       });
+      // 按文件名倒序：日期序号命名（2026.09.05-01）天然按时间排，最新的在最前
       allImages = items.map(function (n) {
         return {
           repoPath: n.path,
@@ -945,22 +946,32 @@
           url: imgUrl(n.path),
           rawUrl: rawImgUrl(n.path),
         };
-      }).sort(function (a, b) { return a.repoPath.localeCompare(b.repoPath); });
+      }).sort(function (a, b) {
+        return b.name.localeCompare(a.name, undefined, { numeric: true }) || b.repoPath.localeCompare(a.repoPath);
+      });
       return allImages;
     });
+  }
+
+  // 缩略图用站点 URL（SW 缓存加速），加载失败（刚上传还没部署）自动换 raw 直链兜底
+  function fallbackToRaw(imgEl, rawUrl) {
+    imgEl.addEventListener('error', function () {
+      if (rawUrl && imgEl.src !== rawUrl) imgEl.src = rawUrl;
+    }, { once: true });
   }
 
   function renderImages() {
     var grid = portalRoot.querySelector('#images-grid');
     grid.innerHTML = '';
-    allImages.slice().reverse().forEach(function (img) {
+    allImages.forEach(function (img) {
       var cell = document.createElement('div');
       cell.className = 'img-mini';
       cell.innerHTML =
-        '<img src="' + esc(img.rawUrl) + '" alt="" loading="lazy">' +
+        '<img src="' + esc(img.url) + '" alt="" loading="lazy">' +
         '<div class="img-mini-actions">' +
           '<button data-act="delimg" data-name="' + esc(img.name) + '" data-repopath="' + esc(img.repoPath) + '" type="button">删除</button>' +
         '</div>';
+      fallbackToRaw(cell.querySelector('img'), img.rawUrl);
       grid.appendChild(cell);
     });
   }
@@ -1110,13 +1121,14 @@
 
     var grid = overlay.querySelector('#picker-grid');
     grid.innerHTML = '';
-    allImages.slice().reverse().slice(0, 40).forEach(function (img) {
+    allImages.slice(0, 40).forEach(function (img) {
       var item = document.createElement('div');
       item.className = 'picker-item';
       item.style.cssText = 'cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;';
       item.innerHTML =
-        '<img src="' + esc(img.rawUrl || img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
+        '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
         '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
+      fallbackToRaw(item.querySelector('img'), img.rawUrl);
       item.addEventListener('click', function () {
         useImage(img.url, img.rawUrl || img.url, img.name);
         overlay.remove();
@@ -1140,19 +1152,20 @@
           results.forEach(function (r) {
             useImage(r.url, r.rawUrl || r.url, r.name);
             // 立即把新图加进 allImages，重开弹层即可见
-            allImages.push({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl });
+            allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl });
           });
           if (document.body.contains(overlay)) {
             // 重新渲染 picker 网格（新图出现在最前）
             var grid2 = overlay.querySelector('#picker-grid');
             if (grid2) {
               grid2.innerHTML = '';
-              allImages.slice().reverse().slice(0, 40).forEach(function (img) {
+              allImages.slice(0, 40).forEach(function (img) {
                 var item = document.createElement('div');
                 item.className = 'picker-item';
                 item.style.cssText = 'cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;';
-                item.innerHTML = '<img src="' + esc(img.rawUrl || img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
+                item.innerHTML = '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
                   '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
+                fallbackToRaw(item.querySelector('img'), img.rawUrl);
                 item.addEventListener('click', function () { useImage(img.url, img.rawUrl || img.url, img.name); overlay.remove(); });
                 grid2.appendChild(item);
               });
@@ -1192,8 +1205,9 @@
     memoPhotos.forEach(function (p, idx) {
       var cell = document.createElement('div');
       cell.className = 'memo-photo';
-      cell.innerHTML = '<img src="' + esc(p.dataUrl || p.rawUrl || p.url) + '" alt="">' +
+      cell.innerHTML = '<img src="' + esc(p.dataUrl || p.url) + '" alt="">' +
         '<button class="memo-photo-rm" type="button">✕</button>';
+      fallbackToRaw(cell.querySelector('img'), p.rawUrl || '');
       cell.querySelector('.memo-photo-rm').addEventListener('click', function () {
         memoPhotos.splice(idx, 1);
         renderMemoPhotos();

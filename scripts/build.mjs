@@ -518,7 +518,7 @@ function buildPostPage(post, prev, next) {
     <span>${post.dateText}</span>
     <span class="author">${escapeHtml(site.author)}</span>
     <span class="article-meta-spacer"></span>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">0</span></span>
+    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </header>
@@ -557,7 +557,7 @@ function buildMemoPage(post, prev, next) {
   <div class="memo-meta">
     <span>${post.dateText}</span>
     <span class="memo-meta-spacer"></span>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">0</span></span>
+    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </div>

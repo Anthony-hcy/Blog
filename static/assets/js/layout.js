@@ -623,3 +623,17 @@ function initContentRefresher() {
 
 initServiceWorker();
 initContentRefresher();
+
+// 不蒜子是第三方免费服务，移动网络下经常连不上；8 秒没响应把占位符换成 –，不再显示误导性的 0
+function initBusuanziWatchdog() {
+  window.setTimeout(function () {
+    ['busuanzi_value_page_pv', 'busuanzi_value_site_pv'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var t = (el.textContent || '').trim();
+      if (t === '…' || t === '--' || t === '') el.textContent = '–';
+    });
+  }, 8000);
+}
+
+initBusuanziWatchdog();
