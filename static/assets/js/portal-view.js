@@ -638,7 +638,7 @@
     });
     if (name === 'posts') renderPosts(allPosts, '');
     if (name === 'images') { if (!allImages.length) loadAllImages().then(renderImages); else renderImages(); }
-    if (name === 'status') loadStatus();
+    if (name === 'status') { loadStatus(); checkStuckRuns(); }
     if (name === 'edit') {
       // 手机端打开 Edit 默认进发说说；正在编辑的内容不被打断
       var isEmpty = !editingSlug && !portalRoot.querySelector('#edit-title').value &&
@@ -667,6 +667,7 @@
       loadPosts();
       loadAllImages().then(renderImages);
       loadStatus();
+      checkStuckRuns();
       // 侧边栏 Portal 链接显示（登录态）
       syncSidebarPortalLink(true);
     } else {
@@ -1077,6 +1078,7 @@
       toast('已发布，等待自动构建…');
       editingSlug = slug;
       loadPosts();
+      checkStuckRuns();
       setTimeout(function () { switchTab('posts'); }, 1200);
     }).catch(function (e) {
       if (btn) btn.disabled = false;
@@ -1382,6 +1384,40 @@
   // =================================================================
   // Status
   // =================================================================
+  // 构建队列自愈：连续快速删除/发布时 GitHub 偶发把一次构建挂住（占住队列），
+  // 自动取消多余的、只留最新一条；最新一条也卡住（>5 分钟）则取消并重新触发构建
+  function checkStuckRuns() {
+    if (!state.token) return;
+    gh('/repos/' + state.repo + '/actions/runs?per_page=8').then(function (d) {
+      var runs = (d.workflow_runs || []).filter(function (r) {
+        return r.status === 'in_progress' || r.status === 'pending' || r.status === 'queued';
+      });
+      if (!runs.length) return; // runs 按创建时间倒序，最新在前
+      var now = Date.now();
+      var STUCK_MS = 5 * 60 * 1000;
+      var cancelList = runs.slice(1); // 除最新外的活跃构建（新构建已取代它们，属漏网之鱼）
+      var needRedispatch = false;
+      var newestAge = now - Date.parse(runs[0].created_at);
+      if (newestAge > STUCK_MS) { // 最新一条也卡住：取消并重新触发
+        cancelList.push(runs[0]);
+        needRedispatch = true;
+      }
+      if (!cancelList.length) return;
+      return Promise.all(cancelList.map(function (r) {
+        return gh('/repos/' + state.repo + '/actions/runs/' + r.id + '/cancel', { method: 'POST' })
+          .catch(function () { /* 已自然结束等情况忽略 */ });
+      })).then(function () {
+        toast('检测到 ' + cancelList.length + ' 个卡住的构建，已自动解除');
+        if (needRedispatch) {
+          return gh('/repos/' + state.repo + '/actions/workflows/' + WORKFLOW + '/dispatches', {
+            method: 'POST',
+            body: { ref: 'main' },
+          });
+        }
+      }).catch(function () { /* 静默 */ });
+    }).catch(function () { /* 静默 */ });
+  }
+
   function loadStatus() {
     gh('/repos/' + state.repo + '/commits?per_page=1').then(function (commits) {
       var c = commits && commits[0];
