@@ -571,16 +571,55 @@ function initLayout() {
 
 initLayout();
 
+// 站点子路径（/Blog/ 或 /）
+function pathBase() {
+  var m = location.pathname.match(/^(\/[^/]+)?\//);
+  return (m && m[1] ? m[1] : '') + '/';
+}
+
 // PWA：注册 Service Worker（/Blog/ 子路径与根路径部署均兼容）
 function initServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  var m = location.pathname.match(/^(\/[^/]+)?\//);
-  var base = (m && m[1] ? m[1] : '') + '/';
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register(base + 'sw.js').catch(function() {
+    navigator.serviceWorker.register(pathBase() + 'sw.js').catch(function() {
       /* 注册失败不影响页面 */
     });
   });
 }
 
+// PWA 内容自动更新：App 回到前台/页面恢复时，比对构建版本指纹，
+// 有新部署就自动刷新——解决独立窗口里"没有刷新按钮、主页一直旧内容"的问题。
+// Portal 页排除在外（防止自动刷新弄丢正在编辑的草稿）。
+function initContentRefresher() {
+  if (document.getElementById('portal-root') || /portal\.html$/.test(location.pathname)) return;
+  var pageVersion = (document.querySelector('meta[name="build-version"]') || {}).content || '';
+  var lastCheck = 0;
+
+  function check() {
+    var now = Date.now();
+    if (now - lastCheck < 15000) return;
+    lastCheck = now;
+    fetch(pathBase() + 'version.json?t=' + now, { cache: 'reload' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.v || !pageVersion || data.v === pageVersion) return;
+        // 60 秒内最多自动刷新一次，防异常时循环刷新
+        var lastReload = Number(sessionStorage.getItem('contentReloadAt') || 0);
+        if (Date.now() - lastReload < 60000) return;
+        try { sessionStorage.setItem('contentReloadAt', String(Date.now())); } catch (_) {}
+        location.reload();
+      })
+      .catch(function () { /* 断网静默 */ });
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) check();
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) check();
+  });
+  check();
+}
+
 initServiceWorker();
+initContentRefresher();

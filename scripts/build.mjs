@@ -28,6 +28,8 @@ const withBase = (path) => {
   return BASE + path;
 };
 const EXSEARCH_HASH = 'search-index';
+// 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新
+const BUILD_VERSION = new Date().toISOString();
 
 // ---------- frontmatter 解析（极简 YAML 子集） ----------
 function parseFrontmatter(md) {
@@ -252,6 +254,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="apple-mobile-web-app-title" content="${site.name}" />
   <link rel="manifest" href="${withBase(`/site.webmanifest`)}" />
   <meta name="application-name" content="${site.name}">
+  <meta name="build-version" content="${BUILD_VERSION}">
   <meta name="apple-mobile-web-app-title" content="${site.name}">
   <meta name="theme-color" content="#000000">
   ${extraHead}
@@ -801,6 +804,7 @@ writePage('about/index.html', buildAboutPage());
 writePage('404.html', build404());
 writePage('portal.html', buildPortalPage());
 writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
+writePage('version.json', JSON.stringify({ v: BUILD_VERSION }));
 writePage('88x31/index.json', buildBadgesIndex());
 
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）

@@ -28,8 +28,15 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // 版本指纹永远直连（页面用它判断是否有新部署，走缓存会失效）
+  if (url.pathname.endsWith('/version.json')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
   if (req.mode === 'navigate') {
-    event.respondWith(networkFirst(req));
+    // no-cache = 带条件回源校验：有新部署立刻拿到新页面，没有则 304 快速返回
+    event.respondWith(networkFirst(req, { cache: 'no-cache' }));
     return;
   }
   if (/\.(png|jpe?g|gif|webp|svg|avif|ico|woff2?|ttf)$/i.test(url.pathname) ||
@@ -40,8 +47,8 @@ self.addEventListener('fetch', function (event) {
   event.respondWith(staleWhileRevalidate(req));
 });
 
-function networkFirst(req) {
-  return fetch(req).then(function (res) {
+function networkFirst(req, init) {
+  return fetch(req, init).then(function (res) {
     if (res && res.ok) {
       var copy = res.clone();
       caches.open(CACHE).then(function (c) { c.put(req, copy); });
