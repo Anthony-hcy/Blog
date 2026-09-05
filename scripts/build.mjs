@@ -434,7 +434,11 @@ function entryMemo(post) {
       const srcMatch = fig.match(/src="([^"]+)"/);
       return { html: fig, src: srcMatch ? srcMatch[1] : '' };
     });
-  const contentHtml = rendered.replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '');
+  const contentHtml = rendered
+    .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
+    // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
+    .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
+    .trim();
   const photosHtml = figures.length
     ? `<div class="photoset">${groupPhotos(figures).map(row =>
         `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
@@ -565,7 +569,11 @@ function buildMemoPage(post, prev, next) {
       const srcMatch = fig.match(/src="([^"]+)"/);
       return { html: fig, src: srcMatch ? srcMatch[1] : '' };
     });
-  const contentHtml = rendered.replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '');
+  const contentHtml = rendered
+    .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
+    // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
+    .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
+    .trim();
   const photosHtml = figures.length
     ? `<div class="photoset">${groupPhotos(figures).map(row =>
         `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
