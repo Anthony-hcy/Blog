@@ -959,34 +959,47 @@
     locateReset(btn, oldText);
   }
 
-  // 高德 JS API 定位（国内最可靠：GPS/基站/IP 综合定位，不走被墙的谷歌服务）
+  // 高德 JS API 2.0 定位（国内最可靠：不走被墙的谷歌服务；含精确定位 + 城市级兜底）
   function amapJsLocate() {
-    return new Promise(function (resolve, reject) {
-      if (!AMAP_JS_KEY) { reject(new Error('no js key')); return; }
-      function init() {
-        try {
-          AMap.plugin('AMap.Geolocation', function () {
-            var geo = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
-            geo.getPosition(function (status, result) {
-              if (status === 'complete' && result.position) {
-                resolve(result.position.lng.toFixed(6) + ',' + result.position.lat.toFixed(6));
-              } else {
-                reject(new Error((result && result.message) || 'AMap 定位失败'));
-              }
-            });
-          });
-        } catch (e) { reject(e); }
-      }
-      if (window.AMap) { init(); return; }
+    function loadScript() {
+      if (window.AMap) return Promise.resolve();
       // 2021-12 之后申请的 JS Key 必须配安全密钥（官方要求：必须在脚本加载之前设置）
       if (AMAP_JS_CODE) {
         window._AMapSecurityConfig = { securityJsCode: AMAP_JS_CODE };
       }
-      var sc = document.createElement('script');
-      sc.src = 'https://webapi.amap.com/maps?v=1.4.15&key=' + AMAP_JS_KEY + '&plugin=AMap.Geolocation';
-      sc.onload = function () { init(); };
-      sc.onerror = function () { reject(new Error('高德 JS 加载失败')); };
-      document.head.appendChild(sc);
+      return new Promise(function (resolve, reject) {
+        var sc = document.createElement('script');
+        sc.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_JS_KEY;
+        sc.onload = function () { resolve(); };
+        sc.onerror = function () { reject(new Error('高德 JS 加载失败')); };
+        document.head.appendChild(sc);
+      });
+    }
+    function plugin(name) {
+      return new Promise(function (resolve) { AMap.plugin(name, function () { resolve(); }); });
+    }
+    return loadScript().then(function () { return plugin('AMap.Geolocation'); }).then(function () {
+      return new Promise(function (resolve, reject) {
+        var geo = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+        geo.getPosition(function (status, result) {
+          if (status === 'complete' && result && result.position) {
+            resolve({ type: 'loc', loc: result.position.lng.toFixed(6) + ',' + result.position.lat.toFixed(6) });
+            return;
+          }
+          // 精确定位失败 → 高德城市级兜底（基站/IP，走高德自有服务）
+          if (typeof geo.getCityInfo === 'function') {
+            geo.getCityInfo(function (s2, r2) {
+              if (s2 === 'complete' && r2 && (r2.province || r2.city)) {
+                resolve({ type: 'city', text: [r2.province, r2.city].filter(function (x) { return x && typeof x === 'string'; }).join(' ') });
+              } else {
+                reject(new Error((r2 && r2.message) || 'AMap 定位失败'));
+              }
+            });
+            return;
+          }
+          reject(new Error('AMap 定位失败'));
+        });
+      });
     });
   }
 
@@ -1001,8 +1014,15 @@
     function failAllNow() { failAll(btn, oldText, diag); }
     // 有 JS Key 时优先走高德 JS 定位（GCJ-02 直出，免坐标转换）
     if (AMAP_JS_KEY) {
-      amapJsLocate().then(function (loc) {
-        return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + loc)
+      amapJsLocate().then(function (r) {
+        if (r.type === 'city') {
+          // 城市级兜底结果（高德基站/IP）
+          portalRoot.querySelector('#memo-loc').value = r.text;
+          toast('网络定位到：' + r.text + '（可手动补充区县）');
+          locateReset(btn, oldText);
+          return;
+        }
+        return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + r.loc)
           .then(function (r) { return r.json(); })
           .then(function (d) {
             if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
