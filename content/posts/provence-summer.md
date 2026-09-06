@@ -5,6 +5,7 @@ slug: provence-summer
 type: post
 category: 小作文
 tags: [影评]
+excerpt: 逍遥的过去，慵懒的现在，你问我哪个更好，我分不出来，但我知道，我还有未来可以期待。
 banner: /assets/img/provence-summer/普罗旺斯的夏天.webp
 draft: false
 ---
@@ -33,6 +34,4 @@ draft: false
 
 仲夏夜的庭院，女孩们穿着鲜艳的长裙起舞，男孩们随身携带着吉他即兴弹奏，酒馆里的人们举起酒杯齐声高歌，这里没有城市的喧嚣和麻木的人群，嘈杂的街道不复存在，人们活得那么奔放、热烈、自由、浪漫。
 
-![](普罗旺斯的夏天.jpg)
-
-2025年4月18日23:32
+![](普罗旺斯的夏天.webp)

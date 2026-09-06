@@ -5,6 +5,7 @@ slug: my-mister
 type: post
 category: 小作文
 tags: [影评, 韩剧]
+excerpt: “有个人...了解我，而我...好像也能懂她。”
 banner: /assets/img/my-mister/我的大叔.webp
 draft: false
 ---
@@ -19,4 +20,4 @@ draft: false
 
 “她懂我，让我觉得悲伤。”
 
-![](我的大叔.jpg)
+![](我的大叔.webp)

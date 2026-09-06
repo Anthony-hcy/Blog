@@ -4,6 +4,7 @@ date: 2025-12-06 12:00:00+08:00
 slug: shanghai-fortress
 type: post
 category: 小作文
+excerpt: 林澜给我一种熟悉的感觉，就像模糊的白月光。
 tags: [书评]
 draft: false
 ---

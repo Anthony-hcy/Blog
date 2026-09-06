@@ -5,6 +5,7 @@ slug: our-beloved-summer
 type: post
 category: 小作文
 tags: [影评, 韩剧]
+excerpt: “还有一点我也很讨厌......就是别人所不了解的国延秀，只有我知道，这样的面貌她只让我看见，让我不得不爱她......” 
 banner: /assets/img/our-beloved-summer/那年，我们的夏天-1.jpg
 draft: false
 ---

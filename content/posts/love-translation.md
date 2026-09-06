@@ -4,6 +4,7 @@ date: 2026-01-27 12:00:00+08:00
 slug: love-translation
 type: post
 category: 小作文
+excerpt: "Love is a smoke raised with the fume of sighs."
 tags: [影评, 韩剧]
 draft: false
 ---

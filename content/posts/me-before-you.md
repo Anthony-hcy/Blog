@@ -5,6 +5,7 @@ slug: me-before-you
 type: post
 category: 小作文
 tags: [影评]
+excerpt: Just live well.
 banner: /assets/img/me-before-you/遇见你之前.webp
 draft: false
 ---
@@ -33,6 +34,4 @@ I'll be walking beside you every step of the way.
 
 Love, Will.
 
-![](遇见你之前.jpg)
-
-2025年5月20日23:45
+![](遇见你之前.webp)

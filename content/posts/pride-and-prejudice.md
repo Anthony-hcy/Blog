@@ -5,6 +5,7 @@ slug: pride-and-prejudice
 type: post
 category: 小作文
 tags: [影评]
+excerpt: 𝑰 𝒍𝒐𝒗𝒆 𝒚𝒐𝒖, 𝒎𝒐𝒔𝒕 𝒂𝒓𝒅𝒆𝒏𝒕𝒍𝒚.
 banner: /assets/img/pride-and-prejudice/傲慢与偏见.webp
 draft: false
 ---
@@ -43,4 +44,4 @@ draft: false
 
 Pride and Prejudice.
 
-![](傲慢与偏见.jpg)
+![](傲慢与偏见.webp)

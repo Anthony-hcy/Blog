@@ -5,6 +5,7 @@ slug: becoming-jane
 type: post
 category: 小作文
 tags: [影评]
+excerpt: 有时候感情是一朵羞怯的花，需要时间才会绽放
 banner: /assets/img/becoming-jane/成为简奥斯汀.webp
 draft: false
 ---
@@ -25,6 +26,4 @@ Becoming Jane
 
 奥斯汀最后读她的文字：“可惜这件幸福的婚姻已无可能，天下万千想要缔结真正幸福婚姻的情人，从此也错过了一个借鉴的榜样”，但是她在《傲慢与偏见》里给了她和他的爱情一个美好结局……
 
-![](成为简奥斯汀.jpg)
-
-2025年4月19日23:59
+![](成为简奥斯汀.webp)

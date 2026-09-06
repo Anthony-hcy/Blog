@@ -1,10 +1,11 @@
 ---
-title: 爱是想触碰又收回的手。
+title: 爱是想触碰又收回的手
 date: 2025-05-25 12:00:00+08:00
 slug: silence-of-the-sea
 type: post
 category: 小作文
 tags: [影评]
+excerpt: 我之所以喜欢大海，是因为它的宁静。
 banner: /assets/img/silence-of-the-sea/沉静如海.webp
 draft: false
 ---
@@ -35,4 +36,4 @@ draft: false
 
 ——（美）大卫·塞林格《破碎故事之心》
 
-![](沉静如海.jpg)
+![](沉静如海.webp)
