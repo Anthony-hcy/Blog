@@ -204,6 +204,29 @@ function memoAvatar(post) {
   return pool[h % pool.length];
 }
 
+// ---------- Obsidian 双链图片：![[name.png]] → 站点图片链接 ----------
+// 图片放在 static/assets/img/<slug>/ 下（文件名与双链一致，扩展名可省略）
+const IMG_EXTS = ['', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'];
+function resolveObsidianEmbeds(body, slug) {
+  const dir = join(ASSETS_SRC, 'assets', 'img', slug);
+  let files = null;
+  try {
+    files = new Set(readdirSync(dir));
+  } catch (_) {
+    return body;
+  }
+  return body.replace(/!\[\[([^\]]+)\]\]/g, function (whole, name) {
+    const base = name.trim().split('|')[0]; // 兼容 ![[img|500]] 的尺寸写法（忽略尺寸）
+    for (const ext of IMG_EXTS) {
+      if (files.has(base + ext)) {
+        return `![](${withBase('/assets/img/' + slug + '/')}${base + ext})`;
+      }
+    }
+    console.warn('  ! 双链图片未找到: ' + slug + ' / ' + name);
+    return whole;
+  });
+}
+
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
@@ -220,6 +243,7 @@ function loadPosts() {
     const date = new Date(rawDate.replace(' ', 'T'));
     const tags = Array.isArray(data.tags) ? data.tags : String(data.tags || '').split(',').filter(Boolean);
     const type = data.type === 'memo' ? 'memo' : 'post';
+    const resolvedBody = resolveObsidianEmbeds(body, slug);
     posts.push({
       slug,
       title: data.title || slug,
@@ -231,9 +255,9 @@ function loadPosts() {
       location: data.location || '',
       category: data.category || '未分类',
       tags,
-      excerpt: data.excerpt || excerptFrom(body),
+      excerpt: data.excerpt || excerptFrom(resolvedBody),
       banner: data.banner || '',
-      body,
+      body: resolvedBody,
     });
   }
   posts.sort((a, b) => b.date - a.date);
