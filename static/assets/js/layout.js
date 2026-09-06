@@ -567,33 +567,9 @@ function initLayout() {
   initInContainerScrollNavigation();
   initRouteNavActiveState();
   initMobileMenu();
-  initHardRefresh();
 }
 
 initLayout();
-
-// 强制刷新：清空 PWA 缓存后重新加载（手机 App 没有刷新按钮的替代品，等同电脑 Ctrl+F5）
-function hardRefresh() {
-  const done = function () { window.location.reload(); };
-  if (window.caches && caches.keys) {
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-    }).catch(function () {}).then(done);
-  } else {
-    done();
-  }
-}
-
-function initHardRefresh() {
-  window.portalHardRefresh = hardRefresh; // Portal 页头按钮复用
-  document.querySelectorAll('.js-hard-refresh').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const icon = btn.querySelector('i');
-      if (icon) icon.classList.add('fa-spin');
-      hardRefresh();
-    });
-  });
-}
 
 // 站点子路径（/Blog/ 或 /）
 function pathBase() {
