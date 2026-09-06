@@ -224,7 +224,8 @@ function resolveObsidianEmbeds(body, slug) {
     }
     for (const cand of candidates) {
       if (files.has(cand)) {
-        return `![](${withBase('/assets/img/' + slug + '/')}${cand})`;
+        // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）
+        return `![](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
       }
     }
     console.warn('  ! 双链图片未找到: ' + slug + ' / ' + name);
@@ -251,7 +252,7 @@ function resolveBareImages(body, slug) {
     }
     for (const cand of candidates) {
       if (files.has(cand)) {
-        return `![${alt}](${withBase('/assets/img/' + slug + '/')}${cand})`;
+        return `![${alt}](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
       }
     }
     return whole; // 目录里没有就保持原样
