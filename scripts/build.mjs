@@ -232,6 +232,32 @@ function resolveObsidianEmbeds(body, slug) {
   });
 }
 
+// ---------- 正文裸文件名图片：![](名字.webp) → 在 static/assets/img/<slug>/ 中查找并补全路径 ----------
+// （Obsidian 里把封面等图直接 ![[名字]] 改写成 markdown 后的常见形态）
+function resolveBareImages(body, slug) {
+  const dir = join(ASSETS_SRC, 'assets', 'img', slug);
+  let files = null;
+  try {
+    files = new Set(readdirSync(dir));
+  } catch (_) {
+    return body;
+  }
+  return body.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (whole, alt, ref) {
+    if (ref.indexOf('/') >= 0 || ref.indexOf('http') === 0 || ref.indexOf('data:') === 0) return whole; // 已是路径/外链
+    const stem = ref.replace(/\.[a-z0-9]+$/i, ''); // 扩展名不匹配时尝试替换（文件可能转过格式）
+    const candidates = [ref];
+    for (const ext of IMG_EXTS) {
+      candidates.push(ref + ext, stem + ext);
+    }
+    for (const cand of candidates) {
+      if (files.has(cand)) {
+        return `![${alt}](${withBase('/assets/img/' + slug + '/')}${cand})`;
+      }
+    }
+    return whole; // 目录里没有就保持原样
+  });
+}
+
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
@@ -248,7 +274,7 @@ function loadPosts() {
     const date = new Date(rawDate.replace(' ', 'T'));
     const tags = Array.isArray(data.tags) ? data.tags : String(data.tags || '').split(',').filter(Boolean);
     const type = data.type === 'memo' ? 'memo' : 'post';
-    const resolvedBody = resolveObsidianEmbeds(body, slug);
+    const resolvedBody = resolveBareImages(resolveObsidianEmbeds(body, slug), slug);
     posts.push({
       slug,
       title: data.title || slug,
