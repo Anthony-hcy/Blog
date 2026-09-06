@@ -1606,21 +1606,29 @@
     buildWatch.started = Date.now();
     setChip('is-building', '⟳ 构建中…');
     function poll() {
+      if (Date.now() - buildWatch.started > 240000) { // 超过 4 分钟：停止轮询
+        clearInterval(buildWatch.timer);
+        buildWatch.timer = null;
+        setChip('is-building', '⟳ 构建时间较长，详见 Status');
+        return;
+      }
       gh('/repos/' + state.repo + '/actions/runs?per_page=1').then(function (d) {
         var r = d.workflow_runs && d.workflow_runs[0];
         if (!r) return;
+        // 只有当结束的构建就是"目标提交"（含正文的最后一次提交）时才算终态；
+        // 暂存图片等中间提交的构建成功不代表已上线
+        var matched = !buildWatch.sha || (r.head_sha || '').indexOf(buildWatch.sha) === 0;
         if (r.status !== 'completed') {
           var sec = r.run_started_at
             ? Math.max(0, Math.round((Date.now() - Date.parse(r.run_started_at)) / 1000))
             : Math.round((Date.now() - buildWatch.started) / 1000);
-          if (sec > 240) { // 超过 4 分钟：停止轮询，提示去 Status 页看
-            clearInterval(buildWatch.timer);
-            buildWatch.timer = null;
-            setChip('is-building', '⟳ 构建时间较长，详见 Status');
-            return;
-          }
           // 排队(queued/pending) 和 开跑(in_progress) 分开展示，读秒从构建真正开始算
           setChip('is-building', r.status === 'in_progress' ? '⟳ 构建中 ' + sec + 's' : '⟳ 排队构建中…');
+          return;
+        }
+        if (!matched) {
+          // 中间构建结束了，目标提交的构建还在后面 —— 继续等
+          setChip('is-building', '⟳ 构建中 ' + Math.round((Date.now() - buildWatch.started) / 1000) + 's');
           return;
         }
         clearInterval(buildWatch.timer);
@@ -1628,7 +1636,7 @@
         if (r.conclusion === 'success') {
           setChip('is-ok', '✓ 已上线', true);
         } else {
-          setChip('is-fail', '✗ 构建失败，详见 Status'); // 失败保留，直到下次操作
+          setChip('is-fail', '✗ 构建失败，详见 Status');
         }
       }).catch(function () { /* 网络抖动静默，等下一轮 */ });
     }
