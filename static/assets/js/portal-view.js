@@ -283,6 +283,8 @@
       '#portal-root .portal-stat-value.is-waiting { color:var(--p-accent); }',
       '#portal-root .portal-stat-value.is-ok { color:#1a9e4b; }',
       '#portal-root .portal-stat-value.is-fail { color:var(--p-danger); }',
+      '#portal-root .portal-refresh { background:none; border:0; padding:6px; color:var(--p-text-2); cursor:pointer; font-size:14px; }',
+      '#portal-root .portal-refresh:hover { color:var(--p-accent); }',
       '#portal-root .portal-btn-lg { min-height:44px; padding:10px 22px; font-size:15px; border-radius:10px; }',
       '#portal-root .portal-edit-actions { display:flex; gap:10px; margin-top:14px; }',
       '#portal-root .portal-edit-actions .portal-btn { flex:1; }',
@@ -412,6 +414,7 @@
         '<header class="portal-header">' +
           '<h1 class="portal-title">Portal</h1>' +
           '<div class="portal-header-actions">' +
+            '<button class="portal-refresh" id="portal-refresh" type="button" title="强制刷新（清除缓存）"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>' +
             '<span class="portal-account" id="portal-account" hidden></span>' +
             '<button id="portal-signout" type="button" hidden>Sign Out</button>' +
           '</div>' +
@@ -565,6 +568,10 @@
   // =================================================================
 
   function bindShellEvents() {
+    portalRoot.querySelector('#portal-refresh').addEventListener('click', function () {
+      if (window.portalHardRefresh) window.portalHardRefresh();
+      else window.location.reload();
+    });
     portalRoot.querySelector('#portal-signin').addEventListener('click', signIn);
     portalRoot.querySelector('#portal-signout').addEventListener('click', signOut);
     portalRoot.querySelector('#btn-new-post').addEventListener('click', newPost);

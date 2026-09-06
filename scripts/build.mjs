@@ -316,6 +316,9 @@ function shellStart() {
           </span>
         </a>
         <div class="mobile-header-actions">
+          <button class="site-nav-link js-hard-refresh" type="button" aria-label="强制刷新（清除缓存）" title="强制刷新（清除缓存）">
+            <i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="sr-only">force refresh</span>
+          </button>
           <button class="site-nav-link mobile-back-to-top js-back-to-top is-hidden" type="button" aria-label="Back to top" title="Back to top" aria-hidden="true" tabindex="-1">
             <i class="fa-solid fa-arrow-up-long" aria-hidden="true"></i>
             <span class="sr-only">back to top</span>
