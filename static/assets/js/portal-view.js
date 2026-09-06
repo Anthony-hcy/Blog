@@ -273,6 +273,13 @@
       '#portal-root .build-chip.is-building { color:var(--p-accent); }',
       '#portal-root .build-chip.is-ok { color:#1a9e4b; background:#e9f8ef; }',
       '#portal-root .build-chip.is-fail { color:var(--p-danger); background:#fdecec; }',
+      '#portal-root, #portal-root * { -webkit-tap-highlight-color: transparent; }',
+      '#portal-root button, #portal-root .memo-photo-add, #portal-root .picker-item { touch-action: manipulation; }',
+      '#portal-root .memo-photo-add:active, #portal-root .picker-item:active, #portal-root .view-btn:active, #portal-root .portal-btn:active { transform: scale(0.96); }',
+      '#portal-root .portal-picker-overlay { animation: portalFade .15s ease-out; }',
+      '#portal-root .portal-picker { animation: portalPop .18s ease-out; }',
+      '@keyframes portalFade { from { opacity: 0; } to { opacity: 1; } }',
+      '@keyframes portalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }',
       '#portal-root .portal-stat-value.is-waiting { color:var(--p-accent); }',
       '#portal-root .portal-stat-value.is-ok { color:#1a9e4b; }',
       '#portal-root .portal-stat-value.is-fail { color:var(--p-danger); }',
@@ -1603,18 +1610,17 @@
         var r = d.workflow_runs && d.workflow_runs[0];
         if (!r) return;
         if (r.status !== 'completed') {
-          var sec = Math.round((Date.now() - buildWatch.started) / 1000);
+          var sec = r.run_started_at
+            ? Math.max(0, Math.round((Date.now() - Date.parse(r.run_started_at)) / 1000))
+            : Math.round((Date.now() - buildWatch.started) / 1000);
           if (sec > 240) { // 超过 4 分钟：停止轮询，提示去 Status 页看
             clearInterval(buildWatch.timer);
             buildWatch.timer = null;
             setChip('is-building', '⟳ 构建时间较长，详见 Status');
             return;
           }
-          if (buildWatch.sha && (r.head_sha || '').indexOf(buildWatch.sha) !== 0) {
-            setChip('is-building', '⟳ 排队构建中…'); // 还没轮到我们这次的提交
-          } else {
-            setChip('is-building', '⟳ 构建中 ' + sec + 's');
-          }
+          // 排队(queued/pending) 和 开跑(in_progress) 分开展示，读秒从构建真正开始算
+          setChip('is-building', r.status === 'in_progress' ? '⟳ 构建中 ' + sec + 's' : '⟳ 排队构建中…');
           return;
         }
         clearInterval(buildWatch.timer);
