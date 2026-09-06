@@ -5,6 +5,7 @@ slug: brilliant-life
 type: post
 category: 小作文
 tags: [影评]
+banner: /assets/img/brilliant-life/灿烂人生-2.png
 draft: false
 ---
 
