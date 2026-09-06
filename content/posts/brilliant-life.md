@@ -5,6 +5,7 @@ slug: brilliant-life
 type: post
 category: 小作文
 tags: [影评]
+excerpt: 眼前的一切或许并不总是最美好的，但只要人还愿意相爱、理解、陪伴和修复，人生就仍然可能灿烂。
 banner: /assets/img/brilliant-life/灿烂人生-2.png
 draft: false
 ---
