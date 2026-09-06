@@ -217,9 +217,14 @@ function resolveObsidianEmbeds(body, slug) {
   }
   return body.replace(/!\[\[([^\]]+)\]\]/g, function (whole, name) {
     const base = name.trim().split('|')[0]; // 兼容 ![[img|500]] 的尺寸写法（忽略尺寸）
+    const stem = base.replace(/\.[a-z0-9]+$/i, ''); // 双链带扩展名但文件被转成其他格式时，尝试替换扩展名
+    const candidates = [base];
     for (const ext of IMG_EXTS) {
-      if (files.has(base + ext)) {
-        return `![](${withBase('/assets/img/' + slug + '/')}${base + ext})`;
+      candidates.push(base + ext, stem + ext);
+    }
+    for (const cand of candidates) {
+      if (files.has(cand)) {
+        return `![](${withBase('/assets/img/' + slug + '/')}${cand})`;
       }
     }
     console.warn('  ! 双链图片未找到: ' + slug + ' / ' + name);

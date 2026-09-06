@@ -1,0 +1,46 @@
+---
+title: Pride and Prejudice.
+date: 2025-04-22 12:00:00+08:00
+slug: pride-and-prejudice
+type: post
+category: 小作文
+tags: [影评]
+banner: /assets/img/pride-and-prejudice/傲慢与偏见.webp
+draft: false
+---
+
+𝑰 𝒍𝒐𝒗𝒆 𝒚𝒐𝒖, 𝒎𝒐𝒔𝒕 𝒂𝒓𝒅𝒆𝒏𝒕𝒍𝒚.
+
+我爱你，最热烈地爱着你。
+
+傲慢使我无法接受你，偏见却让我无法爱上别人。
+
+"It is a truth universally acknowledged, that a single man in possession of a good fortune must be in want of a wife."
+
+“有钱的单身汉总要娶位太太，这是一条举世公认的真理。”
+
+"I cannot fix on the hour, or the spot, or the look, or the words, which laid the foundation.It is too long ago. I was in the middle before I knew that I had begun."
+
+“我也说不准究竟是在什么时间，什么地点，看见了你什么样的风姿，听到了你什么样的谈吐，便使我开始爱上了你。那是好久以前的事。等我发觉我自己开始爱上你的时候，我已经走了一半路了。”
+
+婚姻幸福完全是个机遇问题。双方的脾气即使彼此非常熟悉，或者非常相似，也不会给双方增添丝毫的幸福。他们的脾气总是越来越不对劲，后来就引起了烦恼。你既然要和一个人过一辈子，最好尽量少了解他的缺点。
+
+一个人可以骄傲而不虚荣。骄傲多指我们对自己的看法，虚荣多指我们想要别人对我们抱有什么看法。
+
+女方大方活泼，可以把男方陶冶得心性柔和，举止优雅；男方精明通达，见多识广，定会使女方得到更大裨益。
+
+“我一向认为，诗是爱情的食粮，”达西说。“那要是一种美好、坚贞、健康的爱情才行。凡是强健的东西，可以从万物获得滋补。如果只是一点微薄的情意，那么我相信，一首出色的十四行诗就能把它彻底葬送掉。”
+
+盲目服从，是不尊重双方理智的表现。
+
+不错，虚荣的确是个弱点。但是傲慢——只要你当真聪明过人，你总会傲慢得比较适度。
+
+从不改变主意的人要特别注意，一开始就要拿对主意。
+
+我或许还要怀疑我是否一定会得到幸福，因为我时常发现，幸福一经拒绝，在我们眼里也就不再显得那么珍贵，这时，最好的办法便是听天由命。
+
+我世面见得越多，就越对人世感觉不满。我一天比一天坚信，人性都是反复无常的，表面上的长处或见识是靠不住的。
+
+Pride and Prejudice.
+
+![](傲慢与偏见.jpg)

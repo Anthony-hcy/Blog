@@ -1,0 +1,22 @@
+---
+title: 她懂我，让我觉得悲伤。
+date: 2025-05-24 12:00:00+08:00
+slug: my-mister
+type: post
+category: 小作文
+tags: [影评, 韩剧]
+banner: /assets/img/my-mister/我的大叔.webp
+draft: false
+---
+
+“有个人...了解我，而我...好像也能懂她。”
+
+“喜欢她么？”
+
+“悲伤。”
+
+“为什么？”
+
+“她懂我，让我觉得悲伤。”
+
+![](我的大叔.jpg)
