@@ -269,6 +269,13 @@
       '#portal-root .memo-loc-btn:disabled { opacity:.5; cursor:default; }',
       '#portal-root #btn-upload { min-width:44px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); color:var(--p-text); font-size:15px; }',
       '#portal-root #btn-upload:hover { border-color:var(--p-accent); color:var(--p-accent); }',
+      '#portal-root .build-chip { display:inline-flex; align-items:center; margin:0 0 12px; padding:5px 12px; border-radius:999px; font-size:12px; background:var(--p-btn-bg); color:var(--p-text-2); width:fit-content; }',
+      '#portal-root .build-chip.is-building { color:var(--p-accent); }',
+      '#portal-root .build-chip.is-ok { color:#1a9e4b; background:#e9f8ef; }',
+      '#portal-root .build-chip.is-fail { color:var(--p-danger); background:#fdecec; }',
+      '#portal-root .portal-stat-value.is-waiting { color:var(--p-accent); }',
+      '#portal-root .portal-stat-value.is-ok { color:#1a9e4b; }',
+      '#portal-root .portal-stat-value.is-fail { color:var(--p-danger); }',
       '#portal-root .portal-btn-lg { min-height:44px; padding:10px 22px; font-size:15px; border-radius:10px; }',
       '#portal-root .portal-edit-actions { display:flex; gap:10px; margin-top:14px; }',
       '#portal-root .portal-edit-actions .portal-btn { flex:1; }',
@@ -408,6 +415,7 @@
           '<button class="portal-tab" data-tab="images" type="button">Images</button>' +
           '<button class="portal-tab" data-tab="status" type="button">Status</button>' +
         '</nav>' +
+        '<div class="build-chip" id="build-chip" hidden></div>' +
         '<main class="portal-main">' +
           renderLoginView() +
           renderPostsView() +
@@ -527,14 +535,20 @@
     return '<section class="portal-view" id="view-status" hidden>' +
       '<div class="portal-card">' +
         '<h2 class="portal-card-title">Build</h2>' +
-        '<div class="portal-stat-row"><span class="portal-stat-label">Status</span>' +
+        '<div class="portal-stat-row"><span class="portal-stat-label">当前状态</span>' +
           '<span class="portal-stat-value" id="status-build">-</span></div>' +
+        '<div class="portal-stat-row"><span class="portal-stat-label">最新改动</span>' +
+          '<span class="portal-stat-value" id="status-latest">-</span></div>' +
+        '<div class="portal-stat-row"><span class="portal-stat-label">时间</span>' +
+          '<span class="portal-stat-value" id="status-build-time">-</span></div>' +
         '<div class="portal-actions"><button class="portal-btn portal-btn-outline" id="btn-rebuild" type="button">Rebuild Site</button></div>' +
       '</div>' +
       '<div class="portal-card">' +
         '<h2 class="portal-card-title">Site Content</h2>' +
-        '<div class="portal-stat-row"><span class="portal-stat-label">Latest commit</span>' +
+        '<div class="portal-stat-row"><span class="portal-stat-label">最新提交</span>' +
           '<span class="portal-stat-value portal-commit" id="status-commit">-</span></div>' +
+        '<div class="portal-stat-row"><span class="portal-stat-label">提交时间</span>' +
+          '<span class="portal-stat-value" id="status-commit-time">-</span></div>' +
       '</div>' +
     '</section>';
   }
@@ -615,6 +629,7 @@
           return deleteFile(repoPath, 'Delete image: ' + name, fd.sha);
         }).then(function () {
           toast('已删除');
+          noteAction();
         }).catch(function (err) {
           if (removedImg) allImages.unshift(removedImg); // 列表已是时间倒序，失败恢复插回最前
           renderImages();
@@ -648,6 +663,8 @@
       var isEmpty = !editingSlug && !portalRoot.querySelector('#edit-title').value &&
         !portalRoot.querySelector('#edit-body').value && !portalRoot.querySelector('#memo-text').value;
       if (isEmpty) setEditMode(window.matchMedia && window.matchMedia('(max-width: 560px)').matches ? 'memo' : 'post');
+      // 预加载图片列表：点 + 弹窗秒开
+      if (!allImages.length) loadAllImages().catch(function () {});
     }
   }
 
@@ -672,6 +689,14 @@
       loadAllImages().then(renderImages);
       loadStatus();
       checkStuckRuns();
+      // 打开时若有构建进行中，亮出构建指示器
+      gh('/repos/' + state.repo + '/actions/runs?per_page=1').then(function (d) {
+        var r = d.workflow_runs && d.workflow_runs[0];
+        if (r && r.status !== 'completed') {
+          buildWatch.sha = r.head_sha;
+          watchLatestRun();
+        }
+      }).catch(function () { /* 静默 */ });
       // 侧边栏 Portal 链接显示（登录态）
       syncSidebarPortalLink(true);
     } else {
@@ -1167,6 +1192,7 @@
       editingSlug = slug;
       loadPosts();
       checkStuckRuns();
+      noteAction();
       setTimeout(function () { switchTab('posts'); }, 1200);
     }).catch(function (e) {
       if (btn) btn.disabled = false;
@@ -1346,6 +1372,7 @@
       progress.textContent = '上传完成';
       input.value = '';
       toast('图片已上传到 ' + dir + '/');
+      noteAction();
       _datedSeq.prefix = '';
       setTimeout(function () { progress.hidden = true; }, 1500);
     }).catch(function (e) {
@@ -1357,11 +1384,40 @@
   // =================================================================
   // 图片选择面板（编辑器内插入/说说添加）
   // =================================================================
-  function openPicker() {
+  // 填充选择弹窗的图片网格（新图会自然出现在最前）
+  function fillPickerGrid(overlay) {
+    var grid = overlay.querySelector('#picker-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    allImages.slice(0, 40).forEach(function (img) {
+      var item = document.createElement('div');
+      item.className = 'picker-item';
+      item.style.cssText = 'cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;';
+      item.innerHTML =
+        '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
+        '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
+      fallbackToRaw(item.querySelector('img'), img.rawUrl);
+      item.addEventListener('click', function () {
+        useImage(img.url, img.rawUrl || img.url, img.name);
+        overlay.remove();
+      });
+      grid.appendChild(item);
+    });
     if (!allImages.length) {
-      loadAllImages().then(function () { showPicker(); });
-    } else {
-      showPicker();
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 0;font-size:13px;color:var(--p-text-3);">暂无图片，可直接上传</div>';
+    }
+  }
+
+  function openPicker() {
+    showPicker(); // 立即弹出，图片列表后台加载
+    if (!allImages.length) {
+      var grid = portalRoot.querySelector('#picker-grid');
+      if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 0;font-size:13px;color:var(--p-text-3);">图片列表加载中…</div>';
+      loadAllImages().then(function () {
+        if (document.body.contains(grid)) fillPickerGrid(grid);
+      }).catch(function () {
+        if (document.body.contains(grid)) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 0;font-size:13px;color:var(--p-text-3);">列表加载失败，可直接上传图片</div>';
+      });
     }
   }
 
@@ -1394,21 +1450,7 @@
     });
 
     var grid = overlay.querySelector('#picker-grid');
-    grid.innerHTML = '';
-    allImages.slice(0, 40).forEach(function (img) {
-      var item = document.createElement('div');
-      item.className = 'picker-item';
-      item.style.cssText = 'cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;';
-      item.innerHTML =
-        '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
-        '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
-      fallbackToRaw(item.querySelector('img'), img.rawUrl);
-      item.addEventListener('click', function () {
-        useImage(img.url, img.rawUrl || img.url, img.name);
-        overlay.remove();
-      });
-      grid.appendChild(item);
-    });
+    fillPickerGrid(overlay);
 
     var browse = overlay.querySelector('#picker-browse');
     var fileInput = overlay.querySelector('#picker-file');
@@ -1438,21 +1480,7 @@
             allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl, dataUrl: r.dataUrl });
           });
           if (document.body.contains(overlay)) {
-            // 重新渲染 picker 网格（新图出现在最前）
-            var grid2 = overlay.querySelector('#picker-grid');
-            if (grid2) {
-              grid2.innerHTML = '';
-              allImages.slice(0, 40).forEach(function (img) {
-                var item = document.createElement('div');
-                item.className = 'picker-item';
-                item.style.cssText = 'cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;';
-                item.innerHTML = '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
-                  '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
-                fallbackToRaw(item.querySelector('img'), img.rawUrl);
-                item.addEventListener('click', function () { useImage(img.url, img.rawUrl || img.url, img.name); overlay.remove(); });
-                grid2.appendChild(item);
-              });
-            }
+            fillPickerGrid(overlay); // 重新渲染（新图出现在最前）
           }
           renderImages();
           _datedSeq.prefix = '';
@@ -1541,27 +1569,124 @@
     }).catch(function () { /* 静默 */ });
   }
 
+  function fmtClock(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  // ===== 构建状态指示器：发布/删除后全程可见（构建中 → 已上线/失败） =====
+  var buildWatch = { sha: '', timer: null, started: 0 };
+  function setChip(cls, text, autoHide) {
+    var chip = document.getElementById('build-chip');
+    if (!chip) return;
+    chip.className = 'build-chip' + (cls ? ' ' + cls : '');
+    chip.textContent = text;
+    chip.hidden = false;
+    if (autoHide) setTimeout(function () { chip.hidden = true; }, 8000);
+  }
+  function noteAction() {
+    // 发布/删除后会有一条新提交：盯住它的构建直到完成
+    gh('/repos/' + state.repo + '/commits?per_page=1').then(function (cs) {
+      var c = cs && cs[0];
+      if (!c) return;
+      buildWatch.sha = c.sha;
+      watchLatestRun();
+    }).catch(function () { /* 静默 */ });
+  }
+  function watchLatestRun() {
+    if (buildWatch.timer) clearInterval(buildWatch.timer);
+    buildWatch.started = Date.now();
+    setChip('is-building', '⟳ 构建中…');
+    function poll() {
+      gh('/repos/' + state.repo + '/actions/runs?per_page=1').then(function (d) {
+        var r = d.workflow_runs && d.workflow_runs[0];
+        if (!r) return;
+        if (r.status !== 'completed') {
+          var sec = Math.round((Date.now() - buildWatch.started) / 1000);
+          if (sec > 240) { // 超过 4 分钟：停止轮询，提示去 Status 页看
+            clearInterval(buildWatch.timer);
+            buildWatch.timer = null;
+            setChip('is-building', '⟳ 构建时间较长，详见 Status');
+            return;
+          }
+          if (buildWatch.sha && (r.head_sha || '').indexOf(buildWatch.sha) !== 0) {
+            setChip('is-building', '⟳ 排队构建中…'); // 还没轮到我们这次的提交
+          } else {
+            setChip('is-building', '⟳ 构建中 ' + sec + 's');
+          }
+          return;
+        }
+        clearInterval(buildWatch.timer);
+        buildWatch.timer = null;
+        if (r.conclusion === 'success') {
+          setChip('is-ok', '✓ 已上线', true);
+        } else {
+          setChip('is-fail', '✗ 构建失败，详见 Status'); // 失败保留，直到下次操作
+        }
+      }).catch(function () { /* 网络抖动静默，等下一轮 */ });
+    }
+    buildWatch.timer = setInterval(poll, 4000);
+    poll();
+  }
+
   function loadStatus() {
-    gh('/repos/' + state.repo + '/commits?per_page=1').then(function (commits) {
-      var c = commits && commits[0];
+    Promise.all([
+      gh('/repos/' + state.repo + '/commits?per_page=1'),
+      gh('/repos/' + state.repo + '/actions/workflows/' + WORKFLOW + '/runs?per_page=3'),
+    ]).then(function (res) {
+      var cs = res[0] || [];
+      var runs = (res[1] && res[1].workflow_runs) || [];
+      var c = cs[0];
+      var latest = runs[0];
+
+      // Site Content
       portalRoot.querySelector('#status-commit').textContent = c
         ? (c.sha.slice(0, 7) + ' ' + (c.commit.message || '').split('\n')[0])
         : '-';
-    }).catch(function () {
-      portalRoot.querySelector('#status-commit').textContent = '获取失败';
-    });
-    gh('/repos/' + state.repo + '/actions/workflows/' + WORKFLOW + '/runs?per_page=3').then(function (data) {
-      var runs = data.workflow_runs || [];
-      if (!runs.length) {
-        portalRoot.querySelector('#status-build').textContent = 'No runs yet';
+      portalRoot.querySelector('#status-commit-time').textContent = c ? '提交于 ' + fmtClock(c.commit.author.date) : '-';
+
+      // Build
+      var buildEl = portalRoot.querySelector('#status-build');
+      var buildTimeEl = portalRoot.querySelector('#status-build-time');
+      var latestEl = portalRoot.querySelector('#status-latest');
+      if (!latest) {
+        buildEl.textContent = '尚未构建';
+        buildTimeEl.textContent = '-';
+        latestEl.textContent = '-';
         return;
       }
-      var latest = runs[0];
-      portalRoot.querySelector('#status-build').textContent =
-        (latest.status === 'completed' ? (latest.conclusion || 'completed') : latest.status) +
-        ' @ ' + latest.head_sha.slice(0, 7);
+      var building = latest.status !== 'completed';
+      var ok = latest.conclusion === 'success';
+      var dur = '';
+      if (latest.run_started_at && latest.updated_at) {
+        dur = Math.round((Date.parse(latest.updated_at) - Date.parse(latest.run_started_at)) / 1000) + 's';
+      }
+      buildEl.textContent = building ? '构建中…' : (ok ? '成功' : '失败') + (dur ? ' · 用时 ' + dur : '');
+      buildTimeEl.textContent = building
+        ? ('开始于 ' + fmtClock(latest.run_started_at))
+        : ('完成于 ' + fmtClock(latest.updated_at));
+
+      // 最新改动是否已构建上线（对比最新提交与最新构建的 sha）
+      var commitSha = c ? c.sha : '';
+      var runSha = latest.head_sha || '';
+      var mine = commitSha && runSha.indexOf(commitSha) === 0;
+      if (building) {
+        latestEl.textContent = mine ? '⏳ 正在构建最新改动' : '⏳ 构建队列中，最新改动稍后构建';
+        latestEl.className = 'portal-stat-value is-waiting';
+      } else if (ok && mine) {
+        latestEl.textContent = '✓ 最新改动已上线';
+        latestEl.className = 'portal-stat-value is-ok';
+      } else if (!ok) {
+        latestEl.textContent = '✗ 最新一次构建失败';
+        latestEl.className = 'portal-stat-value is-fail';
+      } else {
+        latestEl.textContent = '⏳ 最新改动等待构建（稍后自动构建）';
+        latestEl.className = 'portal-stat-value is-waiting';
+      }
     }).catch(function () {
       portalRoot.querySelector('#status-build').textContent = '获取失败';
+      portalRoot.querySelector('#status-commit').textContent = '获取失败';
     });
   }
 
@@ -1573,6 +1698,7 @@
       body: { ref: 'main' },
     }).then(function () {
       toast('已触发重新构建');
+      watchLatestRun();
       setTimeout(loadStatus, 1500);
     }).catch(function (e) {
       toast('触发失败: ' + e.message, true);
@@ -1609,6 +1735,7 @@
       }).then(function () {
         toast('已删除');
         loadPosts();
+        noteAction();
       }).catch(function (err) {
         if (removed) {
           allPosts.push(removed);

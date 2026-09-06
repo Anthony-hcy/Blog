@@ -267,3 +267,9 @@ body.page-portal .container { padding-top: 10px; }
 
 /* ========== 图片库总数 ========== */
 .img-total { font-size: 13px; color: var(--p-text-2); font-weight: 400; }
+/* Status 页手机端：标签在上、内容在下，长内容可换行（不再挤压截断） */
+@media (max-width: 560px) {
+  .portal-stat-row { display: block; padding: 9px 0; }
+  .portal-stat-value { display: block; margin-top: 3px; text-align: left; }
+  .portal-commit { max-width: 100%; white-space: normal; }
+}
