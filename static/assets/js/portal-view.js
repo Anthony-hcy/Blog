@@ -32,6 +32,7 @@
   var editMode = 'post'; // post | memo
   var allPosts = [];
   var allImages = [];
+  var localDeleted = {}; // 已删除图片的墓碑：GitHub 目录缓存会让已删图片在列表刷新时短暂复活，用它挡住
   var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
@@ -609,6 +610,7 @@
         if (idx >= 0) allImages.splice(idx, 1);
         renderImages();
         // 异步调 GitHub API 删除，失败则恢复
+        localDeleted[repoPath] = 1; // 墓碑：防目录缓存复活
         getFile(repoPath).then(function (fd) {
           return deleteFile(repoPath, 'Delete image: ' + name, fd.sha);
         }).then(function () {
@@ -1073,38 +1075,77 @@
   function saveMemoMode() {
     var text = portalRoot.querySelector('#memo-text').value.trim();
     if (!text && !memoPhotos.length) { toast('写点什么或传张图吧', true); return; }
-    var photoMd = memoPhotos.map(function (p) {
-      return '![' + p.name.replace(/\.[^.]+$/, '') + '](' + p.url + ')';
-    }).join('\n');
-    var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
-    var slug, dateStr;
-    if (editingSlug && editingType === 'memo') {
-      // 编辑已有说说：原地更新，复用原 slug 和原发布时间
-      slug = editingSlug;
-      dateStr = editingDate;
-    }
-    if (!slug) {
-      var now = new Date();
-      slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
-        '-' + pad2(now.getHours()) + pad2(now.getMinutes());
-      dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
-        ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
-    }
-    var locVal = portalRoot.querySelector('#memo-loc').value.trim();
-    if (locVal) writeLS(LS.last_loc, locVal); // 记住本次位置，下次自动填入
-    var md = buildPostMarkdown({
-      title: text.slice(0, 40) || 'memo',
-      date: dateStr,
-      slug: slug,
-      type: 'memo',
-      category: '碎碎念',
-      location: locVal,
-      tags: [],
-      excerpt: '',
-      banner: '',
-      body: body,
+    var btn = portalRoot.querySelector('#btn-memo-publish');
+    var staged = memoPhotos.filter(function (p) { return p.staged && !p.uploaded; });
+
+    // 第二段：全部图片就位后提交文章
+    var doPublish = function () {
+      var photoMd = memoPhotos.map(function (p) {
+        return '![' + (p.name || 'image').replace(/\.[^.]+$/, '') + '](' + p.url + ')';
+      }).join('\n');
+      var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
+      var slug, dateStr;
+      if (editingSlug && editingType === 'memo') {
+        // 编辑已有说说：原地更新，复用原 slug 和原发布时间
+        slug = editingSlug;
+        dateStr = editingDate;
+      }
+      if (!slug) {
+        var now = new Date();
+        slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
+          '-' + pad2(now.getHours()) + pad2(now.getMinutes());
+        dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
+          ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
+      }
+      var locVal = portalRoot.querySelector('#memo-loc').value.trim();
+      if (locVal) writeLS(LS.last_loc, locVal); // 记住本次位置，下次自动填入
+      var md = buildPostMarkdown({
+        title: text.slice(0, 40) || 'memo',
+        date: dateStr,
+        slug: slug,
+        type: 'memo',
+        category: '碎碎念',
+        location: locVal,
+        tags: [],
+        excerpt: '',
+        banner: '',
+        body: body,
+      });
+      commitPost(slug, md, text.slice(0, 40) || 'memo');
+    };
+
+    // 第一段：暂存图片统一上传（预留的文件名幂等，失败重试不产生重复）
+    if (!staged.length) { doPublish(); return; }
+    btn.disabled = true;
+    var n = staged.length, done = 0;
+    btn.textContent = '上传图片 0/' + n + ' …';
+    Promise.all(staged.map(function (p) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + p.dir + '/' + p.name, {
+            method: 'PUT',
+            body: { message: 'Upload image: ' + p.name, content: String(reader.result).split(',')[1] || '' },
+          }).then(function () {
+            p.url = ASSET_PREFIX + p.dir + '/' + p.name;
+            p.rawUrl = rawImgUrl(IMG_DIR + '/' + p.dir + '/' + p.name);
+            p.uploaded = true;
+            done++;
+            btn.textContent = '上传图片 ' + done + '/' + n + ' …';
+            resolve();
+          }, reject);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(p.blob);
+      });
+    })).then(function () {
+      btn.textContent = '提交中…';
+      doPublish();
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = '发表';
+      toast('图片上传失败，请重试：' + (e && e.message ? e.message : '网络错误'), true);
     });
-    commitPost(slug, md, text.slice(0, 40) || 'memo');
   }
 
   function commitPost(slug, md, title) {
@@ -1129,7 +1170,7 @@
       setTimeout(function () { switchTab('posts'); }, 1200);
     }).catch(function (e) {
       if (btn) btn.disabled = false;
-      if (memoBtn) memoBtn.disabled = false;
+      if (memoBtn) { memoBtn.disabled = false; memoBtn.textContent = '发表'; }
       toast('发布失败: ' + e.message, true);
     });
   }
@@ -1140,9 +1181,9 @@
   function loadAllImages() {
     return gh('/repos/' + state.repo + '/git/trees/main?recursive=1').then(function (tree) {
       var items = (tree.tree || []).filter(function (n) {
-        // 头像池（avatars/）不算站点图片，不进 Images 页
+        // 头像池（avatars/）不算站点图片，不进 Images 页；墓碑挡住已删图片因目录缓存复活
         return n.type === 'blob' && n.path.indexOf(IMG_DIR + '/') === 0 && IMG_EXT.test(n.path) &&
-          n.path.indexOf(IMG_DIR + '/avatars/') !== 0;
+          n.path.indexOf(IMG_DIR + '/avatars/') !== 0 && !localDeleted[n.path];
       });
       // 按文件名倒序：日期序号命名（2026.09.05-01）天然按时间排，最新的在最前
       allImages = items.map(function (n) {
@@ -1173,11 +1214,11 @@
       var cell = document.createElement('div');
       cell.className = 'img-mini';
       cell.innerHTML =
-        '<img src="' + esc(img.url) + '" alt="" loading="lazy">' +
+        '<img src="' + esc(img.dataUrl || img.url) + '" alt="" loading="lazy">' +
         '<div class="img-mini-actions">' +
           '<button data-act="delimg" data-name="' + esc(img.name) + '" data-repopath="' + esc(img.repoPath) + '" type="button">删除</button>' +
         '</div>';
-      fallbackToRaw(cell.querySelector('img'), img.rawUrl);
+      fallbackToRaw(cell.querySelector('img'), img.dataUrl ? '' : img.rawUrl);
       grid.appendChild(cell);
     });
   }
@@ -1226,8 +1267,33 @@
     });
   }
 
+  // 发说说：选图只本地暂存（压缩 + 预留文件名 + dataUrl 预览），零网络等待，发表时统一上传
+  function stageImagesForMemo(files) {
+    return Promise.all(Array.prototype.slice.call(files || []).map(function (file) {
+      return compressImageFile(file).then(function (f) {
+        return new Promise(function (resolve) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            var ext = ((f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
+            var entry = {
+              staged: true,
+              blob: f.blob,
+              dataUrl: String(reader.result),
+              name: datedName(ext),
+              dir: 'gallery',
+            };
+            memoPhotos.push(entry);
+            resolve(entry);
+          };
+          reader.onerror = function () { resolve(null); };
+          reader.readAsDataURL(f.blob);
+        });
+      });
+    })).then(function (entries) { return entries.filter(Boolean); });
+  }
+
   // 批量上传：先按顺序压缩，再按顺序分配日期序号文件名，并行提交
-  // 返回 [{name, url, rawUrl}]
+  // 返回 [{name, url, rawUrl, dataUrl}]
   function uploadImagesBatch(files, dir, progressEl) {
     var arr = Array.prototype.slice.call(files || []);
     if (!arr.length) return Promise.reject(new Error('未选择图片'));
@@ -1271,15 +1337,16 @@
     var dir = 'gallery';
     var progress = portalRoot.querySelector('#img-progress');
     progress.hidden = false;
-    uploadImagesBatch(files, dir, progress).then(function () {
+    uploadImagesBatch(files, dir, progress).then(function (results) {
+      // 本地立即显示（dataUrl 秒显），不等目录 API/构建；刷新列表遇 GitHub 缓存旧数据会把新图"弄丢"，故不立即刷新
+      results.forEach(function (r) {
+        allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl, dataUrl: r.dataUrl });
+      });
+      renderImages();
       progress.textContent = '上传完成';
       input.value = '';
       toast('图片已上传到 ' + dir + '/');
-      loadAllImages().then(function (list) {
-        renderImages();
-        // 让序号基于最新列表重新计算
-        _datedSeq.prefix = '';
-      });
+      _datedSeq.prefix = '';
       setTimeout(function () { progress.hidden = true; }, 1500);
     }).catch(function (e) {
       progress.textContent = '';
@@ -1350,6 +1417,15 @@
       var files = fileInput.files;
       if (!files || !files.length) return;
       overlay.querySelector('#picker-file-name').textContent = '选取文件：' + Array.from(files).map(function (f) { return f.name; }).join(', ');
+      // 说说模式：只本地暂存（压缩 + dataUrl 预览 + 预留文件名），零网络等待，发表时统一上传
+      if (editMode === 'memo') {
+        overlay.querySelector('#picker-file-name').textContent = '暂存中…';
+        stageImagesForMemo(files).then(function (entries) {
+          renderMemoPhotos();
+          overlay.querySelector('#picker-file-name').textContent = '已暂存 ' + entries.length + ' 张图片，发表时统一上传';
+        });
+        return;
+      }
       var dir = safeSlug(editingSlug) || safeSlug(portalRoot.querySelector('#edit-slug').value) || 'gallery';
       var progress = overlay.querySelector('#picker-progress');
       progress.hidden = false;
@@ -1359,7 +1435,7 @@
           results.forEach(function (r) {
             useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
             // 立即把新图加进 allImages，重开弹层即可见
-            allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl });
+            allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl, dataUrl: r.dataUrl });
           });
           if (document.body.contains(overlay)) {
             // 重新渲染 picker 网格（新图出现在最前）
