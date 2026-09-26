@@ -297,12 +297,17 @@ function loadPosts() {
 }
 
 // ---------- 页面骨架 ----------
-function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '' } = {}) {
+function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false } = {}) {
   const keywords = site.keywords || `${site.name},${site.author}`;
   const absPath = pagePath || '/';
   const fullUrl = SITE_URL + absPath;
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
+  const remoteAssets = localOnly ? '' : `
+  <link rel="preconnect" href="https://registry.npmmirror.com">
+  <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin>
+  <link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>`;
   return `<!DOCTYPE html>
 <html lang="${site.lang}" data-exsearch-api="${withBase(`/${EXSEARCH_HASH}.json`)}">
 <head>
@@ -311,10 +316,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe7">
   <meta name="keywords" content="${keywords}">
-  <link rel="preconnect" href="https://registry.npmmirror.com">
-  <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin>
-  <link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css">
-  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  ${remoteAssets}
   <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
   <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
@@ -426,7 +428,11 @@ function sideTags() {
   </section>`;
 }
 
-function shellEnd(extraScripts = '') {
+function shellEnd(extraScripts = '', includeSearch = true) {
+  const searchScripts = includeSearch
+    ? `<script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
+<script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>`
+    : '';
   return `</main>
         <footer class="site-footer">
           <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
@@ -456,8 +462,7 @@ function shellEnd(extraScripts = '') {
 
 ${extraScripts}
 <script type="module" src="${withBase(`/assets/js/layout.js`)}"></script>
-<script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
-<script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>
+${searchScripts}
 </body>
 </html>`;
 }
@@ -825,9 +830,10 @@ function buildPortalPage() {
     pagePath: '/portal.html',
     bodyData: ' class="page-portal"',
     extraHead: extraHead,
+    localOnly: true,
   }) + shellStart() + `
 <div id="portal-root"></div>
-` + shellEnd(scripts);
+` + shellEnd(scripts, false);
   return html;
 }
 

@@ -10,6 +10,7 @@
     repo: 'portal_repo',
     author: 'portal_author',
     last_loc: 'portal_last_loc',
+    post_cache: 'portal_posts_cache_v1',
   };
   var API = 'https://api.github.com';
   var POSTS_DIR = 'content/posts';
@@ -32,6 +33,9 @@
   var editMode = 'post'; // post | memo
   var allPosts = [];
   var allImages = [];
+  var imagePage = 1;
+  var IMAGE_PAGE_SIZE = 8;
+  var pendingEditorImages = [];
   var localDeleted = {}; // 已删除图片的墓碑：GitHub 目录缓存会让已删图片在列表刷新时短暂复活，用它挡住
   var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
@@ -88,7 +92,15 @@
 
   // GitHub raw 直链（上传后立即可显示；正文 Markdown 仍用站点路径）
   function rawImgUrl(repoPath) {
-    return 'https://raw.githubusercontent.com/' + state.repo + '/main/' + repoPath;
+    return 'https://raw.githubusercontent.com/' + state.repo + '/main/' + encodeRepoPath(repoPath);
+  }
+
+  function cdnImgUrl(repoPath) {
+    return 'https://cdn.jsdelivr.net/gh/' + state.repo + '@main/' + encodeRepoPath(repoPath);
+  }
+
+  function encodeRepoPath(repoPath) {
+    return String(repoPath || '').split('/').map(encodeURIComponent).join('/');
   }
 
   // 日期序号命名：2026.09.04-01、-02……（同批次连续递增）
@@ -113,55 +125,123 @@
   // ---------- GitHub API ----------
   function gh(path, options) {
     options = options || {};
+    var method = options.method || 'GET';
+    var maxAttempts = method === 'GET' ? 3 : 1;
+    var requestBody = options.body;
     var headers = {
       Accept: 'application/vnd.github+json',
       Authorization: 'Bearer ' + state.token,
       'X-GitHub-Api-Version': '2022-11-28',
     };
-    if (options.body && typeof options.body !== 'string') {
+    if (requestBody && typeof requestBody !== 'string') {
       headers['Content-Type'] = 'application/json';
-      options.body = JSON.stringify(options.body);
+      requestBody = JSON.stringify(requestBody);
     }
-    return fetch(API + path, {
-      method: options.method || 'GET',
-      headers: headers,
-      body: options.body,
-    }).then(function (res) {
-      if (res.status === 204) return {};
-      return res.json().catch(function () { return {}; }).then(function (data) {
-        if (!res.ok) {
-          var msg = (data && data.message) || ('HTTP ' + res.status);
-          var err = new Error(msg);
-          err.status = res.status;
-          throw err;
+
+    function attempt(attemptNo) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+      return fetch(API + path, {
+        method: method,
+        headers: headers,
+        body: requestBody,
+        cache: method === 'GET' ? 'no-store' : 'default',
+        signal: controller ? controller.signal : undefined,
+      }).then(function (res) {
+        if (timer) clearTimeout(timer);
+        if (res.status === 204) return {};
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok) {
+            var msg = (data && data.message) || ('HTTP ' + res.status);
+            var err = new Error(msg);
+            err.status = res.status;
+            throw err;
+          }
+          return data;
+        });
+      }).catch(function (err) {
+        if (timer) clearTimeout(timer);
+        var retryable = !err.status || err.status === 408 || err.status === 429 || err.status >= 500;
+        if (retryable && attemptNo < maxAttempts) {
+          return new Promise(function (resolve) {
+            setTimeout(resolve, 600 * attemptNo);
+          }).then(function () { return attempt(attemptNo + 1); });
         }
-        return data;
+        if (!err.status) {
+          throw new Error('连接 GitHub 超时，请检查网络后重试');
+        }
+        throw err;
       });
-    });
+    }
+
+    return attempt(1);
   }
 
   function listDir(path) { return gh('/repos/' + state.repo + '/contents/' + path); }
   function getFile(path) { return gh('/repos/' + state.repo + '/contents/' + path); }
-
-  function putFile(path, content, message) {
-    return gh('/repos/' + state.repo + '/contents/' + path, {
-      method: 'PUT',
-      body: { message: message, content: btoa(unescape(encodeURIComponent(content))) },
-    });
-  }
-
-  function updateFile(path, content, message, sha) {
-    return gh('/repos/' + state.repo + '/contents/' + path, {
-      method: 'PUT',
-      body: { message: message, content: btoa(unescape(encodeURIComponent(content))), sha: sha },
-    });
-  }
 
   function deleteFile(path, message, sha) {
     return gh('/repos/' + state.repo + '/contents/' + path, {
       method: 'DELETE',
       body: { message: message, sha: sha },
     });
+  }
+
+  function dataUrlBase64(dataUrl) {
+    return String(dataUrl || '').split(',')[1] || '';
+  }
+
+  function commitRepoFiles(files, message) {
+    var repoRoot = '/repos/' + state.repo;
+    var headSha = '';
+    var baseTreeSha = '';
+    return gh(repoRoot + '/git/ref/heads/main').then(function (ref) {
+      headSha = ref.object && ref.object.sha;
+      if (!headSha) throw new Error('无法读取 main 分支');
+      return gh(repoRoot + '/git/commits/' + headSha);
+    }).then(function (commit) {
+      baseTreeSha = commit.tree && commit.tree.sha;
+      if (!baseTreeSha) throw new Error('无法读取仓库目录');
+      return Promise.all(files.map(function (file) {
+        var body = file.dataUrl
+          ? { content: dataUrlBase64(file.dataUrl), encoding: 'base64' }
+          : { content: String(file.content || ''), encoding: 'utf-8' };
+        return gh(repoRoot + '/git/blobs', { method: 'POST', body: body }).then(function (blob) {
+          return { path: file.path, mode: '100644', type: 'blob', sha: blob.sha };
+        });
+      }));
+    }).then(function (entries) {
+      return gh(repoRoot + '/git/trees', {
+        method: 'POST',
+        body: { base_tree: baseTreeSha, tree: entries },
+      });
+    }).then(function (tree) {
+      return gh(repoRoot + '/git/commits', {
+        method: 'POST',
+        body: { message: message, tree: tree.sha, parents: [headSha] },
+      });
+    }).then(function (commit) {
+      return gh(repoRoot + '/git/refs/heads/main', {
+        method: 'PATCH',
+        body: { sha: commit.sha, force: false },
+      }).then(function () { return commit; });
+    });
+  }
+
+  function mapLimit(items, limit, mapper) {
+    var results = new Array(items.length);
+    var nextIndex = 0;
+    function worker() {
+      var index = nextIndex++;
+      if (index >= items.length) return Promise.resolve();
+      return Promise.resolve(mapper(items[index], index)).then(function (value) {
+        results[index] = value;
+        return worker();
+      });
+    }
+    var workers = [];
+    for (var i = 0; i < Math.min(limit, items.length); i++) workers.push(worker());
+    return Promise.all(workers).then(function () { return results; });
   }
 
   // ---------- frontmatter ----------
@@ -303,6 +383,9 @@
       '#portal-root .img-mini:hover .img-mini-actions { display:flex; }',
       '#portal-root .img-mini-actions button { border:0; border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; }',
       '@media (hover: none) { #portal-root .img-mini-actions { display:flex; } }',
+      '#portal-root .images-pagination { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:16px; }',
+      '#portal-root .images-pagination span { min-width:76px; text-align:center; font-size:13px; color:var(--p-text-2); }',
+      '#portal-root .images-pagination .portal-btn { min-width:72px; }',
       '@media (max-width:560px) {',
       '  #portal-root .portal-shell { padding:0 12px 40px; }',
       '  #portal-root .view-btn { min-width:56px; font-size:13px; }',
@@ -536,6 +619,11 @@
       '</div>' +
       '<div class="portal-progress" id="img-progress" hidden></div>' +
       '<div class="img-grid-mini" id="images-grid"></div>' +
+      '<div class="images-pagination" id="images-pagination" hidden>' +
+        '<button class="portal-btn" id="images-prev" type="button">上一页</button>' +
+        '<span id="images-page-info">1 / 1</span>' +
+        '<button class="portal-btn" id="images-next" type="button">下一页</button>' +
+      '</div>' +
     '</section>';
   }
 
@@ -575,6 +663,13 @@
       portalRoot.querySelector('#img-file').click();
     });
     portalRoot.querySelector('#img-file').addEventListener('change', uploadImages);
+    portalRoot.querySelector('#images-prev').addEventListener('click', function () {
+      if (imagePage > 1) { imagePage--; renderImages(); }
+    });
+    portalRoot.querySelector('#images-next').addEventListener('click', function () {
+      var totalPages = Math.max(1, Math.ceil(allImages.length / IMAGE_PAGE_SIZE));
+      if (imagePage < totalPages) { imagePage++; renderImages(); }
+    });
     portalRoot.querySelector('#btn-rebuild').addEventListener('click', rebuildSite);
     portalRoot.querySelector('#posts-search').addEventListener('input', function () {
       renderPosts(allPosts, this.value.trim().toLowerCase());
@@ -639,6 +734,7 @@
           toast('已删除');
           noteAction();
         }).catch(function (err) {
+          delete localDeleted[repoPath];
           if (removedImg) allImages.unshift(removedImg); // 列表已是时间倒序，失败恢复插回最前
           renderImages();
           toast('删除失败: ' + err.message, true);
@@ -664,7 +760,14 @@
       v.hidden = v.id !== 'view-' + name;
     });
     if (name === 'posts') renderPosts(allPosts, '');
-    if (name === 'images') { if (!allImages.length) loadAllImages().then(renderImages); else renderImages(); }
+    if (name === 'images') {
+      if (!allImages.length) {
+        loadAllImages().then(renderImages).catch(function (e) {
+          toast('图片加载失败: ' + e.message, true);
+          renderImages();
+        });
+      } else renderImages();
+    }
     if (name === 'status') { loadStatus(); checkStuckRuns(); }
     if (name === 'edit') {
       // 手机端打开 Edit 默认进发说说；正在编辑的内容不被打断
@@ -694,9 +797,6 @@
       account.textContent = state.repo;
       switchTab(currentTab);
       loadPosts();
-      loadAllImages().then(renderImages);
-      loadStatus();
-      checkStuckRuns();
       // 打开时若有构建进行中，亮出构建指示器
       gh('/repos/' + state.repo + '/actions/runs?per_page=1').then(function (d) {
         var r = d.workflow_runs && d.workflow_runs[0];
@@ -784,9 +884,16 @@
   }
 
   function loadPosts() {
+    var cached = {};
+    try {
+      var cachePayload = JSON.parse(readLS(LS.post_cache) || '{}');
+      if (cachePayload.repo === state.repo && cachePayload.items) cached = cachePayload.items;
+    } catch (_) { cached = {}; }
+
     listDir(POSTS_DIR).then(function (files) {
       var mdFiles = (files || []).filter(function (f) { return f.name.endsWith('.md'); });
-      return Promise.all(mdFiles.map(function (f) {
+      return mapLimit(mdFiles, 5, function (f) {
+        if (cached[f.name] && cached[f.name].sha === f.sha) return cached[f.name].post;
         return getFile(POSTS_DIR + '/' + f.name).then(function (fileData) {
           var raw = '';
           try { raw = decodeURIComponent(escape(atob(fileData.content))); } catch (_) {}
@@ -802,10 +909,15 @@
             sha: fileData.sha,
           };
         }).catch(function () { return null; }); // 单文件失败（如删除后目录缓存未更新致 404）只跳过该文件，不拖垮整个列表
-      }));
+      });
     }).then(function (list) {
       // 按真实时间戳倒序（localeCompare 会忽略时分，导致同日内容顺序错乱）
       allPosts = list.filter(Boolean).sort(function (a, b) { return (b.dateMs || 0) - (a.dateMs || 0); });
+      var items = {};
+      allPosts.forEach(function (post) {
+        items[post.slug + '.md'] = { sha: post.sha, post: post };
+      });
+      writeLS(LS.post_cache, JSON.stringify({ repo: state.repo, items: items }));
       renderPosts(allPosts, '');
     }).catch(function (e) {
       toast('加载文章失败: ' + e.message, true);
@@ -817,6 +929,7 @@
     editingSlug = null;
     editingDate = '';
     editingType = '';
+    pendingEditorImages = [];
     setEditMode('post');
     portalRoot.querySelector('#edit-title').value = '';
     // 新建文章时间留空 → 显示自绘占位「yy/mm/dd --:--」，保存时自动用发布时刻
@@ -838,6 +951,7 @@
   }
 
   function loadPostForEdit(slug) {
+    pendingEditorImages = [];
     getFile(POSTS_DIR + '/' + slug + '.md').then(function (fileData) {
       var raw = '';
       try { raw = decodeURIComponent(escape(atob(fileData.content))); } catch (_) {}
@@ -955,7 +1069,10 @@
       banner: portalRoot.querySelector('#edit-banner').value.trim(),
       body: body,
     });
-    commitPost(slug, md, title);
+    var images = pendingEditorImages.filter(function (img) {
+      return body.indexOf(img.url) >= 0;
+    });
+    commitPost(slug, md, title, images);
   }
 
   // 恢复定位按钮状态
@@ -1108,99 +1225,63 @@
   function saveMemoMode() {
     var text = portalRoot.querySelector('#memo-text').value.trim();
     if (!text && !memoPhotos.length) { toast('写点什么或传张图吧', true); return; }
-    var btn = portalRoot.querySelector('#btn-memo-publish');
     var staged = memoPhotos.filter(function (p) { return p.staged && !p.uploaded; });
-
-    // 第二段：全部图片就位后提交文章
-    var doPublish = function () {
-      var photoMd = memoPhotos.map(function (p) {
-        return '![' + (p.name || 'image').replace(/\.[^.]+$/, '') + '](' + p.url + ')';
-      }).join('\n');
-      var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
-      var slug, dateStr;
-      if (editingSlug && editingType === 'memo') {
-        // 编辑已有说说：原地更新，复用原 slug 和原发布时间
-        slug = editingSlug;
-        dateStr = editingDate;
-      }
-      if (!slug) {
-        var now = new Date();
-        slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
-          '-' + pad2(now.getHours()) + pad2(now.getMinutes());
-        dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
-          ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
-      }
-      var locVal = portalRoot.querySelector('#memo-loc').value.trim();
-      if (locVal) writeLS(LS.last_loc, locVal); // 记住本次位置，下次自动填入
-      var md = buildPostMarkdown({
-        title: text.slice(0, 40) || 'memo',
-        date: dateStr,
-        slug: slug,
-        type: 'memo',
-        category: '碎碎念',
-        location: locVal,
-        tags: [],
-        excerpt: '',
-        banner: '',
-        body: body,
-      });
-      commitPost(slug, md, text.slice(0, 40) || 'memo');
-    };
-
-    // 第一段：暂存图片统一上传（预留的文件名幂等，失败重试不产生重复）
-    if (!staged.length) { doPublish(); return; }
-    btn.disabled = true;
-    var n = staged.length, done = 0;
-    btn.textContent = '上传图片 0/' + n + ' …';
-    Promise.all(staged.map(function (p) {
-      return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function () {
-          gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + p.dir + '/' + p.name, {
-            method: 'PUT',
-            body: { message: 'Upload image: ' + p.name, content: String(reader.result).split(',')[1] || '' },
-          }).then(function () {
-            p.url = ASSET_PREFIX + p.dir + '/' + p.name;
-            p.rawUrl = rawImgUrl(IMG_DIR + '/' + p.dir + '/' + p.name);
-            p.uploaded = true;
-            done++;
-            btn.textContent = '上传图片 ' + done + '/' + n + ' …';
-            resolve();
-          }, reject);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(p.blob);
-      });
-    })).then(function () {
-      btn.textContent = '提交中…';
-      doPublish();
-    }).catch(function (e) {
-      btn.disabled = false;
-      btn.textContent = '发表';
-      toast('图片上传失败，请重试：' + (e && e.message ? e.message : '网络错误'), true);
+    var photoMd = memoPhotos.map(function (p) {
+      return '![' + (p.name || 'image').replace(/\.[^.]+$/, '') + '](' + p.url + ')';
+    }).join('\n');
+    var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
+    var slug, dateStr;
+    if (editingSlug && editingType === 'memo') {
+      slug = editingSlug;
+      dateStr = editingDate;
+    }
+    if (!slug) {
+      var now = new Date();
+      slug = 'memo-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
+        '-' + pad2(now.getHours()) + pad2(now.getMinutes());
+      dateStr = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) +
+        ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
+    }
+    var locVal = portalRoot.querySelector('#memo-loc').value.trim();
+    if (locVal) writeLS(LS.last_loc, locVal);
+    var md = buildPostMarkdown({
+      title: text.slice(0, 40) || 'memo',
+      date: dateStr,
+      slug: slug,
+      type: 'memo',
+      category: '碎碎念',
+      location: locVal,
+      tags: [],
+      excerpt: '',
+      banner: '',
+      body: body,
     });
+    commitPost(slug, md, text.slice(0, 40) || 'memo', staged);
   }
 
-  function commitPost(slug, md, title) {
+  function commitPost(slug, md, title, images) {
     var btn = portalRoot.querySelector('#btn-save-post');
     var memoBtn = portalRoot.querySelector('#btn-memo-publish');
     if (btn) btn.disabled = true;
-    if (memoBtn) memoBtn.disabled = true;
+    if (memoBtn) { memoBtn.disabled = true; memoBtn.textContent = '提交中…'; }
     var path = POSTS_DIR + '/' + slug + '.md';
     var msg = (editingSlug ? 'Update post: ' : 'New post: ') + slug;
-    getFile(path).then(function (fileData) {
-      return updateFile(path, md, msg, fileData.sha);
-    }).catch(function (e) {
-      if (e.status === 404 || e.message.indexOf('Not Found') >= 0 || e.message.indexOf('404') >= 0) return putFile(path, md, msg);
-      throw e;
-    }).then(function () {
+    var stagedImages = images || [];
+    var files = stagedImages.map(function (img) {
+      return { path: img.repoPath || (IMG_DIR + '/' + img.dir + '/' + img.name), dataUrl: img.dataUrl };
+    });
+    files.push({ path: path, content: md });
+    commitRepoFiles(files, msg).then(function (commit) {
       if (btn) btn.disabled = false;
-      if (memoBtn) memoBtn.disabled = false;
+      if (memoBtn) { memoBtn.disabled = false; memoBtn.textContent = '发表'; }
       toast('已发布，等待自动构建…');
       editingSlug = slug;
+      stagedImages.forEach(function (img) { img.uploaded = true; });
+      pendingEditorImages = [];
+      clearLS(LS.post_cache);
       loadPosts();
-      checkStuckRuns();
-      noteAction();
+      buildWatch.sha = commit.sha;
+      watchLatestRun();
       setTimeout(function () { switchTab('posts'); }, 1200);
     }).catch(function (e) {
       if (btn) btn.disabled = false;
@@ -1212,6 +1293,22 @@
   // =================================================================
   // Images
   // =================================================================
+  function imageSortValue(img) {
+    var source = (img.name || '') + ' ' + (img.repoPath || '');
+    var matched = source.match(/(20\d{2})[.\-_](\d{1,2})[.\-_](\d{1,2})(?:[-_](\d{1,4}))?/);
+    if (!matched) return 0;
+    return Number(matched[1]) * 100000000 + Number(matched[2]) * 1000000 +
+      Number(matched[3]) * 10000 + Number(matched[4] || 0);
+  }
+
+  function sortImages() {
+    allImages.sort(function (a, b) {
+      return imageSortValue(b) - imageSortValue(a) ||
+        b.name.localeCompare(a.name, undefined, { numeric: true }) ||
+        b.repoPath.localeCompare(a.repoPath);
+    });
+  }
+
   function loadAllImages() {
     return gh('/repos/' + state.repo + '/git/trees/main?recursive=1').then(function (tree) {
       var items = (tree.tree || []).filter(function (n) {
@@ -1226,25 +1323,31 @@
           name: n.path.split('/').pop(),
           url: imgUrl(n.path),
           rawUrl: rawImgUrl(n.path),
+          cdnUrl: cdnImgUrl(n.path),
         };
-      }).sort(function (a, b) {
-        return b.name.localeCompare(a.name, undefined, { numeric: true }) || b.repoPath.localeCompare(a.repoPath);
       });
+      sortImages();
       return allImages;
     });
   }
 
-  // 缩略图用站点 URL（SW 缓存加速），加载失败（刚上传还没部署）自动换 raw 直链兜底
-  function fallbackToRaw(imgEl, rawUrl) {
+  // 缩略图优先站点 URL；未部署或国内网络失败时依次尝试 jsDelivr 与 GitHub Raw
+  function fallbackToRaw(imgEl, rawUrl, cdnUrl) {
+    var fallbacks = [cdnUrl, rawUrl].filter(Boolean);
+    var index = 0;
     imgEl.addEventListener('error', function () {
-      if (rawUrl && imgEl.src !== rawUrl) imgEl.src = rawUrl;
-    }, { once: true });
+      if (index < fallbacks.length) imgEl.src = fallbacks[index++];
+    });
   }
 
   function renderImages() {
     var grid = portalRoot.querySelector('#images-grid');
+    var pagination = portalRoot.querySelector('#images-pagination');
+    var totalPages = Math.max(1, Math.ceil(allImages.length / IMAGE_PAGE_SIZE));
+    imagePage = Math.min(Math.max(1, imagePage), totalPages);
+    sortImages();
     grid.innerHTML = '';
-    allImages.forEach(function (img) {
+    allImages.slice((imagePage - 1) * IMAGE_PAGE_SIZE, imagePage * IMAGE_PAGE_SIZE).forEach(function (img) {
       var cell = document.createElement('div');
       cell.className = 'img-mini';
       cell.innerHTML =
@@ -1252,9 +1355,16 @@
         '<div class="img-mini-actions">' +
           '<button data-act="delimg" data-name="' + esc(img.name) + '" data-repopath="' + esc(img.repoPath) + '" type="button">删除</button>' +
         '</div>';
-      fallbackToRaw(cell.querySelector('img'), img.dataUrl ? '' : img.rawUrl);
+      fallbackToRaw(cell.querySelector('img'), img.dataUrl ? '' : img.rawUrl, img.dataUrl ? '' : img.cdnUrl);
       grid.appendChild(cell);
     });
+    if (!allImages.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 0;font-size:13px;color:var(--p-text-3);">暂无图片</div>';
+    }
+    pagination.hidden = allImages.length <= IMAGE_PAGE_SIZE;
+    portalRoot.querySelector('#images-page-info').textContent = imagePage + ' / ' + totalPages;
+    portalRoot.querySelector('#images-prev').disabled = imagePage <= 1;
+    portalRoot.querySelector('#images-next').disabled = imagePage >= totalPages;
   }
 
   // 点击缩略图 → 黑底全屏查看大图，点任意处关闭
@@ -1301,66 +1411,58 @@
     });
   }
 
-  // 发说说：选图只本地暂存（压缩 + 预留文件名 + dataUrl 预览），零网络等待，发表时统一上传
-  function stageImagesForMemo(files) {
-    return Promise.all(Array.prototype.slice.call(files || []).map(function (file) {
-      return compressImageFile(file).then(function (f) {
-        return new Promise(function (resolve) {
-          var reader = new FileReader();
-          reader.onload = function () {
-            var ext = ((f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
-            var entry = {
-              staged: true,
-              blob: f.blob,
-              dataUrl: String(reader.result),
-              name: datedName(ext),
-              dir: 'gallery',
-            };
-            memoPhotos.push(entry);
-            resolve(entry);
-          };
-          reader.onerror = function () { resolve(null); };
-          reader.readAsDataURL(f.blob);
-        });
-      });
-    })).then(function (entries) { return entries.filter(Boolean); });
-  }
-
-  // 批量上传：先按顺序压缩，再按顺序分配日期序号文件名，并行提交
-  // 返回 [{name, url, rawUrl, dataUrl}]
-  function uploadImagesBatch(files, dir, progressEl) {
+  function prepareImages(files, dir, progressEl) {
     var arr = Array.prototype.slice.call(files || []);
     if (!arr.length) return Promise.reject(new Error('未选择图片'));
     if (progressEl) { progressEl.hidden = false; progressEl.textContent = '处理中…'; }
     return Promise.all(arr.map(compressImageFile)).then(function (prepared) {
-      if (progressEl) progressEl.textContent = '上传中 0/' + arr.length + ' …';
-      var done = 0;
-      var tasks = prepared.map(function (f) {
-        var ext = ((f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
-        var safeName = datedName(ext); // 同步按选择顺序分配序号
+      return Promise.all(prepared.map(function (file) {
+        var ext = ((file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
+        var name = datedName(ext);
+        var repoPath = IMG_DIR + '/' + dir + '/' + name;
         return new Promise(function (resolve, reject) {
           var reader = new FileReader();
           reader.onload = function () {
-            var base64 = String(reader.result).split(',')[1] || '';
-            gh('/repos/' + state.repo + '/contents/' + IMG_DIR + '/' + dir + '/' + safeName, {
-              method: 'PUT',
-              body: { message: 'Upload image: ' + safeName, content: base64 },
-            }).then(function () {
-              done++;
-              if (progressEl) progressEl.textContent = '上传中 ' + done + '/' + arr.length + ' …';
-              resolve({
-                name: safeName,
-                url: ASSET_PREFIX + dir + '/' + safeName,
-                rawUrl: rawImgUrl(IMG_DIR + '/' + dir + '/' + safeName),
-                dataUrl: String(reader.result),
-              });
-            }, reject);
+            resolve({
+              staged: true,
+              blob: file.blob,
+              dataUrl: String(reader.result),
+              name: name,
+              dir: dir,
+              repoPath: repoPath,
+              url: ASSET_PREFIX + dir + '/' + name,
+              rawUrl: rawImgUrl(repoPath),
+              cdnUrl: cdnImgUrl(repoPath),
+            });
           };
           reader.onerror = reject;
-          reader.readAsDataURL(f.blob);
+          reader.readAsDataURL(file.blob);
         });
+      }));
+    });
+  }
+
+  // 编辑器选图只在本地暂存，真正发布时与 Markdown 一起提交
+  function stageImagesForMemo(files) {
+    return prepareImages(files, 'gallery').then(function (entries) {
+      entries.forEach(function (entry) { memoPhotos.push(entry); });
+      return entries;
+    });
+  }
+
+  // Images 页批量上传：所有图片写入同一个 Git commit，只触发一次构建
+  // 返回 [{name, url, rawUrl, dataUrl}]
+  function uploadImagesBatch(files, dir, progressEl) {
+    return prepareImages(files, dir, progressEl).then(function (entries) {
+      if (progressEl) progressEl.textContent = '提交中…';
+      var commitFiles = entries.map(function (entry) {
+        return { path: entry.repoPath, dataUrl: entry.dataUrl };
       });
-      return Promise.all(tasks);
+      return commitRepoFiles(commitFiles, 'Upload ' + entries.length + ' image' + (entries.length > 1 ? 's' : ''))
+        .then(function (commit) {
+          entries.commitSha = commit.sha;
+          return entries;
+        });
     });
   }
 
@@ -1374,13 +1476,17 @@
     uploadImagesBatch(files, dir, progress).then(function (results) {
       // 本地立即显示（dataUrl 秒显），不等目录 API/构建；刷新列表遇 GitHub 缓存旧数据会把新图"弄丢"，故不立即刷新
       results.forEach(function (r) {
-        allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl, dataUrl: r.dataUrl });
+        allImages.unshift(r);
       });
+      imagePage = 1;
       renderImages();
       progress.textContent = '上传完成';
       input.value = '';
       toast('图片已上传到 ' + dir + '/');
-      noteAction();
+      if (results.commitSha) {
+        buildWatch.sha = results.commitSha;
+        watchLatestRun();
+      }
       _datedSeq.prefix = '';
       setTimeout(function () { progress.hidden = true; }, 1500);
     }).catch(function (e) {
@@ -1404,7 +1510,7 @@
       item.innerHTML =
         '<img src="' + esc(img.url) + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block;">' +
         '<div style="font-size:10px;color:#6e6e73;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(img.name) + '</div>';
-      fallbackToRaw(item.querySelector('img'), img.rawUrl);
+      fallbackToRaw(item.querySelector('img'), img.rawUrl, img.cdnUrl);
       item.addEventListener('click', function () {
         useImage(img.url, img.rawUrl || img.url, img.name);
         overlay.remove();
@@ -1479,20 +1585,14 @@
       var dir = safeSlug(editingSlug) || safeSlug(portalRoot.querySelector('#edit-slug').value) || 'gallery';
       var progress = overlay.querySelector('#picker-progress');
       progress.hidden = false;
-      uploadImagesBatch(files, dir, progress)
+      prepareImages(files, dir, progress)
         .then(function (results) {
-          progress.textContent = '上传完成';
+          progress.textContent = '已暂存，发布文章时统一上传';
           results.forEach(function (r) {
             useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
-            // 立即把新图加进 allImages，重开弹层即可见
-            allImages.unshift({ repoPath: IMG_DIR + '/' + dir + '/' + r.name, name: r.name, url: r.url, rawUrl: r.rawUrl, dataUrl: r.dataUrl });
+            pendingEditorImages.push(r);
           });
-          if (document.body.contains(overlay)) {
-            fillPickerGrid(overlay); // 重新渲染（新图出现在最前）
-          }
-          renderImages();
-          _datedSeq.prefix = '';
-          toast('已添加 ' + results.length + ' 张图片');
+          toast('已暂存 ' + results.length + ' 张图片，发布时一次提交');
           setTimeout(function () { if (document.body.contains(overlay)) overlay.remove(); }, 600);
         }).catch(function (e) {
           progress.textContent = '';
@@ -1526,7 +1626,7 @@
       cell.className = 'memo-photo';
       cell.innerHTML = '<img src="' + esc(p.dataUrl || p.url) + '" alt="">' +
         '<button class="memo-photo-rm" type="button">✕</button>';
-      fallbackToRaw(cell.querySelector('img'), p.rawUrl || '');
+      fallbackToRaw(cell.querySelector('img'), p.rawUrl || '', p.cdnUrl || '');
       cell.querySelector('.memo-photo-rm').addEventListener('click', function () {
         memoPhotos.splice(idx, 1);
         renderMemoPhotos();
@@ -1749,6 +1849,7 @@
         return deleteFile(POSTS_DIR + '/' + slug + '.md', 'Delete post: ' + slug, fileData.sha);
       }).then(function () {
         toast('已删除');
+        clearLS(LS.post_cache);
         loadPosts();
         noteAction();
       }).catch(function (err) {
