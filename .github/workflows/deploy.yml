@@ -20,11 +20,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # 无 npm 依赖（marked 已 vendor 进 vendor/），无需 setup-node / npm ci
-      # ffmpeg：构建时给实况视频转码 H.264 兼容版（桌面 Chrome/Firefox 播 HEVC）
-      - name: Install ffmpeg
+      # ffmpeg 只用于给实况视频转码 H.264 兼容版（桌面浏览器播 HEVC 需要）。
+      # 没有实况视频的构建（普通增删改文章/图片）就跳过安装——apt 很慢。
+      # 另外：ubuntu-latest 镜像自带较新的软件包索引，直接装通常秒级完成，
+      # 装不上才退回 update + install（避开最耗时的 apt-get update）。
+      - name: Check ffmpeg needed
+        id: check-ffmpeg
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          NEEDS=false
+          if find static/assets/img -type f -name '*.mp4' ! -name '*.avc.mp4' 2>/dev/null | grep -q .; then
+            NEEDS=true
+          fi
+          echo "needs_ffmpeg=$NEEDS" >> "$GITHUB_OUTPUT"
+      - name: Install ffmpeg
+        if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
+        run: |
+          sudo apt-get install -y -qq ffmpeg || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          }
       - run: node scripts/build.mjs
       # configure-pages 已省略：Pages 站点早已配置好（build_type=workflow），省 ~1s
       - uses: actions/upload-pages-artifact@v3
