@@ -829,15 +829,6 @@ function buildSearchIndex() {
   return JSON.stringify({ posts, pages });
 }
 
-// ---------- 88x31 ----------
-function buildBadgesIndex() {
-  const badges = Array.from({ length: 4 }, (_, i) => ({
-    name: 'badge-' + (i + 1),
-    file: 'badge-' + (i + 1) + '.png',
-  }));
-  return JSON.stringify({ url_prefix: withBase('/assets/img/88x31/'), badges });
-}
-
 // ---------- 404 ----------
 function build404() {
   const html = headHtml(`404 - ${site.name}`) + shellStart() + `
@@ -960,7 +951,6 @@ writePage('404.html', build404());
 writePage('portal.html', buildPortalPage());
 writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
 writePage('version.json', JSON.stringify({ v: BUILD_VERSION }));
-writePage('88x31/index.json', buildBadgesIndex());
 
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));

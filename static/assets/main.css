@@ -1870,42 +1870,6 @@ body {
   font-size: 13px;
 }
 
-.badge-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(88px, 1fr));
-  gap: 8px;
-  align-content: start;
-}
-
-.badge-88x31-loading {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-.badge-88x31 {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--rule-light);
-  background: var(--surface);
-  padding: 4px;
-  transition: transform .2s, border-color .2s, box-shadow .2s;
-}
-
-.badge-88x31 img {
-  width: 88px;
-  height: 31px;
-  object-fit: cover;
-  image-rendering: pixelated;
-}
-
-.badge-88x31:hover {
-  transform: translateY(-1px);
-  border-color: var(--accent);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-}
-
 .mobile-header {
   display: flex;
   position: sticky;
