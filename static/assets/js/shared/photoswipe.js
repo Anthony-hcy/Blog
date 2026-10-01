@@ -229,9 +229,12 @@ function setupLiveLightboxControls(lightbox) {
     v.setAttribute('playsinline', '');
     v.playsInline = true;
     v.preload = 'auto';
-    v.volume = 1; // 播放自带声音（用户点按手势，浏览器允许有声自动播放）
+    v.muted = true; // 关键：先静音起播（手机浏览器会拦截"带声音的 play()"，
+    // 但静音必允许）；播放真正开始后立刻开声，用户无感知
+    v.volume = 1;
     // 出画面才淡入：playing 后再等两帧，确保首帧已渲染，避免黑帧一闪
     v.addEventListener('playing', function () {
+      v.muted = false; // 起播成功 → 立即开声（同一手势链内，浏览器允许）
       setButtonPaused(); // 开始播放 → 按钮显示"暂停"
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
