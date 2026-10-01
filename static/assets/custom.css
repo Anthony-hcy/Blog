@@ -90,7 +90,7 @@ figure.pswp-item.live-photo {
   object-fit: contain;
   background: transparent; /* 未出画面时透明，不盖黑屏 */
   opacity: 0;              /* 出画面才淡入（.ready） */
-  transition: opacity .25s ease;
+  transition: opacity .3s ease;
   z-index: 4;
   pointer-events: none; /* 不抢触摸，点击落到幻灯片上 */
 }

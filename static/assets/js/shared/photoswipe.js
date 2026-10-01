@@ -224,8 +224,13 @@ function setupLiveLightboxControls(lightbox) {
     v.playsInline = true;
     v.preload = 'auto';
     v.volume = 1; // 播放自带声音（用户点按手势，浏览器允许有声自动播放）
+    // 出画面才淡入：playing 后再等两帧，确保首帧已渲染，避免黑帧一闪
     v.addEventListener('playing', function () {
-      if (video === v) v.classList.add('ready'); // 出画面才淡入
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (video === v) v.classList.add('ready');
+        });
+      });
     });
     v.addEventListener('ended', function () { stop(); });
     v.addEventListener('error', failHandler);
@@ -257,7 +262,11 @@ function setupLiveLightboxControls(lightbox) {
       target.preload = 'auto';
       target.volume = 1;
       target.addEventListener('playing', function () {
-        if (video === target) target.classList.add('ready');
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            if (video === target) target.classList.add('ready');
+          });
+        });
       });
       target.addEventListener('ended', function () { stop(); });
       target.addEventListener('error', failHandler);
@@ -290,6 +299,13 @@ function setupLiveLightboxControls(lightbox) {
       e.preventDefault();
       e.stopPropagation(); // 不触发 PhotoSwipe 的关闭/切页
       play();
+    });
+    // 拦截 pointer/touch 冒泡：防止 PhotoSwipe 把手势/轻点算到幻灯片上
+    // （否则点播放会触发 UI 显隐切换，造成"屏幕一闪"）
+    ['pointerdown', 'pointerup', 'touchstart', 'touchend'].forEach(function (evt) {
+      playBtn.addEventListener(evt, function (e) {
+        e.stopPropagation();
+      }, { passive: true });
     });
 
     // 后台预缓冲，保证点击即播、平滑无卡顿
