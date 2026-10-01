@@ -240,9 +240,10 @@ function tryTranscodeLiveVideos() {
     if (existsSync(out)) continue; // 已有兼容版
     const r = spawnSync('ffmpeg', [
       '-y', '-i', join(galleryDir, name),
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+      '-vf', "scale='min(1280,iw)':-2", // 压到 1280px 宽，体积更小、国内网络加载更快
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
       '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-b:a', '128k',
+      '-c:a', 'aac', '-b:a', '96k',
       '-movflags', '+faststart',
       out,
     ], { timeout: 180000, stdio: 'ignore' });

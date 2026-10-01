@@ -161,7 +161,7 @@ function setupLiveLightboxControls(lightbox) {
     hintEl = null;
   }
 
-  // 停止：先淡出（去掉 ready 类），280ms 后真正移除；按钮立即复位为 ▶
+  // 停止：先淡出（去掉 ready 类），280ms 后真正移除；按钮立即复位为 ▶ 播放
   function stop() {
     if (video) {
       video.classList.remove('ready');
@@ -171,10 +171,7 @@ function setupLiveLightboxControls(lightbox) {
         if (video === v) removeVideo();
       }, 280);
     }
-    if (playBtn) {
-      playBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i> 播放';
-      playBtn.classList.remove('playing');
-    }
+    setButtonPlay();
   }
 
   function showHint(text) {
@@ -196,7 +193,7 @@ function setupLiveLightboxControls(lightbox) {
     return pswp.currSlide.data && pswp.currSlide.data.element || null;
   }
 
-  // 播放源：优先 H.264 兼容版（587KB 秒加载、全浏览器可播），没有才用原 HEVC
+  // 播放源：优先 H.264 兼容版（体积小、全浏览器可播），没有才用原 HEVC
   function preferredSrc(fig) {
     if (!fig) return '';
     const avcSrc = fig.dataset.avcSrc || '';
@@ -209,6 +206,28 @@ function setupLiveLightboxControls(lightbox) {
   function failHandler() {
     stop();
     showHint('此视频当前设备无法播放');
+  }
+
+  // 按钮进入"加载中"状态（下载慢时给出反馈，避免看起来像卡死）
+  function setButtonLoading() {
+    if (playBtn) {
+      playBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> 加载中';
+      playBtn.classList.remove('playing');
+    }
+  }
+
+  function setButtonPaused() {
+    if (playBtn) {
+      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i> 暂停';
+      playBtn.classList.add('playing');
+    }
+  }
+
+  function setButtonPlay() {
+    if (playBtn) {
+      playBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i> 播放';
+      playBtn.classList.remove('playing');
+    }
   }
 
   // 后台预缓冲：灯箱一打开（或切到实况图）就开始下载，点 ▶ 时已就绪、立即平滑播放
@@ -226,6 +245,7 @@ function setupLiveLightboxControls(lightbox) {
     v.volume = 1; // 播放自带声音（用户点按手势，浏览器允许有声自动播放）
     // 出画面才淡入：playing 后再等两帧，确保首帧已渲染，避免黑帧一闪
     v.addEventListener('playing', function () {
+      setButtonPaused(); // 开始播放 → 按钮显示"暂停"
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           if (video === v) v.classList.add('ready');
@@ -262,6 +282,7 @@ function setupLiveLightboxControls(lightbox) {
       target.preload = 'auto';
       target.volume = 1;
       target.addEventListener('playing', function () {
+        setButtonPaused(); // 开始播放 → 按钮显示"暂停"
         requestAnimationFrame(function () {
           requestAnimationFrame(function () {
             if (video === target) target.classList.add('ready');
@@ -274,10 +295,8 @@ function setupLiveLightboxControls(lightbox) {
       holder.appendChild(target);
     }
     video = target;
-    if (playBtn) {
-      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i> 暂停';
-      playBtn.classList.add('playing');
-    }
+    // 网络慢、数据还没下完时先显示"加载中"，不让人以为卡死
+    setButtonLoading();
     const p = video.play();
     if (p && p.catch) p.catch(failHandler);
   }
@@ -316,8 +335,34 @@ function setupLiveLightboxControls(lightbox) {
   lightbox.on('destroy', cleanup);
 }
 
+// 页面级预热：实况图进入视口就开始后台下载视频（填进浏览器 HTTP 缓存），
+// 等用户点开大图点播放时，数据已就绪 → 立即播放，不受国内网络慢影响。
+// 用普通 fetch 预取：不解析内容、只把响应放进缓存；已预热过的图跳过。
+export function warmLiveVideos(scope) {
+  if (!scope || !scope.querySelectorAll || !('IntersectionObserver' in window)) return;
+  const figs = Array.prototype.slice.call(scope.querySelectorAll('.live-photo'));
+  if (!figs.length) return;
+  const io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      const fig = en.target;
+      if (fig.dataset.liveWarmed) { io.unobserve(fig); return; }
+      fig.dataset.liveWarmed = '1';
+      io.unobserve(fig);
+      const avcSrc = fig.dataset.avcSrc || '';
+      const srcV = fig.querySelector('video');
+      const url = avcSrc || (srcV && srcV.src) || '';
+      if (url) {
+        try { fetch(url, { method: 'GET', cache: 'default' }).catch(function () {}); } catch (_) {}
+      }
+    });
+  }, { rootMargin: '300px 0px' });
+  figs.forEach(function (f) { io.observe(f); });
+}
+
 export function initPhotoSwipeInScope(scope) {
   collectGalleries(scope).forEach(bindPhotoSwipeGallery);
+  warmLiveVideos(scope);
 }
 
 export function initPhotoSwipeInEntries(entries) {
