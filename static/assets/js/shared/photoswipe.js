@@ -122,6 +122,7 @@ function bindPhotoSwipeGallery(gallery) {
 function setupLiveLightboxControls(lightbox) {
   let wrap = null;
   let video = null;
+  let buffered = null; // 后台预缓冲的视频（未播、opacity 0）
   let videoRemoveTimer = null;
   let playBtn = null;
   let hintEl = null;
@@ -143,8 +144,17 @@ function setupLiveLightboxControls(lightbox) {
     }
   }
 
+  function removeBuffered() {
+    if (buffered) {
+      try { buffered.pause(); } catch (_) {}
+      if (buffered.parentNode) buffered.parentNode.removeChild(buffered);
+      buffered = null;
+    }
+  }
+
   function cleanup() {
     removeVideo();
+    removeBuffered();
     if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
     wrap = null;
     playBtn = null;
@@ -186,31 +196,41 @@ function setupLiveLightboxControls(lightbox) {
     return pswp.currSlide.data && pswp.currSlide.data.element || null;
   }
 
-  // 尝试用指定 src 播放；onFail 在 play() 拒绝或 error 时调用
-  function tryPlay(src, onFail) {
+  // 播放源：优先 H.264 兼容版（587KB 秒加载、全浏览器可播），没有才用原 HEVC
+  function preferredSrc(fig) {
+    if (!fig) return '';
+    const avcSrc = fig.dataset.avcSrc || '';
+    if (avcSrc) return avcSrc;
+    const srcV = fig.querySelector('video');
+    return (srcV && srcV.src) || '';
+  }
+
+  // 播放失败兜底：停止 + 提示
+  function failHandler() {
+    stop();
+    showHint('此视频当前设备无法播放');
+  }
+
+  // 后台预缓冲：灯箱一打开（或切到实况图）就开始下载，点 ▶ 时已就绪、立即平滑播放
+  function prepareBuffer(fig) {
     const holder = slideEl();
-    if (!holder) return;
-    video = document.createElement('video');
-    video.className = 'pswp-live-video';
-    video.src = src;
-    video.loop = false; // 实况只播一遍
-    video.setAttribute('playsinline', '');
-    video.playsInline = true;
-    video.preload = 'auto';
-    video.volume = 1; // 播放自带声音（用户点按手势，浏览器允许有声自动播放）
-    // 有画面才淡入，避免黑屏；播完一遍自动停；出错走回退
-    video.addEventListener('playing', function () {
-      if (video) video.classList.add('ready');
+    const src = preferredSrc(fig);
+    if (!holder || !src || buffered) return;
+    const v = document.createElement('video');
+    v.className = 'pswp-live-video'; // opacity 0，未 ready 不可见
+    v.src = src;
+    v.loop = false;
+    v.setAttribute('playsinline', '');
+    v.playsInline = true;
+    v.preload = 'auto';
+    v.volume = 1; // 播放自带声音（用户点按手势，浏览器允许有声自动播放）
+    v.addEventListener('playing', function () {
+      if (video === v) v.classList.add('ready'); // 出画面才淡入
     });
-    video.addEventListener('ended', function () { stop(); });
-    video.addEventListener('error', onFail);
-    holder.appendChild(video);
-    if (playBtn) {
-      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i>';
-      playBtn.classList.add('playing');
-    }
-    const p = video.play();
-    if (p && p.catch) p.catch(onFail);
+    v.addEventListener('ended', function () { stop(); });
+    v.addEventListener('error', failHandler);
+    holder.appendChild(v);
+    buffered = v;
   }
 
   function play() {
@@ -219,34 +239,38 @@ function setupLiveLightboxControls(lightbox) {
     if (video) { removeVideo(); stop(); return; } // 播放中点一下 = 停止
     const fig = currentFigure();
     if (!fig) return;
-    const srcV = fig.querySelector('video');
-    if (!srcV || !srcV.src) { showHint('该实况图缺少视频文件'); return; }
-    const hevcSrc = srcV.src;
-    const avcSrc = fig.dataset.avcSrc || '';
+    const src = preferredSrc(fig);
+    if (!src) { showHint('该实况图缺少视频文件'); return; }
 
-    // 桌面 Chrome/Firefox 不支持 HEVC → 用 H.264 兼容版；能播 HEVC 的（手机/Edge）用原视频
-    const probe = document.createElement('video');
-    let hevcOk = false;
-    try {
-      hevcOk = !!(probe.canPlayType && probe.canPlayType('video/mp4; codecs="hvc1"'));
-    } catch (_) {}
-    const firstSrc = hevcOk ? hevcSrc : (avcSrc || hevcSrc);
-
-    let avcTried = false;
-    function onFail() {
-      if (!avcTried && avcSrc && firstSrc !== avcSrc) {
-        avcTried = true;
-        removeVideo();
-        tryPlay(avcSrc, function () {
-          stop();
-          showHint('此视频当前设备无法播放（编码不支持）');
-        });
-        return;
-      }
-      stop();
-      showHint(avcSrc ? '此视频当前设备无法播放' : '此视频当前设备无法播放，请在手机上长按观看');
+    // 优先用已预缓冲的元素（点 ▶ 时立即可播，无卡顿）
+    let target = buffered;
+    buffered = null;
+    if (!target) {
+      // 极端情况：没来得及预缓冲，现建现播
+      const holder = slideEl();
+      if (!holder) return;
+      target = document.createElement('video');
+      target.className = 'pswp-live-video';
+      target.loop = false;
+      target.setAttribute('playsinline', '');
+      target.playsInline = true;
+      target.preload = 'auto';
+      target.volume = 1;
+      target.addEventListener('playing', function () {
+        if (video === target) target.classList.add('ready');
+      });
+      target.addEventListener('ended', function () { stop(); });
+      target.addEventListener('error', failHandler);
+      target.src = src;
+      holder.appendChild(target);
     }
-    tryPlay(firstSrc, onFail);
+    video = target;
+    if (playBtn) {
+      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i>';
+      playBtn.classList.add('playing');
+    }
+    const p = video.play();
+    if (p && p.catch) p.catch(failHandler);
   }
 
   lightbox.on('change', function () {
@@ -267,6 +291,9 @@ function setupLiveLightboxControls(lightbox) {
       e.stopPropagation(); // 不触发 PhotoSwipe 的关闭/切页
       play();
     });
+
+    // 后台预缓冲，保证点击即播、平滑无卡顿
+    prepareBuffer(fig);
   });
 
   lightbox.on('close', cleanup);
