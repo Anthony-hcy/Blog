@@ -2,8 +2,9 @@
    - 页面导航：network-first（内容永远最新），断网回退缓存
    - 图片/字体/图标：cache-first（文件名不变内容不变，二次打开秒开）
    - 其他同源静态资源（css/js/json）：stale-while-revalidate（先用缓存、后台更新）
+   - 视频（mp4/webm）：绝不进缓存，始终直连（Range 分段加载，缓存会卡第一帧）
    跨域请求（npmmirror 字体、不蒜子、GitHub API）不拦截，交给浏览器 */
-var CACHE = 'haelcy-v2';
+var CACHE = 'haelcy-v3';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
@@ -30,6 +31,13 @@ self.addEventListener('fetch', function (event) {
 
   // 版本指纹永远直连（页面用它判断是否有新部署，走缓存会失效）
   if (url.pathname.endsWith('/version.json')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // 视频（mp4/webm）：绝不进 SW 缓存——视频用 Range 分段加载，
+  // 一旦缓存，后续播放会命中旧的部分响应、Range 对不上 → 卡在第一帧不播。
+  if (/\.(mp4|webm)$/i.test(url.pathname)) {
     event.respondWith(fetch(req));
     return;
   }
