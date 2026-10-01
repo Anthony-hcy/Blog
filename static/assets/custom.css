@@ -1,10 +1,40 @@
 /* custom.css — 布局与字体定制 */
 
-/* ===== 全站字体：霞鹜文楷（屏幕版，切片 webfont，由 build.mjs 头部引入） ===== */
+/* ===== Emoji 分层回退：解决 🛜(U+1F6DC) 与国旗 🇨🇳(U+1F1E6-1F1FF) 在桌面端不显示 ===== */
+/* 第一层：设备自带彩色 emoji，只管缺字形的码位；苹果/安卓命中即用，零下载 */
+@font-face {
+  font-family: 'Haelcy Emoji Native Flag';
+  src: local('Apple Color Emoji'), local('Noto Color Emoji');
+  unicode-range: U+1F1E6-1F1FF, U+1F6DC, U+1F6DD-1F6DF, U+1FA70-1FAFF;
+}
+/* 第二层：补缺口的网络字体，只声明缺的码位 → 只有含这些字符的页面才下载 */
+@font-face {
+  font-family: 'Haelcy Emoji Web Flag';
+  src: url('https://registry.npmmirror.com/@fontsource/noto-color-emoji/5.3.2/files/files/noto-color-emoji-emoji-400-normal.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+1F1E6-1F1FF, U+1F6DC, U+1F6DD-1F6DF, U+1FA70-1FAFF;
+}
+/* 第三层：其余 emoji 仍走设备自带字体；范围刻意排除英文字母、数字与 # *，免得抢走正文 */
+@font-face {
+  font-family: 'Haelcy Emoji Native';
+  src: local('Apple Color Emoji'), local('Noto Color Emoji'), local('Segoe UI Emoji'), local('Segoe UI Symbol');
+  unicode-range: U+00A9, U+00AE, U+200D, U+203C, U+2049, U+20E3, U+2122, U+2139, U+2190-21FF,
+                 U+2300-23FF, U+2460-24FF, U+25A0-27BF, U+2900-297F, U+2B00-2BFF,
+                 U+3030, U+303D, U+3297, U+3299, U+FE0F, U+1F000-1FAFF;
+}
+
+/* ===== 全站字体：emoji 分层在前，霞鹜文楷（屏幕版，切片 webfont，由 build.mjs 头部引入）在后 ===== */
 /* CDN 未加载成功时自动回退到系统字体，页面不会坏 */
 :root {
-  --serif: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
-  --sans: 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+  --emoji: 'Haelcy Emoji Native Flag', 'Haelcy Emoji Web Flag', 'Haelcy Emoji Native';
+  --serif: var(--emoji), 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+  --sans: var(--emoji), 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+}
+
+/* ===== 文章正文：窄屏（手机）并排退化为单列整幅，保持与现状一致 ===== */
+/* 只限定 .article-body，说说页（memo）的相框在任何宽度下都不受影响 */
+@media (max-width: 480px) {
+  .article-body .photoset .photos { display: block; }
 }
 
 /* ===== 主页 memo：文字与图片左对齐（去掉原主题 48px 缩进） ===== */

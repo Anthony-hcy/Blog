@@ -31,6 +31,15 @@ const EXSEARCH_HASH = 'search-index';
 // 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新
 const BUILD_VERSION = new Date().toISOString();
 
+// 双链图片解析错误收集：全部页面写完后统一报错并中止构建（防止 ![[...]] 原样上线）
+const buildErrors = [];
+
+// ---------- 旧地址跳转（改 slug 后保持旧链接可用） ----------
+// key = 旧 slug，value = 新 slug；构建会为旧地址生成一个自动跳转页
+const REDIRECTS = {
+  '2026-10-01 ——《当你沉睡时》': '2026.10.01 ——《当你沉睡时》',
+};
+
 // ---------- frontmatter 解析（极简 YAML 子集） ----------
 function parseFrontmatter(md) {
   const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
@@ -110,14 +119,19 @@ function escapeXml(value) {
 
 // ---------- 图片尺寸读取（PNG/JPEG/GIF/WebP 头解析，用于 pswp flex 计算） ----------
 function imageSize(relPath) {
-  let buf;
-  try {
-    const abs = relPath.startsWith('/assets/')
-      ? join(ROOT, 'static', relPath.replace(/^\/assets\//, ''))
-      : join(ROOT, 'static', 'assets', 'img', relPath.replace(/^\/?/, ''));
-    buf = readFileSync(abs);
-  } catch (_) {
-    return null;
+  if (typeof relPath !== 'string' || !relPath) return null;
+  let p = relPath.trim();
+  if (/^(https?:|data:)/.test(p)) return null;
+  if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length); // 去掉 /Blog 前缀
+  p = p.replace(/^\/+/, '');
+  const candidates = [
+    join(ASSETS_SRC, p),                                    // assets/img/<slug>/<file>
+    join(ASSETS_SRC, 'assets', 'img', p),                   // 裸文件名
+    join(ASSETS_SRC, 'assets', 'img', p.replace(/^assets\/img\//, '')),
+  ];
+  let buf = null;
+  for (const abs of candidates) {
+    try { buf = readFileSync(abs); break; } catch (_) { /* 试下一条 */ }
   }
   if (!buf || buf.length < 24) return null;
   try {
@@ -180,6 +194,30 @@ function groupPhotos(figures) {
   return rows;
 }
 
+// ---------- 连续图片（同一段落内只有图片）→ 并排相框（原站 photoset 结构） ----------
+function figuresFromHtml(html) {
+  return Array.from(html.matchAll(/<figure class="pswp-item"[\s\S]*?<\/figure>/g))
+    .map(m => {
+      const fig = m[0];
+      const srcMatch = fig.match(/src="([^"]+)"/);
+      return { html: fig, src: srcMatch ? srcMatch[1] : '' };
+    });
+}
+
+function photosetHtml(figures) {
+  return `<div class="photoset">${groupPhotos(figures).map(row =>
+    `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
+  ).join('')}</div>`;
+}
+
+// 只把「段落里仅有图片、且连着 2 张以上」包成并排相框；单张保持整幅，与原站一致
+function wrapFigureRuns(html) {
+  return html.replace(
+    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item"[\s\S]*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
+    (block) => photosetHtml(figuresFromHtml(block))
+  );
+}
+
 // ---------- memo 随机头像池 ----------
 // 把头像图放进 static/assets/img/avatars/（命名任意），每条 memo 按 slug 稳定分配一张
 let _avatarPool = null;
@@ -208,11 +246,13 @@ function memoAvatar(post) {
 // 图片放在 static/assets/img/<slug>/ 下（文件名与双链一致，扩展名可省略）
 const IMG_EXTS = ['', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'];
 function resolveObsidianEmbeds(body, slug) {
+  if (!body.includes('![[')) return body; // 没有双链直接返回（避免为无图文章误报目录缺失）
   const dir = join(ASSETS_SRC, 'assets', 'img', slug);
   let files = null;
   try {
     files = new Set(readdirSync(dir));
   } catch (_) {
+    buildErrors.push(`双链图片目录不存在：static/assets/img/${slug}/（文章 slug=${slug}，正文里的 ![[...]] 会原样显示成文本）`);
     return body;
   }
   return body.replace(/!\[\[([^\]]+)\]\]/g, function (whole, name) {
@@ -228,7 +268,7 @@ function resolveObsidianEmbeds(body, slug) {
         return `![](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
       }
     }
-    console.warn('  ! 双链图片未找到: ' + slug + ' / ' + name);
+    buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}`);
     return whole;
   });
 }
@@ -236,15 +276,19 @@ function resolveObsidianEmbeds(body, slug) {
 // ---------- 正文裸文件名图片：![](名字.webp) → 在 static/assets/img/<slug>/ 中查找并补全路径 ----------
 // （Obsidian 里把封面等图直接 ![[名字]] 改写成 markdown 后的常见形态）
 function resolveBareImages(body, slug) {
-  const dir = join(ASSETS_SRC, 'assets', 'img', slug);
-  let files = null;
-  try {
-    files = new Set(readdirSync(dir));
-  } catch (_) {
-    return body;
-  }
+  let files = null;    // 惰性读取：只有真遇到裸文件名引用才读目录
+  let dirMissing = false;
   return body.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (whole, alt, ref) {
     if (ref.indexOf('/') >= 0 || ref.indexOf('http') === 0 || ref.indexOf('data:') === 0) return whole; // 已是路径/外链
+    if (files === null && !dirMissing) {
+      try {
+        files = new Set(readdirSync(join(ASSETS_SRC, 'assets', 'img', slug)));
+      } catch (_) {
+        dirMissing = true;
+        buildErrors.push(`裸文件名图片目录不存在：static/assets/img/${slug}/（正文里的裸文件名图片无法补全路径）`);
+      }
+    }
+    if (files === null) return whole; // 目录不可用，保持原样（错误已记录）
     const stem = ref.replace(/\.[a-z0-9]+$/i, ''); // 扩展名不匹配时尝试替换（文件可能转过格式）
     const candidates = [ref];
     for (const ext of IMG_EXTS) {
@@ -255,6 +299,7 @@ function resolveBareImages(body, slug) {
         return `![${alt}](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
       }
     }
+    buildErrors.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}`);
     return whole; // 目录里没有就保持原样
   });
 }
@@ -491,22 +536,13 @@ function entryArticle(post) {
 
 function entryMemo(post) {
   const rendered = renderMarkdown(post.body);
-  const figures = Array.from(rendered.matchAll(/<figure class="pswp-item"[\s\S]*?<\/figure>/g))
-    .map(m => {
-      const fig = m[0];
-      const srcMatch = fig.match(/src="([^"]+)"/);
-      return { html: fig, src: srcMatch ? srcMatch[1] : '' };
-    });
+  const figures = figuresFromHtml(rendered);
   const contentHtml = rendered
     .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
     // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
-  const photosHtml = figures.length
-    ? `<div class="photoset">${groupPhotos(figures).map(row =>
-        `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
-      ).join('')}</div>`
-    : '';
+  const photosHtml = figures.length ? photosetHtml(figures) : '';
   return `<div class="entry-memo pswp-gallery">
     <div class="memo-head">
       <img class="memo-avatar" src="${post.avatar ? withBase(post.avatar) : memoAvatar(post)}" alt="${escapeHtml(site.author)}">
@@ -595,7 +631,8 @@ function buildPostPage(post, prev, next) {
   const categoryTag = post.category
     ? `<div class="tag"><a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a></div>`
     : '';
-  const bodyHtml = renderMarkdown(post.body);
+  // 同一段落里连着的多张图片 → 并排相框（Obsidian 里 ![[a]]![[b]]![[c]] 的语义）
+  const bodyHtml = wrapFigureRuns(renderMarkdown(post.body));
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
@@ -626,22 +663,13 @@ ${postNav(prev, next)}
 
 function buildMemoPage(post, prev, next) {
   const rendered = renderMarkdown(post.body);
-  const figures = Array.from(rendered.matchAll(/<figure class="pswp-item"[\s\S]*?<\/figure>/g))
-    .map(m => {
-      const fig = m[0];
-      const srcMatch = fig.match(/src="([^"]+)"/);
-      return { html: fig, src: srcMatch ? srcMatch[1] : '' };
-    });
+  const figures = figuresFromHtml(rendered);
   const contentHtml = rendered
     .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
     // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
-  const photosHtml = figures.length
-    ? `<div class="photoset">${groupPhotos(figures).map(row =>
-        `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
-      ).join('')}</div>`
-    : '';
+  const photosHtml = figures.length ? photosetHtml(figures) : '';
   const scripts = `<script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
@@ -821,6 +849,27 @@ function build404() {
   return html;
 }
 
+// ---------- 旧地址跳转页（无脚本，靠页面刷新指令 + 可见链接兜底） ----------
+function buildRedirectPage(from, to) {
+  const target = withBase(`/archives/${to}/`);
+  return `<!DOCTYPE html>
+<html lang="${site.lang}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=${target}">
+  <link rel="canonical" href="${SITE_URL}${target}">
+  <title>正在跳转 - ${site.name}</title>
+  <style>body{font-family:system-ui,-apple-system,sans-serif;margin:3rem auto;max-width:560px;padding:0 1rem;line-height:1.8;color:#333}code{background:#f2f2f2;padding:2px 6px;border-radius:4px}</style>
+</head>
+<body>
+  <p>这篇文章的地址已更新，正在为你跳转到新地址…</p>
+  <p>原地址：<code>/archives/${from}/</code></p>
+  <p><a href="${target}">如果页面没有自动跳转，点这里继续</a></p>
+</body>
+</html>`;
+}
+
 // Portal 管理页：与 about/archives 相同的博客框架（头部/侧边栏/页脚），主内容区挂载管理界面
 function buildPortalPage() {
   const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css`)}">
@@ -883,6 +932,11 @@ for (let i = 0; i < _posts.length; i++) {
   writePage(`archives/${post.slug}/index.html`, html);
 }
 
+// 旧地址跳转页（改 slug 后保持旧链接可用）
+for (const [from, to] of Object.entries(REDIRECTS)) {
+  writePage(`archives/${from}/index.html`, buildRedirectPage(from, to));
+}
+
 // 归档
 writePage('archives/index.html', buildArchivesPage());
 
@@ -911,5 +965,12 @@ writePage('88x31/index.json', buildBadgesIndex());
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));
 copyDir(join(ROOT, 'site-root'), DIST);
+
+// 双链图片解析错误：全部页面写完后统一报错并中止（防止 ![[...]] 原样上线）
+if (buildErrors.length) {
+  console.error('\n构建中止：正文引用的双链/裸文件名图片无法解析，会把 ![[...]] 原样输出到页面。');
+  buildErrors.forEach(e => console.error('  ✗ ' + e));
+  process.exit(1);
+}
 
 console.log(`Build complete: ${_posts.length} posts, ${totalPages} pages -> dist/`);
