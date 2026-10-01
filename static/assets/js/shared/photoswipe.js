@@ -172,7 +172,7 @@ function setupLiveLightboxControls(lightbox) {
       }, 280);
     }
     if (playBtn) {
-      playBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i>';
+      playBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i> 播放';
       playBtn.classList.remove('playing');
     }
   }
@@ -266,7 +266,7 @@ function setupLiveLightboxControls(lightbox) {
     }
     video = target;
     if (playBtn) {
-      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i>';
+      playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i> 暂停';
       playBtn.classList.add('playing');
     }
     const p = video.play();
@@ -282,7 +282,7 @@ function setupLiveLightboxControls(lightbox) {
     wrap = document.createElement('div');
     wrap.className = 'pswp-live-controls';
     wrap.innerHTML =
-      '<button type="button" class="pswp-live-play" aria-label="播放实况"><i class="fa-solid fa-play" aria-hidden="true"></i></button>';
+      '<button type="button" class="pswp-live-play" aria-label="播放实况"><i class="fa-solid fa-play" aria-hidden="true"></i> 播放</button>';
     holder.appendChild(wrap);
     playBtn = wrap.querySelector('.pswp-live-play');
 

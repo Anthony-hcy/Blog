@@ -104,18 +104,20 @@ figure.pswp-item.live-photo {
 .pswp .pswp-live-controls .pswp-live-play {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   color: #fff;
   background: rgba(0, 0, 0, .55);
   cursor: pointer;
-  font-size: 15px;
-  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
   transition: background .2s, opacity .2s;
 }
+.pswp .pswp-live-controls .pswp-live-play i { font-size: 12px; }
 .pswp .pswp-live-controls .pswp-live-play:hover { background: rgba(0, 0, 0, .75); }
 /* 播放中按钮半透明，点它可提前停止 */
 .pswp .pswp-live-controls .pswp-live-play.playing { opacity: .65; }
