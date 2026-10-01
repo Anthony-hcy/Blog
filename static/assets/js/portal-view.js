@@ -734,11 +734,28 @@
         getFile(repoPath).then(function (fd) {
           return deleteFile(repoPath, 'Delete image: ' + name, fd.sha);
         }).then(function () {
-          // 实况照片的伴生视频一并删除（没有就跳过，不影响主流程）
-          var vPath = repoPath.replace(/\.[^.]+$/, '') + '.mp4';
-          return getFile(vPath).then(function (fd) {
-            return deleteFile(vPath, 'Delete live video: ' + name.replace(/\.[^.]+$/, '') + '.mp4', fd.sha);
-          }).catch(function () { /* 普通图片没有伴生视频 */ });
+          // 实况照片的伴生视频一并删除（.mp4 / .webm）
+          // 404 = 该图没有视频，正常跳过；其他错误重试一次，仍失败则提示但不中断主流程
+          var baseRepoPath = repoPath.replace(/\.[^.]+$/, '');
+          var baseName = name.replace(/\.[^.]+$/, '');
+          function tryDeletePair(vPath, label) {
+            return getFile(vPath).then(function (fd) {
+              return deleteFile(vPath, label, fd.sha);
+            }).catch(function (err) {
+              if (err && err.status === 404) return; // 没有这个视频：正常
+              // 瞬时错误（限流/抖动）等 1.5s 重试一次
+              return new Promise(function (r) { setTimeout(r, 1500); }).then(function () {
+                return getFile(vPath).then(function (fd2) {
+                  return deleteFile(vPath, label, fd2.sha);
+                });
+              });
+            });
+          }
+          return tryDeletePair(baseRepoPath + '.mp4', 'Delete live video: ' + baseName + '.mp4')
+            .then(function () { return tryDeletePair(baseRepoPath + '.webm', 'Delete live video: ' + baseName + '.webm'); })
+            .catch(function (err) {
+              toast('图片已删，但伴生视频删除失败：' + err.message, true);
+            });
         }).then(function () {
           toast('已删除');
           noteAction();
