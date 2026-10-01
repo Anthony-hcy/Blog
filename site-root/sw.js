@@ -2,9 +2,11 @@
    - 页面导航：network-first（内容永远最新），断网回退缓存
    - 图片/字体/图标：cache-first（文件名不变内容不变，二次打开秒开）
    - 其他同源静态资源（css/js/json）：stale-while-revalidate（先用缓存、后台更新）
-   - 视频（mp4/webm）：绝不进缓存，始终直连（Range 分段加载，缓存会卡第一帧）
+   - 视频（mp4/webm）：cache-first 完整文件——第一次加载时缓存整份视频，
+     之后每次打开直接读缓存秒播，不重复下载（此前卡第一帧是缓存了"分段响应"，
+     现在缓存完整文件即正确）
    跨域请求（npmmirror 字体、不蒜子、GitHub API）不拦截，交给浏览器 */
-var CACHE = 'haelcy-v3';
+var CACHE = 'haelcy-v4';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
@@ -35,10 +37,11 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // 视频（mp4/webm）：绝不进 SW 缓存——视频用 Range 分段加载，
-  // 一旦缓存，后续播放会命中旧的部分响应、Range 对不上 → 卡在第一帧不播。
+  // 视频（mp4/webm）：cache-first 完整文件
+  // 第一次：绕过 Range 请求，拉取整份文件缓存（避免缓存 206 分段导致卡第一帧）；
+  // 之后任何 Range 请求都直接命中缓存的完整文件，浏览器自行切片播放 → 秒开、不重复下载
   if (/\.(mp4|webm)$/i.test(url.pathname)) {
-    event.respondWith(fetch(req));
+    event.respondWith(videoCacheFirst(req));
     return;
   }
 
@@ -64,6 +67,25 @@ function cacheFirst(req) {
         caches.open(CACHE).then(function (c) { c.put(req, copy); });
       }
       return res;
+    });
+  });
+}
+
+// 视频专用缓存：命中 → 直接返回缓存的完整视频；
+// 未命中 → 发一个不带 Range 的请求拿整份文件缓存，再返回给播放器
+function videoCacheFirst(req) {
+  return caches.match(req).then(function (hit) {
+    if (hit) return hit;
+    var fullReq = new Request(req.url, { method: 'GET', headers: {} });
+    return fetch(fullReq).then(function (res) {
+      if (res && res.ok) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
+      }
+      return res;
+    }).catch(function () {
+      // 完整请求异常时退回原请求直连（兼容个别服务端）
+      return fetch(req);
     });
   });
 }
