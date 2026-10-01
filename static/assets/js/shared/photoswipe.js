@@ -193,10 +193,25 @@ function setupLiveLightboxControls(lightbox) {
     return pswp.currSlide.data && pswp.currSlide.data.element || null;
   }
 
-  // 播放失败兜底：停止 + 提示
-  function failHandler() {
+  // 播放失败兜底：停止 + 提示（带原因，便于排查）
+  function failHandler(reason) {
     stop();
-    showHint('此视频当前设备无法播放');
+    if (!reason) reason = '未知';
+    showHint('此视频当前设备无法播放（' + reason + '）');
+  }
+
+  // 最后兜底：直接让视频元素走网络地址播放（静音起播，任何浏览器都允许）
+  // 只在"下载成内存数据"这条路失败时才用
+  function fallbackDirect(url) {
+    const holder = slideEl();
+    if (!holder) return failHandler('无播放容器');
+    const t = createVideoEl();
+    t.src = url;
+    holder.appendChild(t);
+    video = t;
+    setButtonLoading();
+    const p = t.play();
+    if (p && p.catch) p.catch(function (e) { failHandler('播放被拦截：' + e.name); });
   }
 
   // 按钮进入"加载中"状态（下载慢时给出反馈，避免看起来像卡死）
@@ -277,7 +292,13 @@ function setupLiveLightboxControls(lightbox) {
       video = t;
       setButtonLoading();
       const p = t.play();
-      if (p && p.catch) p.catch(failHandler);
+      if (p && p.catch) p.catch(function (e) {
+        // 个别浏览器（如手机 Edge 老版本）连静音起播也拒绝：重试一次，
+        // 再不行就报具体原因
+        try { t.load(); } catch (_) {}
+        const p2 = t.play();
+        if (p2 && p2.catch) p2.catch(function (e2) { failHandler('自动播放被拦截：' + (e2 && e2.name || e && e.name)); });
+      });
       return;
     }
 
@@ -290,15 +311,15 @@ function setupLiveLightboxControls(lightbox) {
       if (r && r.ok) return r.blob();
       return null;
     }).then(function (b) {
-      if (!b) { failHandler(); return; }
+      if (!b) { fallbackDirect(url); return; } // 下载失败 → 兜底直连播放
       if (video) { removeVideo(); stop(); return; } // 等待期间被切走
       fig.dataset.liveBlob = URL.createObjectURL(b);
       target.src = fig.dataset.liveBlob;
       holder.appendChild(target);
       video = target;
       const p = target.play();
-      if (p && p.catch) p.catch(failHandler);
-    }).catch(failHandler);
+      if (p && p.catch) p.catch(function (e) { failHandler('播放被拦截：' + e.name); });
+    }).catch(function (e) { fallbackDirect(url); }); // 下载异常 → 兜底直连播放
   }
 
   lightbox.on('change', function () {
