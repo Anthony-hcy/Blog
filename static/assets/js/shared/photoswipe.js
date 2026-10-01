@@ -114,8 +114,10 @@ function bindPhotoSwipeGallery(gallery) {
   });
 }
 
-// 灯箱实况控制：当前幻灯片是 live-photo 时，注入 ▶ 播放 + 🔊 声音按钮，
-// 播放时用视频覆盖幻灯片（克隆页面缩略图里的 <video>，默认静音）。
+// 灯箱实况控制：当前幻灯片是 live-photo 时，注入 ▶ 播放 + 🔊 声音按钮 + 视频覆盖层，
+// 并支持手机在灯箱内长按播放（拦截浏览器 contextmenu）。
+// 注意：PhotoSwipe 5 的 slide.container 是会被缩放/平移的 .pswp__zoom-wrap，
+// 控制层必须挂到 holderElement（.pswp__item，固定视口层）上。
 function setupLiveLightboxControls(lightbox) {
   let wrap = null;
   let video = null;
@@ -123,11 +125,28 @@ function setupLiveLightboxControls(lightbox) {
   let soundBtn = null;
   let hintEl = null;
 
+  // 手机灯箱内长按：450ms 播放 / 移动>12px 取消 / 长按后拦 click 与 contextmenu
+  let holdTimer = null;
+  let holdStart = null;
+  let suppressClickUntil = 0;
+
+  function slideEl() {
+    const pswp = lightbox.pswp;
+    if (!pswp || !pswp.currSlide) return null;
+    return pswp.currSlide.holderElement || pswp.currSlide.container || null;
+  }
+
+  function clearHold() {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    holdStart = null;
+  }
+
   function cleanup() {
     if (video) {
       try { video.pause(); } catch (_) {}
       video.removeAttribute('src');
-      video.load();
+      try { video.load(); } catch (_) {}
       video = null;
     }
     if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -135,6 +154,7 @@ function setupLiveLightboxControls(lightbox) {
     playBtn = null;
     soundBtn = null;
     hintEl = null;
+    clearHold();
   }
 
   function stop() {
@@ -159,10 +179,12 @@ function setupLiveLightboxControls(lightbox) {
   function play() {
     const pswp = lightbox.pswp;
     if (!pswp || video) return;
-    const fig = pswp.currSlide && pswp.currSlide.data.element;
+    const fig = pswp.currSlide && pswp.currSlide.data && pswp.currSlide.data.element;
     if (!fig) return;
     const srcV = fig.querySelector('video');
     if (!srcV || !srcV.src) { showHint('该实况图缺少视频文件'); return; }
+    const holder = slideEl();
+    if (!holder) return;
     video = document.createElement('video');
     video.className = 'pswp-live-video';
     video.src = srcV.src;
@@ -171,7 +193,7 @@ function setupLiveLightboxControls(lightbox) {
     video.setAttribute('playsinline', '');
     video.playsInline = true;
     video.preload = 'auto';
-    pswp.currSlide.container.appendChild(video);
+    holder.appendChild(video);
     if (soundBtn) soundBtn.hidden = false;
     if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i>';
     const p = video.play();
@@ -183,19 +205,61 @@ function setupLiveLightboxControls(lightbox) {
     }
   }
 
+  function isLiveSlideNode(node) {
+    return !!(node && node.closest && node.closest('.pswp-live-slide'));
+  }
+
+  // 灯箱内长按（手机）：捕获阶段先于 PhotoSwipe 的触摸处理，但不阻止其手势
+  document.addEventListener('touchstart', function (e) {
+    if (!isLiveSlideNode(e.target) || e.touches.length > 1) return;
+    clearHold();
+    holdStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    holdTimer = setTimeout(function () {
+      if (!holdStart) return;
+      suppressClickUntil = Date.now() + 700;
+      play();
+    }, 450);
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (!holdStart || !e.touches.length) return;
+    const dx = e.touches[0].clientX - holdStart.x;
+    const dy = e.touches[0].clientY - holdStart.y;
+    if (dx * dx + dy * dy > 12 * 12) clearHold();
+  }, { passive: true, capture: true });
+
+  function endHold() { clearHold(); }
+  document.addEventListener('touchend', endHold, { capture: true });
+  document.addEventListener('touchcancel', endHold, { capture: true });
+
+  // 灯箱实况图长按：拦浏览器菜单（Android/iOS）
+  document.addEventListener('contextmenu', function (e) {
+    if (isLiveSlideNode(e.target)) e.preventDefault();
+  }, { capture: true });
+
+  // 长按松手后的 click 拦下，避免 PhotoSwipe 误关灯箱/切换 UI
+  document.addEventListener('click', function (e) {
+    if (Date.now() < suppressClickUntil && isLiveSlideNode(e.target)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { capture: true });
+
   lightbox.on('change', function () {
     cleanup();
     const pswp = lightbox.pswp;
     if (!pswp || !pswp.currSlide) return;
     const fig = pswp.currSlide.data && pswp.currSlide.data.element;
-    if (!fig || !fig.classList || !fig.classList.contains('live-photo')) return;
+    const holder = slideEl();
+    if (!fig || !fig.classList || !fig.classList.contains('live-photo') || !holder) return;
 
+    holder.classList.add('pswp-live-slide');
     wrap = document.createElement('div');
     wrap.className = 'pswp-live-controls';
     wrap.innerHTML =
       '<button type="button" class="pswp-live-play" aria-label="播放实况"><i class="fa-solid fa-play" aria-hidden="true"></i></button>' +
       '<button type="button" class="pswp-live-sound" aria-label="声音" hidden><i class="fa-solid fa-volume-xmark" aria-hidden="true"></i></button>';
-    pswp.currSlide.container.appendChild(wrap);
+    holder.appendChild(wrap);
     playBtn = wrap.querySelector('.pswp-live-play');
     soundBtn = wrap.querySelector('.pswp-live-sound');
 
@@ -215,7 +279,12 @@ function setupLiveLightboxControls(lightbox) {
     });
   });
 
-  lightbox.on('close', cleanup);
+  lightbox.on('close', function () {
+    const pswp = lightbox.pswp;
+    const holder = slideEl();
+    cleanup();
+    if (holder) holder.classList.remove('pswp-live-slide');
+  });
   lightbox.on('destroy', cleanup);
 }
 

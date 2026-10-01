@@ -119,6 +119,7 @@ figure.pswp-item.live-photo {
   object-fit: contain;
   background: #000;
   z-index: 4;
+  pointer-events: none; /* 不抢触摸，长按/点击落到幻灯片上 */
 }
 .pswp .pswp-live-controls {
   position: absolute;
