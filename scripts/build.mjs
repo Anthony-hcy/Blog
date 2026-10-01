@@ -31,6 +31,9 @@ const withBase = (path) => {
 const EXSEARCH_HASH = 'search-index';
 // 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新
 const BUILD_VERSION = new Date().toISOString();
+// 资源版本号：加在页面 JS/CSS 的 URL 后面（?v=...），每次部署 URL 变化 →
+// Service Worker 缓存必然失效 → 手机必定拿到新文件，杜绝旧版残留
+const ASSET_V = 'v' + BUILD_VERSION.replace(/\D/g, '').slice(-10);
 
 // 双链图片解析错误收集：全部页面写完后统一报错并中止构建（防止 ![[...]] 原样上线）
 const buildErrors = [];
@@ -447,7 +450,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
   <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
-  <link rel="stylesheet" href="${withBase(`/assets/custom.css`)}">
+  <link rel="stylesheet" href="${withBase(`/assets/custom.css?v=${ASSET_V}`)}">
   <link rel="stylesheet" href="${withBase(`/assets/fontawesome/all.min.css`)}">
   <script>
     window.ExSearchConfig = {
@@ -588,7 +591,7 @@ function shellEnd(extraScripts = '', includeSearch = true) {
 </div>
 
 ${extraScripts}
-<script type="module" src="${withBase(`/assets/js/layout.js`)}"></script>
+<script type="module" src="${withBase(`/assets/js/layout.js?v=${ASSET_V}`)}"></script>
 ${searchScripts}
 </body>
 </html>`;
@@ -672,7 +675,7 @@ function buildIndexPage(posts, pageIndex, totalPages) {
   ${entries}
 </main>
 <div class="stream-status stream-status-bottom" id="stream-status-bottom" data-state="${pageIndex >= totalPages ? 'end' : 'idle'}" aria-live="polite">${statusText}</div>
-` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js`)}"></script>`);
+` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js?v=${ASSET_V}`)}"></script>`);
   return html;
 }
 
@@ -717,7 +720,7 @@ function buildPostPage(post, prev, next) {
   const bodyHtml = wrapFigureRuns(renderMarkdown(post.body));
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
-<script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
+<script type="module" src="${withBase(`/assets/js/post.js?v=${ASSET_V}`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -752,7 +755,7 @@ function buildMemoPage(post, prev, next) {
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
   const photosHtml = figures.length ? photosetHtml(figures) : '';
-  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js`)}"></script>`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js?v=${ASSET_V}`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -820,7 +823,7 @@ function buildAboutPage() {
   const trackedUrls = _posts.map(p => `/archives/${p.slug}/`);
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
-<script type="module" src="${withBase(`/assets/js/about.js`)}"></script>`;
+<script type="module" src="${withBase(`/assets/js/about.js?v=${ASSET_V}`)}"></script>`;
   const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() }) + shellStart() + `
 <section class="about-section">
   <div class="about-section-head">
@@ -982,6 +985,20 @@ function copyDir(src, dest) {
   }
 }
 
+// 给 dist 里所有 JS 的相对模块导入（./xxx.js）加 ?v=ASSET_V：
+// 每次部署 URL 变化 → SW 缓存失效 → 手机必定拿到新代码（杜绝旧版残留）
+function versionAssetImports(dir) {
+  for (const name of readdirSync(dir)) {
+    const s = join(dir, name);
+    if (statSync(s).isDirectory()) { versionAssetImports(s); continue; }
+    if (!name.endsWith('.js')) continue;
+    let src = readFileSync(s, 'utf-8');
+    const out = src.replace(/(from\s+['"])(\.[^'"]+\.js)(['"])/g, (m, p1, p2, p3) =>
+      p2.includes('?') ? m : `${p1}${p2}?v=${ASSET_V}${p3}`);
+    if (out !== src) writeFileSync(s, out, 'utf-8');
+  }
+}
+
 // ---------- 主流程 ----------
 // 实况视频 H.264 兼容版（桌面端播放）：在页面渲染前转码，页面据此输出 data-avc-src
 tryTranscodeLiveVideos();
@@ -1042,6 +1059,7 @@ writePage('version.json', JSON.stringify({ v: BUILD_VERSION }));
 
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));
+versionAssetImports(join(DIST, 'assets/js'));
 copyDir(join(ROOT, 'site-root'), DIST);
 
 // 双链图片解析错误：全部页面写完后统一报错并中止（防止 ![[...]] 原样上线）
