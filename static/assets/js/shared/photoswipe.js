@@ -221,15 +221,10 @@ function setupLiveLightboxControls(lightbox) {
     }
   }
 
-  // 后台预缓冲：灯箱一打开（或切到实况图）就准备好视频元素（优先用已下载到内存的 Blob），
-  // 点 ▶ 时立即可播、平滑无卡顿
-  function prepareBuffer(fig) {
-    const holder = slideEl();
-    const src = playbackSrc(fig);
-    if (!holder || !src || buffered) return;
+  // 创建视频元素（统一监听：出画面淡入、播完停、出错提示）
+  function createVideoEl() {
     const v = document.createElement('video');
     v.className = 'pswp-live-video'; // opacity 0，未 ready 不可见
-    v.src = src;
     v.loop = false;
     v.setAttribute('playsinline', '');
     v.playsInline = true;
@@ -246,6 +241,19 @@ function setupLiveLightboxControls(lightbox) {
     });
     v.addEventListener('ended', function () { stop(); });
     v.addEventListener('error', failHandler);
+    return v;
+  }
+
+  // 后台预缓冲：灯箱一打开（或切到实况图）就准备好视频元素。
+  // 只在内存数据（Blob）已就绪时才预缓冲——播放绝不直接走网络 URL。
+  function prepareBuffer(fig) {
+    if (buffered) return;
+    const holder = slideEl();
+    if (!holder) return;
+    const blob = fig && fig.dataset.liveBlob;
+    if (!blob) return; // 内存数据还没下载完 → 不预缓冲，点击时现场下载
+    const v = createVideoEl();
+    v.src = blob;
     holder.appendChild(v);
     buffered = v;
   }
@@ -256,41 +264,38 @@ function setupLiveLightboxControls(lightbox) {
     if (video) { removeVideo(); stop(); return; } // 播放中点一下 = 停止
     const fig = currentFigure();
     if (!fig) return;
-    const src = playbackSrc(fig);
-    if (!src) { showHint('该实况图缺少视频文件'); return; }
+    const holder = slideEl();
+    if (!holder) return;
 
-    // 优先用已预缓冲的元素（点 ▶ 时立即可播，无卡顿）
-    let target = buffered;
-    buffered = null;
-    if (!target) {
-      // 极端情况：没来得及预缓冲，现建现播
-      const holder = slideEl();
-      if (!holder) return;
-      target = document.createElement('video');
-      target.className = 'pswp-live-video';
-      target.loop = false;
-      target.setAttribute('playsinline', '');
-      target.playsInline = true;
-      target.preload = 'auto';
-      target.volume = 1;
-      target.addEventListener('playing', function () {
-        setButtonPaused(); // 开始播放 → 按钮显示"暂停"
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            if (video === target) target.classList.add('ready');
-          });
-        });
-      });
-      target.addEventListener('ended', function () { stop(); });
-      target.addEventListener('error', failHandler);
-      target.src = src;
-      holder.appendChild(target);
+    if (buffered) {
+      // 预缓冲已就绪（内存数据）→ 直接播
+      const t = buffered;
+      buffered = null;
+      video = t;
+      setButtonLoading();
+      const p = t.play();
+      if (p && p.catch) p.catch(failHandler);
+      return;
     }
-    video = target;
-    // 网络慢、数据还没下完时先显示"加载中"，不让人以为卡死
+
+    // 没有预缓冲：现场把视频下载成内存数据再播（唯一网络交互，稳定可靠）
+    const target = createVideoEl();
+    const url = preferredSrc(fig);
+    if (!url) { showHint('该实况图缺少视频文件'); return; }
     setButtonLoading();
-    const p = video.play();
-    if (p && p.catch) p.catch(failHandler);
+    fetch(url).then(function (r) {
+      if (r && r.ok) return r.blob();
+      return null;
+    }).then(function (b) {
+      if (!b) { failHandler(); return; }
+      if (video) { removeVideo(); stop(); return; } // 等待期间被切走
+      fig.dataset.liveBlob = URL.createObjectURL(b);
+      target.src = fig.dataset.liveBlob;
+      holder.appendChild(target);
+      video = target;
+      const p = target.play();
+      if (p && p.catch) p.catch(failHandler);
+    }).catch(failHandler);
   }
 
   lightbox.on('change', function () {
@@ -334,15 +339,6 @@ function preferredSrc(fig) {
   if (avcSrc) return avcSrc;
   const srcV = fig.querySelector('video');
   return (srcV && srcV.src) || '';
-}
-
-// 播放源优先级：本地 Blob（预热已下载到内存，播放零网络、绝不卡）→
-// H.264 兼容版 → 原 HEVC
-function playbackSrc(fig) {
-  if (!fig) return '';
-  const blob = fig.dataset.liveBlob || '';
-  if (blob) return blob;
-  return preferredSrc(fig);
 }
 
 // 页面级预热：实况图进入视口就把视频下载成 Blob 存进内存（播放时直接用，零网络、不卡），
