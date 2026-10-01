@@ -67,24 +67,10 @@ function syncSoundIcon(el) {
     : '<i class="fa-solid fa-volume-high" aria-hidden="true"></i>';
 }
 
-// ▶ 播放按钮与 🔊 声音按钮（仅 hover 设备显示，CSS 控制）
+// ▶ 播放按钮与 🔊 声音按钮：页面缩略图只留 🔊（长按播放时调声音用），
+// 播放按钮在灯箱（PhotoSwipe）里，由 shared/photoswipe.js 负责注入。
 function ensureControls(el) {
-  if (el.querySelector('.live-photo-play')) return;
-
-  const play = document.createElement('button');
-  play.type = 'button';
-  play.className = 'live-photo-play';
-  play.setAttribute('aria-label', '播放实况');
-  play.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i>';
-  play.addEventListener('click', function (e) {
-    e.preventDefault();
-    e.stopPropagation(); // 不触发 PhotoSwipe 灯箱
-    if (el.classList.contains('playing')) {
-      stopLive(el);
-    } else {
-      startLive(el);
-    }
-  });
+  if (el.querySelector('.live-photo-sound')) return;
 
   const sound = document.createElement('button');
   sound.type = 'button';
@@ -101,7 +87,6 @@ function ensureControls(el) {
     syncSoundIcon(el);
   });
 
-  el.appendChild(play);
   el.appendChild(sound);
 }
 
@@ -169,6 +154,19 @@ export function initLivePhotos() {
       if (!el) return;
       e.preventDefault();
       e.stopPropagation();
+    },
+    true
+  );
+
+  // 抑制手机长按弹出的浏览器菜单（Android 的 contextmenu + iOS 的 callout）：
+  // 捕获阶段拦截，实况图上的长按只用于播放，不弹"保存图片"菜单。
+  document.addEventListener(
+    'contextmenu',
+    function (e) {
+      const target = e.target;
+      const el = target && target.closest ? target.closest('.live-photo') : null;
+      if (!el) return;
+      e.preventDefault();
     },
     true
   );
