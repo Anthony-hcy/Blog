@@ -121,6 +121,7 @@ function bindPhotoSwipeGallery(gallery) {
 function setupLiveLightboxControls(lightbox) {
   let wrap = null;
   let video = null;
+  let videoRemoveTimer = null;
   let playBtn = null;
   let soundBtn = null;
   let hintEl = null;
@@ -142,13 +143,19 @@ function setupLiveLightboxControls(lightbox) {
     holdStart = null;
   }
 
-  function cleanup() {
+  // 视频移除：清掉淡出定时器，直接从 DOM 移除
+  function removeVideo() {
+    clearTimeout(videoRemoveTimer);
+    videoRemoveTimer = null;
     if (video) {
       try { video.pause(); } catch (_) {}
-      video.removeAttribute('src');
-      try { video.load(); } catch (_) {}
+      if (video.parentNode) video.parentNode.removeChild(video);
       video = null;
     }
+  }
+
+  function cleanup() {
+    removeVideo();
     if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
     wrap = null;
     playBtn = null;
@@ -157,8 +164,16 @@ function setupLiveLightboxControls(lightbox) {
     clearHold();
   }
 
+  // 停止：先淡出（去掉 ready 类），280ms 后真正移除；按钮立即复位
   function stop() {
-    if (video) { video.pause(); video.remove(); video = null; }
+    if (video) {
+      video.classList.remove('ready');
+      clearTimeout(videoRemoveTimer);
+      const v = video;
+      videoRemoveTimer = setTimeout(function () {
+        if (video === v) removeVideo();
+      }, 280);
+    }
     if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i>';
     if (soundBtn) soundBtn.hidden = true;
   }
@@ -178,7 +193,9 @@ function setupLiveLightboxControls(lightbox) {
 
   function play() {
     const pswp = lightbox.pswp;
-    if (!pswp || video) return;
+    if (!pswp) return;
+    // 上一遍还在淡出时再播 → 直接移除重播
+    if (video) removeVideo();
     const fig = pswp.currSlide && pswp.currSlide.data && pswp.currSlide.data.element;
     if (!fig) return;
     const srcV = fig.querySelector('video');
@@ -189,10 +206,19 @@ function setupLiveLightboxControls(lightbox) {
     video.className = 'pswp-live-video';
     video.src = srcV.src;
     video.muted = true;
-    video.loop = true;
+    video.loop = false; // 实况只播一遍
     video.setAttribute('playsinline', '');
     video.playsInline = true;
     video.preload = 'auto';
+    // 有画面才淡入，避免黑屏；播完一遍自动停；出错兜底回封面
+    video.addEventListener('playing', function () {
+      if (video) video.classList.add('ready');
+    });
+    video.addEventListener('ended', function () { stop(); });
+    video.addEventListener('error', function () {
+      stop();
+      showHint('此视频当前设备无法播放（HEVC），请在手机上长按观看');
+    });
     holder.appendChild(video);
     if (soundBtn) soundBtn.hidden = false;
     if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-pause" aria-hidden="true"></i>';

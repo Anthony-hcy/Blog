@@ -63,10 +63,11 @@ figure.pswp-item.live-photo {
   object-fit: cover;
   opacity: 0;
   pointer-events: none; /* 不抢点击，灯箱/长按都作用于图本身 */
-  transition: opacity .15s ease;
+  transition: opacity .25s ease; /* 有画面才淡入，避免黑屏跳变 */
 }
-.live-photo.playing .live-photo-video { opacity: 1; }
-.live-photo.playing img { opacity: 0; }
+/* 视频真正出画面后才淡入；未出画面时封面图保持可见 */
+.live-photo.playing.rendered .live-photo-video { opacity: 1; }
+.live-photo.playing.rendered img { opacity: 0; }
 
 /* LIVE 角标 */
 .live-photo::after {
@@ -117,10 +118,13 @@ figure.pswp-item.live-photo {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: transparent; /* 未出画面时透明，不盖黑屏 */
+  opacity: 0;              /* 出画面才淡入（.ready） */
+  transition: opacity .25s ease;
   z-index: 4;
   pointer-events: none; /* 不抢触摸，长按/点击落到幻灯片上 */
 }
+.pswp .pswp-live-video.ready { opacity: 1; }
 .pswp .pswp-live-controls {
   position: absolute;
   left: 50%;
@@ -130,6 +134,10 @@ figure.pswp-item.live-photo {
   gap: 10px;
   align-items: center;
   z-index: 5;
+}
+/* 手机（触屏为主）不要 ▶ 按钮：长按播放即可，只留 🔊 */
+@media (hover: none) {
+  .pswp .pswp-live-controls .pswp-live-play { display: none; }
 }
 .pswp .pswp-live-controls button {
   display: inline-flex;

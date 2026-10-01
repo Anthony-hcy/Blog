@@ -80,11 +80,11 @@ renderer.image = (token) => {
     ? ` data-pswp-width="${dim.width}" data-pswp-height="${dim.height}"`
     : '';
   const flex = dim ? Math.round((dim.width / dim.height) * 10000) / 100 : 50;
-  // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层
+  // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层（单次播放，不循环）
   const live = liveVideoFor(href);
   const liveClass = live ? ' live-photo' : '';
   const videoTag = live
-    ? `<video class="live-photo-video" src="${live}" muted loop playsinline preload="none" aria-hidden="true"></video>`
+    ? `<video class="live-photo-video" src="${live}" muted playsinline preload="none" aria-hidden="true"></video>`
     : '';
   return `<figure class="pswp-item${liveClass}" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };

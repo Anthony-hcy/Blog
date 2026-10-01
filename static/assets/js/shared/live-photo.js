@@ -36,13 +36,27 @@ function startLive(el) {
   const v = videoOf(el);
   if (!v) return;
   el.classList.add('playing');
-  if (v.readyState < 2) v.load(); // preload=none，首次触发时才加载
+  v.loop = false; // 实况只播一遍
+  // 首次触发时才加载
+  if (v.readyState < 2) v.load();
   v.currentTime = 0;
+
+  // 有画面（真的在播）才把视频层淡入，避免黑屏/跳变
+  if (!el.dataset.liveRenderedBound) {
+    el.dataset.liveRenderedBound = '1';
+    v.addEventListener('playing', function () {
+      if (el.classList.contains('playing')) el.classList.add('rendered');
+    });
+    v.addEventListener('ended', function () {
+      stopLive(el); // 播完一遍回到封面
+    });
+  }
+
   const p = v.play();
   if (p && p.catch) {
     p.catch(function () {
       // 播放失败（编码不支持，如桌面 Chrome/Firefox 播 HEVC）→ 回到静态封面并提示
-      el.classList.remove('playing');
+      el.classList.remove('playing', 'rendered');
       showHint(el, '此视频当前设备无法播放，请在手机上长按观看');
     });
   }
@@ -52,7 +66,7 @@ function startLive(el) {
 
 function stopLive(el) {
   if (!el) return;
-  el.classList.remove('playing');
+  el.classList.remove('playing', 'rendered');
   const v = videoOf(el);
   if (v) v.pause();
   const sg = el.querySelector('.live-photo-sound');
@@ -137,10 +151,9 @@ export function initLivePhotos() {
     if (dx * dx + dy * dy > MOVE_TOLERANCE * MOVE_TOLERANCE) clearPress();
   }, { passive: true });
 
-  function endPress(e) {
-    const el = pressStart && pressStart.el;
+  function endPress() {
+    // 松手不立即停：让当前这遍实况播完再停（ended 事件里 stopLive）
     clearPress();
-    if (el) stopLive(el);
   }
   document.addEventListener('touchend', endPress);
   document.addEventListener('touchcancel', endPress);
