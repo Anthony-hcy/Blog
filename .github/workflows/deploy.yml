@@ -34,13 +34,21 @@ jobs:
       - name: Install ffmpeg
         if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
         run: |
-          if curl -fsSL --retry 3 https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ff.tar.xz; then
+          # 优先静态包直连下载：runner 网络偶发抖动（DNS/连接失败）时自动重试多轮
+          for i in 1 2 3; do
+            if curl -fsSL --connect-timeout 15 --retry 3 --retry-all-errors --retry-delay 2 https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ff.tar.xz; then
+              break
+            fi
+            [ "$i" -lt 3 ] && sleep 3
+          done
+          if [ -s /tmp/ff.tar.xz ]; then
             sudo tar -xJf /tmp/ff.tar.xz -C /opt --strip-components=1
             sudo ln -sf /opt/ffmpeg /usr/local/bin/ffmpeg
             sudo ln -sf /opt/ffprobe /usr/local/bin/ffprobe
           else
+            # 备用：apt（update 也带一次重试）
             sudo apt-get install -y -qq ffmpeg || {
-              sudo apt-get update -qq
+              sudo apt-get update -qq || { sleep 3; sudo apt-get update -qq; }
               sudo apt-get install -y -qq ffmpeg
             }
           fi
