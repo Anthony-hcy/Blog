@@ -887,9 +887,12 @@ function buildRedirectPage(from, to) {
 
 // Portal 管理页：与 about/archives 相同的博客框架（头部/侧边栏/页脚），主内容区挂载管理界面
 function buildPortalPage() {
-  const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css`)}">
+  // Portal 页被内容自动刷新排除（防止丢草稿），因此它的 css/js 必须带构建版本指纹，
+  // 否则部署后首次打开会命中 SW stale-while-revalidate 的旧缓存，一直跑旧代码。
+  const v = '?v=' + encodeURIComponent(BUILD_VERSION);
+  const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css${v}`)}">
 <meta name="theme-color" content="#f5f5f7">`;
-  const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js`)}"></script>`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js${v}`)}"></script>`;
   const html = headHtml(`Blog Portal - ${site.name}`, {
     pagePath: '/portal.html',
     bodyData: ' class="page-portal"',
