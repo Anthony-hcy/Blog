@@ -3,7 +3,7 @@
    - 图片/字体/图标：cache-first（文件名不变内容不变，二次打开秒开）
    - 其他同源静态资源（css/js/json）：stale-while-revalidate（先用缓存、后台更新）
    跨域请求（npmmirror 字体、不蒜子、GitHub API）不拦截，交给浏览器 */
-var CACHE = 'haelcy-v1';
+var CACHE = 'haelcy-v2';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
