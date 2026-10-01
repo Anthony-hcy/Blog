@@ -193,15 +193,6 @@ function setupLiveLightboxControls(lightbox) {
     return pswp.currSlide.data && pswp.currSlide.data.element || null;
   }
 
-  // 播放源：优先 H.264 兼容版（体积小、全浏览器可播），没有才用原 HEVC
-  function preferredSrc(fig) {
-    if (!fig) return '';
-    const avcSrc = fig.dataset.avcSrc || '';
-    if (avcSrc) return avcSrc;
-    const srcV = fig.querySelector('video');
-    return (srcV && srcV.src) || '';
-  }
-
   // 播放失败兜底：停止 + 提示
   function failHandler() {
     stop();
@@ -230,10 +221,11 @@ function setupLiveLightboxControls(lightbox) {
     }
   }
 
-  // 后台预缓冲：灯箱一打开（或切到实况图）就开始下载，点 ▶ 时已就绪、立即平滑播放
+  // 后台预缓冲：灯箱一打开（或切到实况图）就准备好视频元素（优先用已下载到内存的 Blob），
+  // 点 ▶ 时立即可播、平滑无卡顿
   function prepareBuffer(fig) {
     const holder = slideEl();
-    const src = preferredSrc(fig);
+    const src = playbackSrc(fig);
     if (!holder || !src || buffered) return;
     const v = document.createElement('video');
     v.className = 'pswp-live-video'; // opacity 0，未 ready 不可见
@@ -264,7 +256,7 @@ function setupLiveLightboxControls(lightbox) {
     if (video) { removeVideo(); stop(); return; } // 播放中点一下 = 停止
     const fig = currentFigure();
     if (!fig) return;
-    const src = preferredSrc(fig);
+    const src = playbackSrc(fig);
     if (!src) { showHint('该实况图缺少视频文件'); return; }
 
     // 优先用已预缓冲的元素（点 ▶ 时立即可播，无卡顿）
@@ -335,9 +327,26 @@ function setupLiveLightboxControls(lightbox) {
   lightbox.on('destroy', cleanup);
 }
 
-// 页面级预热：实况图进入视口就开始后台下载视频（填进浏览器 HTTP 缓存），
-// 等用户点开大图点播放时，数据已就绪 → 立即播放，不受国内网络慢影响。
-// 用普通 fetch 预取：不解析内容、只把响应放进缓存；已预热过的图跳过。
+// 播放源：优先 H.264 兼容版（体积小、全浏览器可播），没有才用原 HEVC
+function preferredSrc(fig) {
+  if (!fig) return '';
+  const avcSrc = fig.dataset.avcSrc || '';
+  if (avcSrc) return avcSrc;
+  const srcV = fig.querySelector('video');
+  return (srcV && srcV.src) || '';
+}
+
+// 播放源优先级：本地 Blob（预热已下载到内存，播放零网络、绝不卡）→
+// H.264 兼容版 → 原 HEVC
+function playbackSrc(fig) {
+  if (!fig) return '';
+  const blob = fig.dataset.liveBlob || '';
+  if (blob) return blob;
+  return preferredSrc(fig);
+}
+
+// 页面级预热：实况图进入视口就把视频下载成 Blob 存进内存（播放时直接用，零网络、不卡），
+// 同时走 Service Worker 缓存（重进页面秒取）。已预热过的图跳过。
 export function warmLiveVideos(scope) {
   if (!scope || !scope.querySelectorAll || !('IntersectionObserver' in window)) return;
   const figs = Array.prototype.slice.call(scope.querySelectorAll('.live-photo'));
@@ -353,7 +362,14 @@ export function warmLiveVideos(scope) {
       const srcV = fig.querySelector('video');
       const url = avcSrc || (srcV && srcV.src) || '';
       if (url) {
-        try { fetch(url, { method: 'GET', cache: 'default' }).catch(function () {}); } catch (_) {}
+        try {
+          fetch(url).then(function (r) {
+            if (r && r.ok) return r.blob();
+            return null;
+          }).then(function (b) {
+            if (b) fig.dataset.liveBlob = URL.createObjectURL(b);
+          }).catch(function () {});
+        } catch (_) {}
       }
     });
   }, { rootMargin: '300px 0px' });
