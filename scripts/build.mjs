@@ -227,7 +227,11 @@ function tryTranscodeLiveVideos() {
   }
   if (!files.length) return;
   const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
-  if (probe.error || probe.status !== 0) return; // 无 ffmpeg，跳过（本地预览不受影响）
+  if (probe.error) {
+    console.log('实况视频：未找到 ffmpeg，跳过 H.264 兼容版转码（本地预览不受影响）');
+    return;
+  }
+  if (probe.status !== 0) return;
   let made = 0;
   for (const name of files) {
     if (!/\.mp4$/i.test(name) || /\.avc\.mp4$/i.test(name)) continue;
