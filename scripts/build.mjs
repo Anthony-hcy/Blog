@@ -80,7 +80,13 @@ renderer.image = (token) => {
     ? ` data-pswp-width="${dim.width}" data-pswp-height="${dim.height}"`
     : '';
   const flex = dim ? Math.round((dim.width / dim.height) * 10000) / 100 : 50;
-  return `<figure class="pswp-item" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" /></figure>`;
+  // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层
+  const live = liveVideoFor(href);
+  const liveClass = live ? ' live-photo' : '';
+  const videoTag = live
+    ? `<video class="live-photo-video" src="${live}" muted loop playsinline preload="none" aria-hidden="true"></video>`
+    : '';
+  return `<figure class="pswp-item${liveClass}" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 function renderMarkdown(md) {
@@ -173,6 +179,24 @@ function imageSize(relPath) {
   return null;
 }
 
+// 实况图（Live Photo）：图片旁存在同名 .mp4/.webm 即视为实况图
+const LIVE_VIDEO_EXTS = ['.mp4', '.webm'];
+function liveVideoFor(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return '';
+  let p = relPath.trim();
+  if (/^(https?:|data:)/.test(p)) return '';
+  if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length); // 去掉 /Blog 前缀
+  p = p.replace(/^\/+/, '');
+  const base = p.replace(/\.[a-z0-9]+$/i, ''); // 去掉图片扩展名，留同名前缀
+  for (const ext of LIVE_VIDEO_EXTS) {
+    const abs = join(ASSETS_SRC, base + ext); // static/assets/img/<slug>/<name>.mp4
+    try {
+      if (statSync(abs).isFile()) return withBase('/' + base + ext);
+    } catch (_) { /* 无此文件，试下一个扩展名 */ }
+  }
+  return '';
+}
+
 // 每行最多 3 张（与原站 photoset 布局一致），flex 每行归一化到 100
 function groupPhotos(figures) {
   const rows = [];
@@ -196,7 +220,7 @@ function groupPhotos(figures) {
 
 // ---------- 连续图片（同一段落内只有图片）→ 并排相框（原站 photoset 结构） ----------
 function figuresFromHtml(html) {
-  return Array.from(html.matchAll(/<figure class="pswp-item"[\s\S]*?<\/figure>/g))
+  return Array.from(html.matchAll(/<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>/g))
     .map(m => {
       const fig = m[0];
       const srcMatch = fig.match(/src="([^"]+)"/);
@@ -213,7 +237,7 @@ function photosetHtml(figures) {
 // 只把「段落里仅有图片、且连着 2 张以上」包成并排相框；单张保持整幅，与原站一致
 function wrapFigureRuns(html) {
   return html.replace(
-    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item"[\s\S]*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
+    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
     (block) => photosetHtml(figuresFromHtml(block))
   );
 }
@@ -538,7 +562,7 @@ function entryMemo(post) {
   const rendered = renderMarkdown(post.body);
   const figures = figuresFromHtml(rendered);
   const contentHtml = rendered
-    .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
+    .replace(/<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>/g, '')
     // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
@@ -665,7 +689,7 @@ function buildMemoPage(post, prev, next) {
   const rendered = renderMarkdown(post.body);
   const figures = figuresFromHtml(rendered);
   const contentHtml = rendered
-    .replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '')
+    .replace(/<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>/g, '')
     // 图片剥离后会留下空 <p>（内部只剩换行），造成文字与图片间随图片数增长的巨大间距
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
@@ -782,7 +806,7 @@ function buildAboutPage() {
 // ---------- RSS ----------
 function buildFeed() {
   const items = _posts.slice(0, 20).map(p => {
-    const bodyHtml = renderMarkdown(p.body).replace(/<figure class="pswp-item"[\s\S]*?<\/figure>/g, '');
+    const bodyHtml = renderMarkdown(p.body).replace(/<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>/g, '');
     return `<item>
   <title>${escapeXml(p.title)}</title>
   <link>${SITE_URL}/archives/${p.slug}/</link>

@@ -140,7 +140,10 @@
 
     function attempt(attemptNo) {
       var controller = typeof AbortController === 'function' ? new AbortController() : null;
-      var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+      // 大文件（实况视频等）上传慢，放宽请求超时
+      var bodySize = typeof requestBody === 'string' ? requestBody.length : 0;
+      var timeoutMs = bodySize > 1500000 ? 60000 : 15000;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, timeoutMs) : null;
       return fetch(API + path, {
         method: method,
         headers: headers,
@@ -615,7 +618,7 @@
     return '<section class="portal-view" id="view-images" hidden>' +
       '<div class="portal-toolbar">' +
         '<button class="view-btn" id="btn-upload" type="button" title="上传图片"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>' +
-        '<input type="file" id="img-file" multiple accept="image/*" style="display:none">' +
+        '<input type="file" id="img-file" multiple accept="image/*,video/mp4,video/webm" style="display:none">' +
       '</div>' +
       '<div class="portal-progress" id="img-progress" hidden></div>' +
       '<div class="img-grid-mini" id="images-grid"></div>' +
@@ -730,6 +733,12 @@
         localDeleted[repoPath] = 1; // 墓碑：防目录缓存复活
         getFile(repoPath).then(function (fd) {
           return deleteFile(repoPath, 'Delete image: ' + name, fd.sha);
+        }).then(function () {
+          // 实况照片的伴生视频一并删除（没有就跳过，不影响主流程）
+          var vPath = repoPath.replace(/\.[^.]+$/, '') + '.mp4';
+          return getFile(vPath).then(function (fd) {
+            return deleteFile(vPath, 'Delete live video: ' + name.replace(/\.[^.]+$/, '') + '.mp4', fd.sha);
+          }).catch(function () { /* 普通图片没有伴生视频 */ });
         }).then(function () {
           toast('已删除');
           noteAction();
@@ -1070,7 +1079,15 @@
       body: body,
     });
     var images = pendingEditorImages.filter(function (img) {
-      return body.indexOf(img.url) >= 0;
+      if (body.indexOf(img.url) >= 0) return true;
+      // 实况视频：正文里有其配对图片（同名 .jpg）时一并提交
+      if (img.isVideo) {
+        var pairName = img.name.replace(/\.mp4$/i, '.jpg');
+        return pendingEditorImages.some(function (other) {
+          return !other.isVideo && other.name === pairName && body.indexOf(other.url) >= 0;
+        });
+      }
+      return false;
     });
     commitPost(slug, md, title, images);
   }
@@ -1226,7 +1243,7 @@
     var text = portalRoot.querySelector('#memo-text').value.trim();
     if (!text && !memoPhotos.length) { toast('写点什么或传张图吧', true); return; }
     var staged = memoPhotos.filter(function (p) { return p.staged && !p.uploaded; });
-    var photoMd = memoPhotos.map(function (p) {
+    var photoMd = memoPhotos.filter(function (p) { return !p.isVideo; }).map(function (p) {
       return '![' + (p.name || 'image').replace(/\.[^.]+$/, '') + '](' + p.url + ')';
     }).join('\n');
     var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
@@ -1411,58 +1428,290 @@
     });
   }
 
-  function prepareImages(files, dir, progressEl) {
-    var arr = Array.prototype.slice.call(files || []);
-    if (!arr.length) return Promise.reject(new Error('未选择图片'));
-    if (progressEl) { progressEl.hidden = false; progressEl.textContent = '处理中…'; }
-    return Promise.all(arr.map(compressImageFile)).then(function (prepared) {
-      return Promise.all(prepared.map(function (file) {
-        var ext = ((file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
-        var name = datedName(ext);
-        var repoPath = IMG_DIR + '/' + dir + '/' + name;
-        return new Promise(function (resolve, reject) {
-          var reader = new FileReader();
-          reader.onload = function () {
-            resolve({
-              staged: true,
-              blob: file.blob,
-              dataUrl: String(reader.result),
-              name: name,
-              dir: dir,
-              repoPath: repoPath,
-              url: ASSET_PREFIX + dir + '/' + name,
-              rawUrl: rawImgUrl(repoPath),
-              cdnUrl: cdnImgUrl(repoPath),
+  // =================================================================
+  // 实况照片（Live Photo）：检测 / 预览确认 / 拆分 / 配对
+  // 一加/OPPO 动态照片 = 单文件 [JPEG] + [MP4] + [尾缀]，靠 ftyp/oplus_ 标记识别，
+  // 按 XMP OpCamera:VideoLength 精确切出纯视频（格式经真机文件验证）。
+  // =================================================================
+
+  // 去掉扩展名的小写基名，用于「图 + 视频」同名配对
+  function baseNameOf(name) {
+    return String(name || '').replace(/\.[^.]+$/, '').toLowerCase();
+  }
+
+  // 检测单个图片是否为动态照片（内嵌 MP4），返回拆分坐标与编码提示；
+  // 视频文件返回 isVideo 标记并顺带嗅探 HEVC。
+  function inspectLiveFile(file) {
+    return new Promise(function (resolve) {
+      function sniffCodec(buf, done) {
+        var bytes = new Uint8Array(buf);
+        var s = '';
+        for (var j = 0; j < Math.min(bytes.length, 65536); j += 8192) {
+          s += String.fromCharCode.apply(null, bytes.subarray(j, Math.min(j + 8192, bytes.length)));
+        }
+        done(s.indexOf('hvc1') >= 0 || s.indexOf('hev1') >= 0);
+      }
+      if (!/^image\//.test(file.type || '')) {
+        if (/^video\/(mp4|webm)$/.test(file.type || '')) {
+          var vr = new FileReader();
+          vr.onload = function () {
+            sniffCodec(vr.result, function (hevc) {
+              resolve({ file: file, isVideo: true, live: false, hevc: hevc });
             });
           };
-          reader.onerror = reject;
-          reader.readAsDataURL(file.blob);
-        });
-      }));
+          vr.onerror = function () { resolve({ file: file, isVideo: true, live: false, hevc: false }); };
+          vr.readAsArrayBuffer(file);
+        } else {
+          resolve({ file: file, isVideo: true, live: false, hevc: false });
+        }
+        return;
+      }
+      var reader = new FileReader();
+      reader.onerror = function () { resolve({ file: file, isVideo: false, live: false, hevc: false }); };
+      reader.onload = function () {
+        try {
+          var bytes = new Uint8Array(reader.result);
+          var hex = '';
+          for (var i = 0; i < bytes.length; i += 8192) {
+            hex += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + 8192, bytes.length)));
+          }
+          // 扫 MP4 ftyp 盒子（4字节长度 + 'ftyp'）
+          var ftyp = -1, second = -1;
+          for (var k = 0; k + 8 < bytes.length; k++) {
+            if (hex.charCodeAt(k + 4) === 102 && hex.charCodeAt(k + 5) === 116 &&
+                hex.charCodeAt(k + 6) === 121 && hex.charCodeAt(k + 7) === 112) {
+              if (ftyp < 0) ftyp = k; else if (second < 0) second = k;
+              k += 4;
+            }
+          }
+          if (ftyp < 0) { resolve({ file: file, isVideo: false, live: false, hevc: false }); return; }
+          // 视频长度：优先 XMP OpCamera:VideoLength，其次视频 Item:Length
+          var vLen = -1;
+          var m1 = /VideoLength="(\d+)"/.exec(hex);
+          if (m1) vLen = parseInt(m1[1], 10);
+          else {
+            var vi = hex.indexOf('video/mp4');
+            if (vi >= 0) {
+              var m2 = /Item:Length="(\d+)"/.exec(hex.slice(vi, vi + 400));
+              if (m2) vLen = parseInt(m2[1], 10);
+            }
+          }
+          var vEnd = bytes.length;
+          if (vLen > 0 && ftyp + vLen <= bytes.length) vEnd = ftyp + vLen;
+          else if (second > ftyp) vEnd = second; // 双 ftyp：视频夹在中间，尾缀在后
+          sniffCodec(reader.result.slice ? reader.result.slice(ftyp, Math.min(ftyp + 8192, vEnd)) : reader.result, function (hevc) {
+            resolve({ file: file, isVideo: false, live: true, videoStart: ftyp, videoEnd: vEnd, hevc: hevc });
+          });
+        } catch (_) { resolve({ file: file, isVideo: false, live: false, hevc: false }); }
+      };
+      reader.readAsArrayBuffer(file);
     });
   }
 
-  // 编辑器选图只在本地暂存，真正发布时与 Markdown 一起提交
-  function stageImagesForMemo(files) {
-    return prepareImages(files, 'gallery').then(function (entries) {
-      entries.forEach(function (entry) { memoPhotos.push(entry); });
+  // 上传预览确认：每张缩略图带「实况」开关（默认=自动检测结果），
+  // 确认返回 items（用户可改 live），取消返回 null。
+  function showUploadPreview(items) {
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.className = 'portal-picker-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:220;display:flex;align-items:center;justify-content:center;';
+      var cells = items.map(function (it, idx) {
+        var thumb = it.isVideo
+          ? '<div style="width:100%;height:84px;display:flex;align-items:center;justify-content:center;background:#0f0f14;color:#fff;font-size:12px;">🎬 ' + esc(it.file.name) + '</div>'
+          : '<img src="' + URL.createObjectURL(it.file) + '" alt="" style="width:100%;height:84px;object-fit:cover;display:block;">';
+        var liveBox = it.isVideo
+          ? '<div style="font-size:11px;color:#eab308;">视频（配对用）</div>'
+          : '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;">' +
+              '<input type="checkbox" data-idx="' + idx + '"' + (it.live ? ' checked' : '') + '> 实况' +
+            '</label>';
+        var hevcTag = it.hevc
+          ? '<div style="font-size:10px;color:#eab308;line-height:1.3;">HEVC：手机/Edge/Safari 可播<br>桌面 Chrome/Firefox 显示静态图</div>'
+          : '';
+        var sizeText = (it.file.size / 1024 / 1024).toFixed(1) + 'MB';
+        return '<div style="border:1px solid #e5e5e7;border-radius:10px;overflow:hidden;background:#fafafa;">' +
+          thumb +
+          '<div style="padding:6px 8px;">' +
+            '<div style="font-size:11px;color:#6e6e73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(it.file.name) + '">' + esc(it.file.name) + ' · ' + sizeText + '</div>' +
+            liveBox + hevcTag +
+          '</div>' +
+        '</div>';
+      }).join('');
+      overlay.innerHTML =
+        '<div style="background:var(--p-card,#fff);border-radius:14px;padding:16px;width:min(680px,94vw);max-height:82vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2);">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+            '<b>确认上传（' + items.length + ' 个文件）</b>' +
+            '<span style="font-size:12px;color:#6e6e73;">实况 = 手机长按 / 电脑点 ▶ 播放动图</span>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:12px;">' + cells + '</div>' +
+          '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+            '<button type="button" class="portal-btn" id="live-preview-cancel">取消</button>' +
+            '<button type="button" class="portal-btn portal-btn-primary" id="live-preview-ok">确认上传</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('#live-preview-cancel').addEventListener('click', function () {
+        overlay.remove(); resolve(null);
+      });
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) { overlay.remove(); resolve(null); }
+      });
+      overlay.querySelector('#live-preview-ok').addEventListener('click', function () {
+        overlay.querySelectorAll('input[type=checkbox][data-idx]').forEach(function (cb) {
+          items[parseInt(cb.dataset.idx, 10)].live = cb.checked;
+        });
+        overlay.remove();
+        resolve(items);
+      });
+    });
+  }
+
+  // 压缩封面（动态照片拆出的 JPEG 段同样压缩；GIF/SVG/小图保持原样）
+  function compressCoverBlob(blob, origName) {
+    if (!/^image\//.test(blob.type || '') || /^image\/(gif|svg\+xml)$/.test(blob.type || '') || blob.size <= 600 * 1024) {
+      return Promise.resolve({ name: origName.replace(/\.[^.]+$/, '') + '.jpg', blob: blob });
+    }
+    return compressImageFile(new File([blob], origName, { type: blob.type || 'image/jpeg' }));
+  }
+
+  // 构造上传条目（图片/视频通用）；isVideo 由扩展名判定
+  function buildEntry(fileLike, name, dir) {
+    return new Promise(function (resolve, reject) {
+      var repoPath = IMG_DIR + '/' + dir + '/' + name;
+      var reader = new FileReader();
+      reader.onload = function () {
+        resolve({
+          staged: true,
+          isVideo: /\.(mp4|webm)$/i.test(name),
+          blob: fileLike.blob,
+          dataUrl: String(reader.result),
+          name: name,
+          dir: dir,
+          repoPath: repoPath,
+          url: ASSET_PREFIX + dir + '/' + name,
+          rawUrl: rawImgUrl(repoPath),
+          cdnUrl: cdnImgUrl(repoPath),
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(fileLike.blob);
+    });
+  }
+
+  function makePlainJob(file, dir) {
+    return compressImageFile(file).then(function (prepared) {
+      var ext = ((prepared.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
+      return [buildEntry(prepared, datedName(ext), dir)];
+    });
+  }
+
+  // 实况对：封面压缩后与视频共用一个日期序号（X.jpg + X.mp4），视频原样不压缩
+  function makeLiveJob(coverLike, videoLike, origName, dir) {
+    return compressCoverBlob(coverLike, origName).then(function (prepared) {
+      var imgName = datedName('jpg');
+      var vidName = imgName.replace(/\.jpg$/i, '.mp4');
+      return Promise.all([
+        buildEntry(prepared, imgName, dir),
+        buildEntry({ blob: videoLike }, vidName, dir),
+      ]);
+    });
+  }
+
+  // 按「实况」开关拆分/配对，产出上传条目列表
+  function prepareLiveAware(items, dir, progressEl) {
+    var arr = (items || []).filter(function (it) { return it && it.file; });
+    if (!arr.length) return Promise.reject(new Error('未选择文件'));
+    if (progressEl) { progressEl.hidden = false; progressEl.textContent = '处理中…'; }
+    var errors = [];
+    var notes = [];
+    var videoByName = {};
+    arr.forEach(function (it) { if (it.isVideo) videoByName[baseNameOf(it.file.name)] = it; });
+    var usedVideo = {};
+    var jobs = [];
+    arr.forEach(function (it) {
+      if (it.isVideo) return;
+      var base = baseNameOf(it.file.name);
+      if (it.live && it.videoStart) {
+        // 内嵌视频：拆成 封面(JPEG段) + 纯视频
+        jobs.push(makeLiveJob(it.file.slice(0, it.videoStart), it.file.slice(it.videoStart, it.videoEnd), it.file.name, dir));
+        if (videoByName[base]) notes.push('「' + it.file.name + '」已使用内嵌视频，外部同名视频已忽略');
+        return;
+      }
+      if (it.live && videoByName[base]) {
+        usedVideo[base] = true;
+        jobs.push(makeLiveJob(it.file, videoByName[base].file, it.file.name, dir));
+        return;
+      }
+      if (it.live) {
+        errors.push('「' + it.file.name + '」勾选了实况，但未检测到内嵌视频、也没有同名视频文件');
+        return;
+      }
+      jobs.push(makePlainJob(it.file, dir)); // 普通图片
+    });
+    arr.forEach(function (it) {
+      if (it.isVideo && !usedVideo[baseNameOf(it.file.name)]) {
+        notes.push('视频「' + it.file.name + '」没有配对的实况图片，已忽略');
+      }
+    });
+    if (errors.length) {
+      if (progressEl) { progressEl.hidden = true; progressEl.textContent = ''; }
+      return Promise.reject(new Error(errors.join('；')));
+    }
+    if (notes.length && progressEl) progressEl.textContent = notes.join('；');
+    return Promise.all(jobs).then(function (lists) {
+      var entries = [];
+      lists.forEach(function (list) { list.forEach(function (e) { entries.push(e); }); });
       return entries;
     });
   }
 
-  // Images 页批量上传：所有图片写入同一个 Git commit，只触发一次构建
-  // 返回 [{name, url, rawUrl, dataUrl}]
-  function uploadImagesBatch(files, dir, progressEl) {
-    return prepareImages(files, dir, progressEl).then(function (entries) {
-      if (progressEl) progressEl.textContent = '提交中…';
-      var commitFiles = entries.map(function (entry) {
-        return { path: entry.repoPath, dataUrl: entry.dataUrl };
-      });
-      return commitRepoFiles(commitFiles, 'Upload ' + entries.length + ' image' + (entries.length > 1 ? 's' : ''))
-        .then(function (commit) {
-          entries.commitSha = commit.sha;
+  // 统一的「选文件 → 检测 → 预览确认 → 处理」入口；mode: images / memoStage / postStage
+  function handleFilesForUpload(files, mode, dir, progressEl) {
+    var arr = Array.prototype.slice.call(files || []);
+    if (!arr.length) return Promise.reject(new Error('未选择文件'));
+    return mapLimit(arr, 3, inspectLiveFile).then(function (items) {
+      return showUploadPreview(items);
+    }).then(function (items) {
+      if (!items) { if (progressEl) progressEl.hidden = true; return null; } // 用户取消
+      return prepareLiveAware(items, dir, progressEl).then(function (entries) {
+        if (mode === 'images') {
+          if (progressEl) progressEl.textContent = '提交中…';
+          var commitFiles = entries.map(function (entry) {
+            return { path: entry.repoPath, dataUrl: entry.dataUrl };
+          });
+          return commitRepoFiles(commitFiles, 'Upload ' + entries.length + ' file' + (entries.length > 1 ? 's' : '')).then(function (commit) {
+            entries.forEach(function (e) { e.commitSha = commit.sha; });
+            entries.filter(function (e) { return !e.isVideo; }).forEach(function (r) { allImages.unshift(r); }); // 视频不占图片格子
+            imagePage = 1;
+            renderImages();
+            var imgCount = entries.filter(function (e) { return !e.isVideo; }).length;
+            if (progressEl) progressEl.textContent = '上传完成';
+            toast('已上传 ' + imgCount + ' 张图片' + (entries.length > imgCount ? '（含实况视频）' : ''));
+            if (commit.sha) { buildWatch.sha = commit.sha; watchLatestRun(); }
+            _datedSeq.prefix = '';
+            setTimeout(function () { if (progressEl) progressEl.hidden = true; }, 1500);
+            return entries;
+          });
+        }
+        if (mode === 'memoStage') {
+          entries.forEach(function (entry) { memoPhotos.push(entry); });
+          renderMemoPhotos();
+          var mImg = entries.filter(function (e) { return !e.isVideo; }).length;
+          toast('已暂存 ' + mImg + ' 张图片' + (entries.length > mImg ? '（含实况视频）' : '') + '，发表时统一上传');
           return entries;
+        }
+        // postStage：图片插入正文，视频作为伴生文件一并暂存
+        entries.forEach(function (r) {
+          pendingEditorImages.push(r);
+          if (!r.isVideo) useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
         });
+        var pImg = entries.filter(function (e) { return !e.isVideo; }).length;
+        toast('已暂存 ' + pImg + ' 张图片' + (entries.length > pImg ? '（含实况视频）' : '') + '，发布时一次提交');
+        return entries;
+      });
+    }).catch(function (e) {
+      if (progressEl) { progressEl.hidden = true; progressEl.textContent = ''; }
+      toast((e && e.message ? e.message : '处理失败') + '，请重试', true);
+      return null;
     });
   }
 
@@ -1470,28 +1719,10 @@
     var input = portalRoot.querySelector('#img-file');
     var files = input.files;
     if (!files || !files.length) { toast('请选择图片', true); return; }
-    var dir = 'gallery';
     var progress = portalRoot.querySelector('#img-progress');
     progress.hidden = false;
-    uploadImagesBatch(files, dir, progress).then(function (results) {
-      // 本地立即显示（dataUrl 秒显），不等目录 API/构建；刷新列表遇 GitHub 缓存旧数据会把新图"弄丢"，故不立即刷新
-      results.forEach(function (r) {
-        allImages.unshift(r);
-      });
-      imagePage = 1;
-      renderImages();
-      progress.textContent = '上传完成';
-      input.value = '';
-      toast('图片已上传到 ' + dir + '/');
-      if (results.commitSha) {
-        buildWatch.sha = results.commitSha;
-        watchLatestRun();
-      }
-      _datedSeq.prefix = '';
-      setTimeout(function () { progress.hidden = true; }, 1500);
-    }).catch(function (e) {
-      progress.textContent = '';
-      toast('上传失败: ' + (e && e.message ? e.message : '未知错误'), true);
+    handleFilesForUpload(files, 'images', 'gallery', progress).then(function () {
+      portalRoot.querySelector('#img-file').value = '';
     });
   }
 
@@ -1548,7 +1779,7 @@
         '<div class="upload-row" style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">' +
           '<button type="button" class="portal-btn" id="picker-browse">上传图片</button>' +
           '<span style="font-size:13px;color:#6e6e73;" id="picker-file-name">选取文件：未选择文件</span>' +
-          '<input type="file" id="picker-file" multiple accept="image/*" style="display:none">' +
+          '<input type="file" id="picker-file" multiple accept="image/*,video/mp4,video/webm" style="display:none">' +
         '</div>' +
         '<div id="picker-progress" style="font-size:13px;color:#6e6e73;margin-bottom:8px;" hidden></div>' +
         '<div style="font-size:13px;color:#6e6e73;margin-bottom:8px;">或选择已有图片：</div>' +
@@ -1573,31 +1804,20 @@
       var files = fileInput.files;
       if (!files || !files.length) return;
       overlay.querySelector('#picker-file-name').textContent = '选取文件：' + Array.from(files).map(function (f) { return f.name; }).join(', ');
-      // 说说模式：只本地暂存（压缩 + dataUrl 预览 + 预留文件名），零网络等待，发表时统一上传
+      // 说说模式：只本地暂存（拆分/压缩 + dataUrl 预览），发表时统一上传
       if (editMode === 'memo') {
-        overlay.querySelector('#picker-file-name').textContent = '暂存中…';
-        stageImagesForMemo(files).then(function (entries) {
-          renderMemoPhotos();
-          overlay.querySelector('#picker-file-name').textContent = '已暂存 ' + entries.length + ' 张图片，发表时统一上传';
+        overlay.querySelector('#picker-file-name').textContent = '确认中…';
+        handleFilesForUpload(files, 'memoStage', 'gallery', overlay.querySelector('#picker-progress')).then(function (entries) {
+          overlay.querySelector('#picker-file-name').textContent = entries
+            ? '已暂存，发表时统一上传'
+            : '选取文件：未选择文件';
         });
         return;
       }
       var dir = safeSlug(editingSlug) || safeSlug(portalRoot.querySelector('#edit-slug').value) || 'gallery';
-      var progress = overlay.querySelector('#picker-progress');
-      progress.hidden = false;
-      prepareImages(files, dir, progress)
-        .then(function (results) {
-          progress.textContent = '已暂存，发布文章时统一上传';
-          results.forEach(function (r) {
-            useImage(r.url, r.rawUrl || r.url, r.name, r.dataUrl);
-            pendingEditorImages.push(r);
-          });
-          toast('已暂存 ' + results.length + ' 张图片，发布时一次提交');
-          setTimeout(function () { if (document.body.contains(overlay)) overlay.remove(); }, 600);
-        }).catch(function (e) {
-          progress.textContent = '';
-          toast('上传失败: ' + (e && e.message ? e.message : '未知错误'), true);
-        });
+      handleFilesForUpload(files, 'postStage', dir, overlay.querySelector('#picker-progress')).then(function (entries) {
+        if (entries) setTimeout(function () { if (document.body.contains(overlay)) overlay.remove(); }, 600);
+      });
     });
   }
 
@@ -1622,13 +1842,22 @@
     var box = portalRoot.querySelector('#memo-photos');
     box.innerHTML = '';
     memoPhotos.forEach(function (p, idx) {
+      if (p.isVideo) return; // 实况视频是伴生文件，不占格子
       var cell = document.createElement('div');
       cell.className = 'memo-photo';
       cell.innerHTML = '<img src="' + esc(p.dataUrl || p.url) + '" alt="">' +
         '<button class="memo-photo-rm" type="button">✕</button>';
       fallbackToRaw(cell.querySelector('img'), p.rawUrl || '', p.cdnUrl || '');
       cell.querySelector('.memo-photo-rm').addEventListener('click', function () {
+        var removed = memoPhotos[idx];
         memoPhotos.splice(idx, 1);
+        if (removed && !removed.isVideo) {
+          // 连带移除配对的实况视频（同名 .mp4）
+          var pairName = removed.name.replace(/\.jpg$/i, '.mp4');
+          for (var i = memoPhotos.length - 1; i >= 0; i--) {
+            if (memoPhotos[i].isVideo && memoPhotos[i].name === pairName) memoPhotos.splice(i, 1);
+          }
+        }
         renderMemoPhotos();
       });
       box.appendChild(cell);

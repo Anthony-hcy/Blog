@@ -8,6 +8,7 @@ import {
 } from './shared/site-core.js';
 import { ensurePageviewTracked } from './shared/babel-pageview.js';
 import { initBabelComments } from './shared/babel-comments.js';
+import { initLivePhotos } from './shared/live-photo.js';
 
 function initPortalNavVisibility() {
   const portalLinks = Array.from(document.querySelectorAll('.js-portal-nav-link'));
@@ -405,6 +406,7 @@ function initLayout() {
   ensurePageviewTracked({ apiBase: apiBase });
   normalizeExternalLinks(document);
   initPortalNavVisibility();
+  initLivePhotos();
   initLatestInteractions(apiBase);
   initBabelComments({ apiBase: apiBase });
   initInContainerScrollNavigation();

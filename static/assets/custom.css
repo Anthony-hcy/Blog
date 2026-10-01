@@ -43,3 +43,93 @@
 /* ===== 说说位置标注（微信式，蓝色小字） ===== */
 .memo-location { margin-top: 10px; font-size: 13px; color: #0a84ff; }
 .memo-location i { margin-right: 4px; }
+
+/* ===== 实况照片（Live Photo）：长按/点按钮播放 ===== */
+figure.pswp-item.live-photo {
+  position: relative;
+  overflow: hidden;
+  -webkit-touch-callout: none; /* 抑制手机长按弹系统菜单 */
+}
+.live-photo img {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.live-photo .live-photo-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none; /* 不抢点击，灯箱/长按都作用于图本身 */
+  transition: opacity .15s ease;
+}
+.live-photo.playing .live-photo-video { opacity: 1; }
+.live-photo.playing img { opacity: 0; }
+
+/* LIVE 角标 */
+.live-photo::after {
+  content: 'LIVE';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: #fff;
+  background: rgba(0, 0, 0, .55);
+  padding: 2px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.live-photo.playing::after { opacity: 0; }
+
+/* ▶ 播放按钮 / 🔊 声音按钮：只在有鼠标的设备上显示（手机走长按） */
+.live-photo .live-photo-play,
+.live-photo .live-photo-sound {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, .45);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  transition: background .2s, transform .2s;
+}
+.live-photo .live-photo-play { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.live-photo .live-photo-play:hover { background: rgba(0, 0, 0, .7); }
+.live-photo .live-photo-sound { right: 8px; bottom: 8px; }
+
+@media (hover: hover) {
+  .live-photo .live-photo-play { display: flex; }
+  .live-photo .live-photo-sound:not([hidden]) { display: flex; }
+}
+
+/* 播放失败/不支持提示 */
+.live-photo .live-photo-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: 90%;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(0, 0, 0, .6);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
