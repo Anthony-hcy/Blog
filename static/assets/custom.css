@@ -44,17 +44,15 @@
 .memo-location { margin-top: 10px; font-size: 13px; color: #0a84ff; }
 .memo-location i { margin-right: 4px; }
 
-/* ===== 实况照片（Live Photo）：长按/点按钮播放 ===== */
+/* ===== 实况照片（Live Photo）：点开大图后左下角 ▶ 播放，播一遍自动停 ===== */
 figure.pswp-item.live-photo {
   position: relative;
   overflow: hidden;
-  -webkit-touch-callout: none; /* 抑制手机长按弹系统菜单 */
 }
 .live-photo img {
-  -webkit-touch-callout: none;
-  user-select: none;
   -webkit-user-drag: none;
 }
+/* 页面缩略图不直接播放：内嵌 video 仅作为灯箱的播放源（始终隐藏、不占交互） */
 .live-photo .live-photo-video {
   position: absolute;
   inset: 0;
@@ -62,12 +60,8 @@ figure.pswp-item.live-photo {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  pointer-events: none; /* 不抢点击，灯箱/长按都作用于图本身 */
-  transition: opacity .25s ease; /* 有画面才淡入，避免黑屏跳变 */
+  pointer-events: none;
 }
-/* 视频真正出画面后才淡入；未出画面时封面图保持可见 */
-.live-photo.playing.rendered .live-photo-video { opacity: 1; }
-.live-photo.playing.rendered img { opacity: 0; }
 
 /* LIVE 角标 */
 .live-photo::after {
@@ -86,32 +80,8 @@ figure.pswp-item.live-photo {
   pointer-events: none;
   z-index: 2;
 }
-.live-photo.playing::after { opacity: 0; }
 
-/* 🔊 声音按钮：播放中出现，手机/电脑都可用（页面缩略图上的长按播放用） */
-.live-photo .live-photo-sound {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 3;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 50%;
-  color: #fff;
-  background: rgba(0, 0, 0, .45);
-  cursor: pointer;
-  padding: 0;
-  font-size: 13px;
-  transition: background .2s;
-}
-.live-photo .live-photo-sound:hover { background: rgba(0, 0, 0, .7); }
-.live-photo .live-photo-sound:not([hidden]) { display: flex; }
-
-/* 灯箱（PhotoSwipe）内实况控制：▶ 播放 + 🔊 声音，覆盖在当前幻灯片上 */
+/* 灯箱（PhotoSwipe）内实况控制：左下角 ▶ 播放按钮 + 视频覆盖层 */
 .pswp .pswp-live-video {
   position: absolute;
   inset: 0;
@@ -122,24 +92,16 @@ figure.pswp-item.live-photo {
   opacity: 0;              /* 出画面才淡入（.ready） */
   transition: opacity .25s ease;
   z-index: 4;
-  pointer-events: none; /* 不抢触摸，长按/点击落到幻灯片上 */
+  pointer-events: none; /* 不抢触摸，点击落到幻灯片上 */
 }
 .pswp .pswp-live-video.ready { opacity: 1; }
 .pswp .pswp-live-controls {
   position: absolute;
-  left: 50%;
-  bottom: 28px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  left: 24px;
+  bottom: 24px;
   z-index: 5;
 }
-/* 手机（触屏为主）不要 ▶ 按钮：长按播放即可，只留 🔊 */
-@media (hover: none) {
-  .pswp .pswp-live-controls .pswp-live-play { display: none; }
-}
-.pswp .pswp-live-controls button {
+.pswp .pswp-live-controls .pswp-live-play {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -152,15 +114,15 @@ figure.pswp-item.live-photo {
   cursor: pointer;
   font-size: 15px;
   padding: 0;
-  transition: background .2s;
+  transition: background .2s, opacity .2s;
 }
-.pswp .pswp-live-controls button:hover { background: rgba(0, 0, 0, .75); }
-.pswp .pswp-live-controls button[hidden] { display: none; }
+.pswp .pswp-live-controls .pswp-live-play:hover { background: rgba(0, 0, 0, .75); }
+/* 播放中按钮半透明，点它可提前停止 */
+.pswp .pswp-live-controls .pswp-live-play.playing { opacity: .65; }
 .pswp .pswp-live-hint {
   position: absolute;
-  left: 50%;
-  bottom: 84px;
-  transform: translateX(-50%);
+  left: 24px;
+  bottom: 80px;
   max-width: 86%;
   font-size: 12px;
   color: #fff;
@@ -173,22 +135,3 @@ figure.pswp-item.live-photo {
   pointer-events: none;
 }
 .pswp .pswp-live-hint[hidden] { display: none; }
-
-/* 播放失败/不支持提示 */
-.live-photo .live-photo-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  z-index: 4;
-  max-width: 90%;
-  font-size: 11px;
-  color: #fff;
-  background: rgba(0, 0, 0, .6);
-  padding: 3px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}

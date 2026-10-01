@@ -6,6 +6,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, existsSync, statSync, rmSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { marked } from '../vendor/marked.esm.js';
 
@@ -83,10 +84,12 @@ renderer.image = (token) => {
   // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层（单次播放，不循环）
   const live = liveVideoFor(href);
   const liveClass = live ? ' live-photo' : '';
+  const avc = liveVideoAvcFor(href); // 桌面端 H.264 兼容版
+  const avcAttr = avc ? ` data-avc-src="${avc}"` : '';
   const videoTag = live
-    ? `<video class="live-photo-video" src="${live}" muted playsinline preload="none" aria-hidden="true"></video>`
+    ? `<video class="live-photo-video" src="${live}" playsinline preload="none" aria-hidden="true"></video>`
     : '';
-  return `<figure class="pswp-item${liveClass}" style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 function renderMarkdown(md) {
@@ -195,6 +198,56 @@ function liveVideoFor(relPath) {
     } catch (_) { /* 无此文件，试下一个扩展名 */ }
   }
   return '';
+}
+
+// H.264 兼容版：桌面 Chrome/Firefox 播不了 HEVC，转码一份 .avc.mp4 供灯箱回退
+function liveVideoAvcFor(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return '';
+  let p = relPath.trim();
+  if (/^(https?:|data:)/.test(p)) return '';
+  if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length);
+  p = p.replace(/^\/+/, '');
+  const base = p.replace(/\.[a-z0-9]+$/i, '');
+  const abs = join(ASSETS_SRC, base + '.avc.mp4');
+  try {
+    if (statSync(abs).isFile()) return withBase('/' + base + '.avc.mp4');
+  } catch (_) {}
+  return '';
+}
+
+// 构建时自动转码 H.264 兼容版：对每个实况 .mp4，若缺少 .avc.mp4 且环境有 ffmpeg
+// （GitHub Actions 的 Ubuntu 自带），生成一份。桌面 Chrome/Firefox 用它播放。
+function tryTranscodeLiveVideos() {
+  const galleryDir = join(ASSETS_SRC, 'assets', 'img', 'gallery');
+  let files;
+  try {
+    files = readdirSync(galleryDir);
+  } catch (_) {
+    return;
+  }
+  if (!files.length) return;
+  const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
+  if (probe.error || probe.status !== 0) return; // 无 ffmpeg，跳过（本地预览不受影响）
+  let made = 0;
+  for (const name of files) {
+    if (!/\.mp4$/i.test(name) || /\.avc\.mp4$/i.test(name)) continue;
+    const base = name.replace(/\.mp4$/i, '');
+    const out = join(galleryDir, base + '.avc.mp4');
+    if (existsSync(out)) continue; // 已有兼容版
+    const r = spawnSync('ffmpeg', [
+      '-y', '-i', join(galleryDir, name),
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-movflags', '+faststart',
+      out,
+    ], { timeout: 180000, stdio: 'ignore' });
+    if (r.status === 0) {
+      made++;
+      console.log(`  ↦ 实况 H.264 兼容版: ${base}.avc.mp4`);
+    }
+  }
+  if (made) console.log(`实况视频：已转码 ${made} 个 H.264 兼容版（桌面端播放用）`);
 }
 
 // 每行最多 3 张（与原站 photoset 布局一致），flex 每行归一化到 100
@@ -925,6 +978,9 @@ function copyDir(src, dest) {
 }
 
 // ---------- 主流程 ----------
+// 实况视频 H.264 兼容版（桌面端播放）：在页面渲染前转码，页面据此输出 data-avc-src
+tryTranscodeLiveVideos();
+
 _posts = loadPosts();
 const totalPages = Math.max(1, Math.ceil(_posts.length / PAGE_SIZE));
 

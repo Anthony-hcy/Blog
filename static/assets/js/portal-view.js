@@ -1525,7 +1525,7 @@
               '<input type="checkbox" data-idx="' + idx + '"' + (it.live ? ' checked' : '') + '> 实况' +
             '</label>';
         var hevcTag = it.hevc
-          ? '<div style="font-size:10px;color:#eab308;line-height:1.3;">HEVC：手机/Edge/Safari 可播<br>桌面 Chrome/Firefox 显示静态图</div>'
+          ? '<div style="font-size:10px;color:#eab308;line-height:1.3;">HEVC：发布后自动生成 H.264 兼容版<br>手机/电脑浏览器都能播放</div>'
           : '';
         var sizeText = (it.file.size / 1024 / 1024).toFixed(1) + 'MB';
         return '<div style="border:1px solid #e5e5e7;border-radius:10px;overflow:hidden;background:#fafafa;">' +
