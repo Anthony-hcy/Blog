@@ -725,15 +725,16 @@
         getFile(repoPath).then(function (fd) {
           return deleteFile(repoPath, 'Delete image: ' + name, fd.sha);
         }).then(function () {
-          // 实况照片的伴生视频一并删除（.mp4 / .webm）
-          // 404 = 该图没有视频，正常跳过；其他错误重试一次，仍失败则提示但不中断主流程
+          // 实况照片的伴生文件一并删除：缩略图 .thumb.jpg、H.264 兼容版 .avc.mp4、
+          // 原始 .mp4 / .webm（兼容历史遗留）。404 = 该图没有这个伴生文件，正常跳过；
+          // 其他错误重试一次，仍失败则提示但不中断主流程
           var baseRepoPath = repoPath.replace(/\.[^.]+$/, '');
           var baseName = name.replace(/\.[^.]+$/, '');
           function tryDeletePair(vPath, label) {
             return getFile(vPath).then(function (fd) {
               return deleteFile(vPath, label, fd.sha);
             }).catch(function (err) {
-              if (err && err.status === 404) return; // 没有这个视频：正常
+              if (err && err.status === 404) return; // 没有这个伴生文件：正常
               // 瞬时错误（限流/抖动）等 1.5s 重试一次
               return new Promise(function (r) { setTimeout(r, 1500); }).then(function () {
                 return getFile(vPath).then(function (fd2) {
@@ -742,11 +743,19 @@
               });
             });
           }
-          return tryDeletePair(baseRepoPath + '.mp4', 'Delete live video: ' + baseName + '.mp4')
-            .then(function () { return tryDeletePair(baseRepoPath + '.webm', 'Delete live video: ' + baseName + '.webm'); })
-            .catch(function (err) {
-              toast('图片已删，但伴生视频删除失败：' + err.message, true);
-            });
+          var companionPaths = [
+            [baseRepoPath + '.thumb.jpg', 'Delete thumbnail: ' + baseName + '.thumb.jpg'],
+            [baseRepoPath + '.avc.mp4', 'Delete live video: ' + baseName + '.avc.mp4'],
+            [baseRepoPath + '.mp4', 'Delete live video: ' + baseName + '.mp4'],
+            [baseRepoPath + '.webm', 'Delete live video: ' + baseName + '.webm'],
+          ];
+          var chain = Promise.resolve();
+          companionPaths.forEach(function (pair) {
+            chain = chain.then(function () { return tryDeletePair(pair[0], pair[1]); });
+          });
+          return chain.catch(function (err) {
+            toast('图片已删，但伴生文件删除失败：' + err.message, true);
+          });
         }).then(function () {
           toast('已删除');
           noteAction();
@@ -1190,9 +1199,11 @@
   function loadAllImages() {
     return gh('/repos/' + state.repo + '/git/trees/main?recursive=1').then(function (tree) {
       var items = (tree.tree || []).filter(function (n) {
-        // 头像池（avatars/）不算站点图片，不进 Images 页；墓碑挡住已删图片因目录缓存复活
+        // 头像池（avatars/）不算站点图片，不进 Images 页；墓碑挡住已删图片因目录缓存复活；
+        // *.thumb.jpg 是缩略图（一张图的伴生文件），不单独列出，否则同一张图会显示两份
         return n.type === 'blob' && n.path.indexOf(IMG_DIR + '/') === 0 && IMG_EXT.test(n.path) &&
-          n.path.indexOf(IMG_DIR + '/avatars/') !== 0 && !localDeleted[n.path];
+          n.path.indexOf(IMG_DIR + '/avatars/') !== 0 && !localDeleted[n.path] &&
+          !/\.thumb\.(jpe?g|png|webp)$/i.test(n.path);
       });
       // 按文件名倒序：日期序号命名（2026.09.05-01）天然按时间排，最新的在最前
       allImages = items.map(function (n) {
