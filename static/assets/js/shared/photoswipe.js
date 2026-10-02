@@ -1,9 +1,18 @@
-const PHOTOSWIPE_STYLE_URL =
-  'https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe.css';
-const PHOTOSWIPE_LIGHTBOX_URL =
-  'https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe-lightbox.esm.min.js';
-const PHOTOSWIPE_CORE_URL =
-  'https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe.esm.min.js';
+// PhotoSwipe 已 vendor 进仓库（static/assets/vendor/photoswipe/）：
+// 之前走 jsdelivr CDN，国内网络不稳定且跨域不被 Service Worker 缓存（离线灯箱必挂）。
+// 相对路径按运行时的 import.meta.url 解析，同源后 SW 可缓存、离线可用。
+const PHOTOSWIPE_STYLE_URL = new URL(
+  '../../vendor/photoswipe/photoswipe.css',
+  import.meta.url
+).href;
+const PHOTOSWIPE_LIGHTBOX_URL = new URL(
+  '../../vendor/photoswipe/photoswipe-lightbox.esm.min.js',
+  import.meta.url
+).href;
+const PHOTOSWIPE_CORE_URL = new URL(
+  '../../vendor/photoswipe/photoswipe.esm.min.js',
+  import.meta.url
+).href;
 
 let photoswipeModulesPromise = null;
 let photoswipeStylesRequested = false;
