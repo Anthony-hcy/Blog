@@ -67,16 +67,16 @@ figure.pswp-item.live-photo {
 .live-photo::after {
   content: 'LIVE';
   position: absolute;
-  right: 6px;
-  bottom: 6px;
+  right: 5px;
+  bottom: 5px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 7px;
   font-weight: 700;
-  letter-spacing: .5px;
+  letter-spacing: .3px;
   color: #fff;
   background: rgba(0, 0, 0, .55);
-  padding: 2px 5px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
   pointer-events: none;
   z-index: 2;
 }

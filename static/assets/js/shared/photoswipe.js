@@ -367,33 +367,48 @@ function preferredSrc(fig) {
 
 // 页面级预热：实况图进入视口就把视频下载成 Blob 存进内存（播放时直接用，零网络、不卡），
 // 同时走 Service Worker 缓存（重进页面秒取）。已预热过的图跳过。
+// 预热延迟到页面主资源加载完再开始（requestIdleCallback），避免和图片加载抢带宽/CPU 造成卡顿。
 export function warmLiveVideos(scope) {
   if (!scope || !scope.querySelectorAll || !('IntersectionObserver' in window)) return;
   const figs = Array.prototype.slice.call(scope.querySelectorAll('.live-photo'));
   if (!figs.length) return;
-  const io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (!en.isIntersecting) return;
-      const fig = en.target;
-      if (fig.dataset.liveWarmed) { io.unobserve(fig); return; }
-      fig.dataset.liveWarmed = '1';
-      io.unobserve(fig);
-      const avcSrc = fig.dataset.avcSrc || '';
-      const srcV = fig.querySelector('video');
-      const url = avcSrc || (srcV && srcV.src) || '';
-      if (url) {
-        try {
-          fetch(url).then(function (r) {
-            if (r && r.ok) return r.blob();
-            return null;
-          }).then(function (b) {
-            if (b) fig.dataset.liveBlob = URL.createObjectURL(b);
-          }).catch(function () {});
-        } catch (_) {}
-      }
-    });
-  }, { rootMargin: '300px 0px' });
-  figs.forEach(function (f) { io.observe(f); });
+  function start() {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(setup, { timeout: 2000 });
+    } else {
+      setTimeout(setup, 500);
+    }
+  }
+  function setup() {
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        const fig = en.target;
+        if (fig.dataset.liveWarmed) { io.unobserve(fig); return; }
+        fig.dataset.liveWarmed = '1';
+        io.unobserve(fig);
+        const avcSrc = fig.dataset.avcSrc || '';
+        const srcV = fig.querySelector('video');
+        const url = avcSrc || (srcV && srcV.src) || '';
+        if (url) {
+          try {
+            fetch(url).then(function (r) {
+              if (r && r.ok) return r.blob();
+              return null;
+            }).then(function (b) {
+              if (b) fig.dataset.liveBlob = URL.createObjectURL(b);
+            }).catch(function () {});
+          } catch (_) {}
+        }
+      });
+    }, { rootMargin: '300px 0px' });
+    figs.forEach(function (f) { io.observe(f); });
+  }
+  if (document.readyState === 'complete') {
+    start();
+  } else {
+    window.addEventListener('load', start, { once: true });
+  }
 }
 
 export function initPhotoSwipeInScope(scope) {

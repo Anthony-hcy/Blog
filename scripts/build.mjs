@@ -92,7 +92,12 @@ renderer.image = (token) => {
   const videoTag = live
     ? `<video class="live-photo-video" src="${live}" playsinline preload="none" aria-hidden="true"></video>`
     : '';
-  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  // 缩略图（480px）优先加载，原图作为大屏/放大时的候选；灯箱仍用 src（原图）
+  const thumb = imageThumbFor(href);
+  const srcsetAttr = thumb
+    ? ` srcset="${withBase(thumb)} 480w, ${withBase(href)} ${dim ? dim.width : 1024}w" sizes="auto"`
+    : '';
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${srcsetAttr} src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 function renderMarkdown(md) {
@@ -218,6 +223,22 @@ function liveVideoAvcFor(relPath) {
   return '';
 }
 
+// 缩略图：主页/文章列表里图片显示宽度通常只有几百 px，
+// 直接用 4MB 原图会让手机解码卡顿 → 优先加载 480px 缩略图（灯箱仍用原图）
+function imageThumbFor(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return '';
+  let p = relPath.trim();
+  if (/^(https?:|data:)/.test(p)) return '';
+  if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length);
+  p = p.replace(/^\/+/, '');
+  const base = p.replace(/\.[a-z0-9]+$/i, '');
+  const abs = join(ASSETS_SRC, base + '.thumb.jpg');
+  try {
+    if (statSync(abs).isFile()) return withBase('/' + base + '.thumb.jpg');
+  } catch (_) {}
+  return '';
+}
+
 // 构建时自动转码 H.264 兼容版：对每个实况 .mp4，若缺少 .avc.mp4 且环境有 ffmpeg
 // （GitHub Actions 的 Ubuntu 自带），生成一份。桌面 Chrome/Firefox 用它播放。
 function tryTranscodeLiveVideos() {
@@ -256,6 +277,42 @@ function tryTranscodeLiveVideos() {
     }
   }
   if (made) console.log(`实况视频：已转码 ${made} 个 H.264 兼容版（桌面端播放用）`);
+}
+
+// 构建时生成 480px 缩略图：主页/文章里的图片显示宽度只有几百 px，
+// 直接加载 4MB 原图会让手机解码卡顿。生成 .thumb.jpg 供 srcset 优先加载。
+function tryMakeThumbnails() {
+  const galleryDir = join(ASSETS_SRC, 'assets', 'img', 'gallery');
+  let files;
+  try {
+    files = readdirSync(galleryDir);
+  } catch (_) {
+    return;
+  }
+  if (!files.length) return;
+  const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
+  if (probe.error || probe.status !== 0) {
+    console.log('缩略图：未找到 ffmpeg，跳过（不影响构建）');
+    return;
+  }
+  let made = 0;
+  for (const name of files) {
+    if (!/\.(jpe?g|png|webp)$/i.test(name)) continue;
+    const base = name.replace(/\.[a-z0-9]+$/i, '');
+    const out = join(galleryDir, base + '.thumb.jpg');
+    if (existsSync(out)) continue; // 已有缩略图
+    const r = spawnSync('ffmpeg', [
+      '-y', '-i', join(galleryDir, name),
+      '-vf', "scale='min(480,iw)':-2",
+      '-q:v', '7', '-frames:v', '1',
+      out,
+    ], { timeout: 60000, stdio: 'ignore' });
+    if (r.status === 0) {
+      made++;
+      console.log(`  ↦ 缩略图: ${base}.thumb.jpg`);
+    }
+  }
+  if (made) console.log(`图片：已生成 ${made} 个缩略图（小屏加载更快、手机不卡）`);
 }
 
 // 每行最多 3 张（与原站 photoset 布局一致），flex 每行归一化到 100
@@ -1002,6 +1059,8 @@ function versionAssetImports(dir) {
 // ---------- 主流程 ----------
 // 实况视频 H.264 兼容版（桌面端播放）：在页面渲染前转码，页面据此输出 data-avc-src
 tryTranscodeLiveVideos();
+// 480px 缩略图（手机小屏加载不卡）：渲染前生成，页面据此输出 srcset
+tryMakeThumbnails();
 
 _posts = loadPosts();
 const totalPages = Math.max(1, Math.ceil(_posts.length / PAGE_SIZE));
