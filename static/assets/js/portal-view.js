@@ -40,10 +40,7 @@
   var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
-  // REST key 已从浏览器移除：IP/逆地理/坐标转换全部走 Worker 代理（data-api-base）
-  var API_BASE = (document.body && document.body.dataset.apiBase || '').trim();
-  var AMAP_JS_KEY = (document.body && document.body.dataset.amapJsKey || '').trim();
-  var AMAP_JS_CODE = (document.body && document.body.dataset.amapJsCode || '').trim();
+  // 位置由作者手动输入，无自动定位（高德服务已整体移除）
   var portalRoot = null;
   var cssLoaded = false;
   var markedLib = null;
@@ -603,8 +600,7 @@
           '<div class="memo-photos" id="memo-photos"></div>' +
           '<div class="memo-loc-row">' +
             '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>' +
-            '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置">' +
-            '<button class="memo-loc-btn" id="btn-locate" type="button" title="自动定位到区/县"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i></button>' +
+            '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置（手动填写）">' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -696,12 +692,6 @@
     portalRoot.querySelector('#memo-photos').addEventListener('click', function (e) {
       if (e.target.closest('.memo-photo-add')) openPicker();
     });
-    var locBtn = portalRoot.querySelector('#btn-locate');
-    if (API_BASE) {
-      locBtn.addEventListener('click', function () { locateAmap(locBtn); });
-    } else {
-      locBtn.hidden = true; // 未配置 Worker 代理（data-api-base）则不显示自动定位
-    }
 
     // 模式切换
     portalRoot.querySelectorAll('.mode-btn').forEach(function (btn) {
@@ -1108,153 +1098,6 @@
       return false;
     });
     commitPost(slug, md, title, images);
-  }
-
-  // 恢复定位按钮状态
-  function locateReset(btn, oldText) {
-    btn.disabled = false;
-    btn.innerHTML = oldText;
-  }
-
-  // 高德 IP 定位兜底：国内安卓浏览器（含 PWA）网页定位依赖谷歌服务常被墙，
-  // 失败时改用高德 IP 定位（只到城市级，用户可手动补充区县）
-  // diag 数组收集各环节失败原因，全链路失败时展示给用户反馈
-  function ipLocate(btn, oldText, note, diag) {
-    return fetch(API_BASE + '/api/geo/ip')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var city = Array.isArray(d.city) ? '' : (d.city || '');
-        var text = [d.province, city].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
-        if (d.status !== '1' || !text) {
-          diag.push('IP:' + (d.info || '无结果'));
-          return false;
-        }
-        portalRoot.querySelector('#memo-loc').value = text;
-        toast((note ? note + '，' : '') + '网络定位到：' + text + '（可手动补充区县）');
-        locateReset(btn, oldText);
-        return true;
-      })
-      .catch(function () {
-        diag.push('IP:网络失败');
-        return false;
-      });
-  }
-
-  // 全链路失败：显示版本号 + 各环节原因（方便远程排查）
-  function failAll(btn, oldText, diag) {
-    var ver = (document.querySelector('meta[name="build-version"]') || {}).content || '';
-    var tag = ver.length >= 19 ? ver.slice(5, 10) + ' ' + ver.slice(11, 19) : 'unknown';
-    toast('自动定位失败[' + tag + ' ' + diag.join('；') + ']，请手动输入位置', true);
-    locateReset(btn, oldText);
-  }
-
-  // 高德 JS API 2.0 定位（国内最可靠：不走被墙的谷歌服务；含精确定位 + 城市级兜底）
-  function amapJsLocate() {
-    function loadScript() {
-      if (window.AMap) return Promise.resolve();
-      // 2021-12 之后申请的 JS Key 必须配安全密钥（官方要求：必须在脚本加载之前设置）
-      if (AMAP_JS_CODE) {
-        window._AMapSecurityConfig = { securityJsCode: AMAP_JS_CODE };
-      }
-      return new Promise(function (resolve, reject) {
-        var sc = document.createElement('script');
-        sc.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_JS_KEY;
-        sc.onload = function () { resolve(); };
-        sc.onerror = function () { reject(new Error('高德 JS 加载失败')); };
-        document.head.appendChild(sc);
-      });
-    }
-    function plugin(name) {
-      return new Promise(function (resolve) { AMap.plugin(name, function () { resolve(); }); });
-    }
-    return loadScript().then(function () { return plugin('AMap.Geolocation'); }).then(function () {
-      return new Promise(function (resolve, reject) {
-        var geo = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
-        geo.getCurrentPosition(function (status, result) {
-          if (status === 'complete' && result && result.position) {
-            resolve({ type: 'loc', loc: result.position.lng.toFixed(6) + ',' + result.position.lat.toFixed(6) });
-            return;
-          }
-          // 精确定位失败 → 高德城市级兜底（基站/IP，走高德自有服务）
-          if (typeof geo.getCityInfo === 'function') {
-            geo.getCityInfo(function (s2, r2) {
-              if (s2 === 'complete' && r2 && (r2.province || r2.city)) {
-                resolve({ type: 'city', text: [r2.province, r2.city].filter(function (x) { return x && typeof x === 'string'; }).join(' ') });
-              } else {
-                reject(new Error((r2 && r2.message) || 'AMap 定位失败'));
-              }
-            });
-            return;
-          }
-          reject(new Error('AMap 定位失败'));
-        });
-      });
-    });
-  }
-
-  // 高德自动定位：优先 GPS（WGS-84 → GCJ-02 → 逆地理到区/县）；失败退回 IP 定位（城市级）
-  function locateAmap(btn) {
-    if (!API_BASE) { toast('定位服务未配置', true); return; }
-    if (!navigator.geolocation) { ipLocate(btn, btn.innerHTML, '浏览器不支持定位', ['GPS:不支持']); return; }
-    var oldText = btn.innerHTML;
-    var diag = [];
-    btn.disabled = true;
-    btn.textContent = '…';
-    function failAllNow() { failAll(btn, oldText, diag); }
-    // 有 JS Key 时优先走高德 JS 定位（GCJ-02 直出，免坐标转换）
-    if (AMAP_JS_KEY) {
-      amapJsLocate().then(function (r) {
-        if (r.type === 'city') {
-          // 城市级兜底结果（高德基站/IP）
-          portalRoot.querySelector('#memo-loc').value = r.text;
-          toast('网络定位到：' + r.text + '（可手动补充区县）');
-          locateReset(btn, oldText);
-          return;
-        }
-        return fetch(API_BASE + '/api/geo/regeo?location=' + encodeURIComponent(r.loc))
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
-            var a = d.regeocode.addressComponent || {};
-            var text = [a.province, a.city, a.district].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
-            if (!text) throw new Error('未获取到地名');
-            portalRoot.querySelector('#memo-loc').value = text;
-            toast('已定位：' + text);
-            locateReset(btn, oldText);
-          });
-      }).catch(function (e) {
-        diag.push('JS:' + (e && e.message ? e.message : '未知'));
-        ipLocate(btn, oldText, '高德定位失败', diag).then(function (ok) { if (!ok) failAllNow(); });
-      });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      var ll = pos.coords.longitude.toFixed(6) + ',' + pos.coords.latitude.toFixed(6);
-      fetch(API_BASE + '/api/geo/convert?locations=' + encodeURIComponent(ll) + '&coordsys=gps')
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d.status !== '1' || !d.locations) { diag.push('GPS:转换失败'); throw new Error('x'); }
-          return fetch(API_BASE + '/api/geo/regeo?location=' + encodeURIComponent(d.locations)).then(function (r) { return r.json(); });
-        })
-        .then(function (d) {
-          if (d.status !== '1' || !d.regeocode) { diag.push('GPS:解析失败'); throw new Error('x'); }
-          var a = d.regeocode.addressComponent || {};
-          var text = [a.province, a.city, a.district].filter(function (x) { return x && typeof x === 'string'; }).join(' ');
-          if (!text) { diag.push('GPS:无地名'); throw new Error('x'); }
-          portalRoot.querySelector('#memo-loc').value = text;
-          toast('已定位：' + text);
-          locateReset(btn, oldText);
-        })
-        .catch(function () { ipLocate(btn, oldText, '精确定位失败', diag).then(function (ok) { if (!ok) failAllNow(); }); });
-    }, function (err) {
-      if (err && err.code === 1) { // 用户拒绝授权：不偷偷用 IP 定位
-        toast('你拒绝了定位授权，可手动输入位置', true);
-        locateReset(btn, oldText);
-        return;
-      }
-      diag.push('GPS:' + (err && err.code === 3 ? '超时' : '不可用(code' + err.code + ')'));
-      ipLocate(btn, oldText, '', diag).then(function (ok) { if (!ok) failAllNow(); });
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
   }
 
   function saveMemoMode() {

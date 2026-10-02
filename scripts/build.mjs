@@ -515,16 +515,12 @@ function loadPosts() {
 }
 
 // ---------- 页面骨架 ----------
-function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false, amapAttrs = false } = {}) {
+function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false } = {}) {
   const keywords = site.keywords || `${site.name},${site.author}`;
   const absPath = pagePath || '/';
   const fullUrl = SITE_URL + absPath;
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
-  // 高德 key 只在 Portal 页注入：普通页面不暴露任何 key；REST key 已移除，改走 Worker 代理
-  const amapAttrsHtml = amapAttrs
-    ? ` data-amap-js-key="${site.amapJsKey || ''}" data-amap-js-code="${site.amapJsCode || ''}" data-api-base="${site.apiBase || ''}"`
-    : '';
   const remoteAssets = localOnly ? '' : `
   <link rel="preconnect" href="https://registry.npmmirror.com">
   <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin>
@@ -580,7 +576,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:card" content="summary">
 </head>
-<body data-about-url="${withBase(`/about/`)}"${amapAttrsHtml}${bodyData}>`;
+<body data-about-url="${withBase(`/about/`)}"${bodyData}>`;
 }
 
 function shellStart() {
@@ -1050,7 +1046,6 @@ function buildPortalPage() {
     bodyData: ' class="page-portal"',
     extraHead: extraHead,
     localOnly: true,
-    amapAttrs: true,
   }) + shellStart() + `
 <div id="portal-root"></div>
 ` + shellEnd(scripts, false);
