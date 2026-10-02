@@ -418,11 +418,15 @@ function memoAvatar(post) {
 const IMG_EXTS = ['', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'];
 function resolveObsidianEmbeds(body, slug) {
   if (!body.includes('![[')) return body; // 没有双链直接返回（避免为无图文章误报目录缺失）
-  const dir = join(ASSETS_SRC, 'assets', 'img', slug);
-  let files = null;
-  try {
-    files = new Set(readdirSync(dir));
-  } catch (_) {
+  // 优先在文章自己的目录 static/assets/img/<slug>/ 找；找不到再回退到 gallery
+  // （Portal 上传目录：正文里 ![[名字]] 直接引用 gallery 图是常见用法，两种都支持）
+  const slugDir = join(ASSETS_SRC, 'assets', 'img', slug);
+  const galleryDir = join(ASSETS_SRC, 'assets', 'img', 'gallery');
+  let slugFiles = null;
+  let galleryFiles = null;
+  try { slugFiles = new Set(readdirSync(slugDir)); } catch (_) { /* 目录不存在：走 gallery 回退 */ }
+  try { galleryFiles = new Set(readdirSync(galleryDir)); } catch (_) { /* gallery 也没有 */ }
+  if (!slugFiles && !galleryFiles) {
     buildErrors.push(`双链图片目录不存在：static/assets/img/${slug}/（文章 slug=${slug}，正文里的 ![[...]] 会原样显示成文本）`);
     return body;
   }
@@ -434,13 +438,19 @@ function resolveObsidianEmbeds(body, slug) {
       candidates.push(base + ext, stem + ext);
     }
     for (const cand of candidates) {
-      if (files.has(cand)) {
+      if (slugFiles && slugFiles.has(cand)) {
         // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）
         const href = withBase('/assets/img/' + slug + '/') + cand;
         return `![](<${href + imgFingerprint(href)}>)`;
       }
     }
-    buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}`);
+    for (const cand of candidates) {
+      if (galleryFiles && galleryFiles.has(cand)) {
+        const href = withBase('/assets/img/gallery/') + cand;
+        return `![](<${href + imgFingerprint(href)}>)`;
+      }
+    }
+    buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}（gallery 目录里也没有）`);
     return whole;
   });
 }
