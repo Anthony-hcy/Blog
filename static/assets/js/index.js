@@ -1,4 +1,3 @@
-import { createBabelMetricsClient } from './shared/babel-metrics.js';
 import { initPhotoSwipeInEntries } from './shared/photoswipe.js';
 import { normalizeExternalLinks, parsePositiveInt } from './shared/site-core.js';
 
@@ -26,36 +25,10 @@ function initIndexStream() {
 
   const indexRoot = feed.dataset.indexRoot || '/';
   const totalPages = parsePositiveInt(feed.dataset.totalPages || '1', 1);
-  const metrics = createBabelMetricsClient({});
 
   function directEntries() {
     return Array.from(feed.children).filter(function(node) {
       return node.matches && node.matches(ENTRY_SELECTOR);
-    });
-  }
-
-  function extractPostUrl(node) {
-    const likeNode = node.querySelector(
-      '.js-like-count[data-like-url], .js-like-btn[data-like-url]'
-    );
-    if (likeNode && likeNode.dataset.likeUrl) {
-      return likeNode.dataset.likeUrl;
-    }
-    const viewNode = node.querySelector('.js-pageview-count[data-pageview-url]');
-    if (viewNode && viewNode.dataset.pageviewUrl) {
-      return viewNode.dataset.pageviewUrl;
-    }
-    const archiveLink = node.querySelector('a[href*="/archives/"]');
-    return archiveLink ? archiveLink.getAttribute('href') || '' : '';
-  }
-
-  function decorateEntries(entries, pageIndex) {
-    entries.forEach(function(entry) {
-      entry.dataset.pageIndex = String(pageIndex);
-      const postUrl = extractPostUrl(entry);
-      if (postUrl) {
-        entry.dataset.postUrl = postUrl;
-      }
     });
   }
 
@@ -65,7 +38,6 @@ function initIndexStream() {
     entries.forEach(function(entry) {
       normalizeExternalLinks(entry);
     });
-    metrics.registerEntries(entries);
   }
 
   function animateInsertedEntries(entries) {
@@ -138,7 +110,6 @@ function initIndexStream() {
       const beforeTop = anchor ? anchor.getBoundingClientRect().top : 0;
 
       const entries = await fetchPageEntries(targetPage);
-      decorateEntries(entries, targetPage);
       initEntries(entries);
 
       const fragment = document.createDocumentFragment();
@@ -178,7 +149,6 @@ function initIndexStream() {
 
     try {
       const entries = await fetchPageEntries(targetPage);
-      decorateEntries(entries, targetPage);
       initEntries(entries);
 
       const fragment = document.createDocumentFragment();
@@ -199,7 +169,6 @@ function initIndexStream() {
   }
 
   const initialEntries = directEntries();
-  decorateEntries(initialEntries, currentPage);
   initEntries(initialEntries);
 
   feed.insertBefore(topSentinel, feed.firstChild);

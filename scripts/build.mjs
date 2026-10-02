@@ -1,13 +1,14 @@
 /**
  * build.mjs — 静态博客构建脚本（复刻 AtWill 风格站点结构）
  * 读取 content/posts/*.md（带 frontmatter），生成与原站同构的页面：
- * 首页 feed（分页）、文章页、归档、分类、标签、关于、RSS、搜索索引。
+ * 首页 feed（分页）、文章页、归档、分类、标签、关于、搜索索引。
  * 无 API 后端：点赞/浏览量显示 0，评论相关 UI 不生成。
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, existsSync, statSync, rmSync } from 'node:fs';
-import { join, dirname, relative, resolve } from 'node:path';
+import { join, dirname, relative, resolve, normalize } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { marked } from '../vendor/marked.esm.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -31,9 +32,36 @@ const withBase = (path) => {
 const EXSEARCH_HASH = 'search-index';
 // 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新
 const BUILD_VERSION = new Date().toISOString();
-// 资源版本号：加在页面 JS/CSS 的 URL 后面（?v=...），每次部署 URL 变化 →
-// Service Worker 缓存必然失效 → 手机必定拿到新文件，杜绝旧版残留
-const ASSET_V = 'v' + BUILD_VERSION.replace(/\D/g, '').slice(-10);
+
+// ---------- 资源版本指纹（内容哈希） ----------
+// 加在页面 JS/CSS 的 URL 后面（?v=...）。按"文件内容"计算哈希：
+// 只有内容变了的文件 URL 才变化 → Service Worker 只失效真的变了的缓存，
+// 未变动的资源部署后保持 URL 不变，访客无需重复下载（旧方案是每次部署全站失效）。
+function hashContent(content) {
+  return createHash('sha1').update(content).digest('hex').slice(0, 8);
+}
+function hashAssetFile(relPath) {
+  // relPath 相对于 static/（如 assets/js/layout.js）；hash 源文件内容，与 dist 一致
+  try {
+    return 'v' + hashContent(readFileSync(join(ASSETS_SRC, relPath), 'utf-8'));
+  } catch (_) {
+    return 'v0';
+  }
+}
+// 图片指纹：正文/相册里的图片 URL 带内容哈希（与 JS/CSS 的 ?v= 同一机制）。
+// 图片被重新压缩/替换后哈希变化 → URL 变 → SW cache-first 缓存自动换新，旧缓存作废不误用。
+// distPath 形如 /Blog/assets/img/gallery/x.jpg（withBase 之后），据此反推 static/ 源文件。
+function imgFingerprint(distPath) {
+  let rel = String(distPath || '');
+  if (BASE && rel.startsWith(BASE + '/')) rel = rel.slice(BASE.length);
+  rel = rel.replace(/^\/+/, '');
+  const abs = join(ASSETS_SRC, rel);
+  try {
+    return '?v=' + hashContent(readFileSync(abs)); // 二进制 Buffer 直接哈希
+  } catch (_) {
+    return '';
+  }
+}
 
 // 双链图片解析错误收集：全部页面写完后统一报错并中止构建（防止 ![[...]] 原样上线）
 const buildErrors = [];
@@ -94,10 +122,11 @@ renderer.image = (token) => {
     : '';
   // 缩略图（480px）优先加载，原图作为大屏/放大时的候选；灯箱仍用 src（原图）
   const thumb = imageThumbFor(href);
+  const fullSrc = withBase(href) + imgFingerprint(withBase(href));
   const srcsetAttr = thumb
-    ? ` srcset="${withBase(thumb)} 480w, ${withBase(href)} ${dim ? dim.width : 1024}w" sizes="auto"`
+    ? ` srcset="${withBase(thumb)} 480w, ${fullSrc} ${dim ? dim.width : 1024}w" sizes="auto"`
     : '';
-  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${srcsetAttr} src="${withBase(href)}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 function renderMarkdown(md) {
@@ -122,16 +151,6 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-function escapeXml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-    .replace(/\]\]>/g, ']]&gt;');
 }
 
 // ---------- 图片尺寸读取（PNG/JPEG/GIF/WebP 头解析，用于 pswp flex 计算） ----------
@@ -190,8 +209,9 @@ function imageSize(relPath) {
   return null;
 }
 
-// 实况图（Live Photo）：图片旁存在同名 .mp4/.webm 即视为实况图
-const LIVE_VIDEO_EXTS = ['.mp4', '.webm'];
+// 实况图（Live Photo）：图片旁存在同名视频即视为实况图。
+// 优先 .avc.mp4（H.264 兼容版，仓库只提交这一份；原 HEVC 原片不提交，avc 即播放源）
+const LIVE_VIDEO_CANDIDATES = ['.avc.mp4', '.mp4', '.webm'];
 function liveVideoFor(relPath) {
   if (typeof relPath !== 'string' || !relPath) return '';
   let p = relPath.trim();
@@ -199,10 +219,11 @@ function liveVideoFor(relPath) {
   if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length); // 去掉 /Blog 前缀
   p = p.replace(/^\/+/, '');
   const base = p.replace(/\.[a-z0-9]+$/i, ''); // 去掉图片扩展名，留同名前缀
-  for (const ext of LIVE_VIDEO_EXTS) {
-    const abs = join(ASSETS_SRC, base + ext); // static/assets/img/<slug>/<name>.mp4
+  for (const ext of LIVE_VIDEO_CANDIDATES) {
+    const cand = base + ext;
+    const abs = join(ASSETS_SRC, cand); // static/assets/img/<slug>/<name>.avc.mp4
     try {
-      if (statSync(abs).isFile()) return withBase('/' + base + ext);
+      if (statSync(abs).isFile()) return withBase('/' + cand);
     } catch (_) { /* 无此文件，试下一个扩展名 */ }
   }
   return '';
@@ -234,7 +255,7 @@ function imageThumbFor(relPath) {
   const base = p.replace(/\.[a-z0-9]+$/i, '');
   const abs = join(ASSETS_SRC, base + '.thumb.jpg');
   try {
-    if (statSync(abs).isFile()) return withBase('/' + base + '.thumb.jpg');
+    if (statSync(abs).isFile()) return withBase('/' + base + '.thumb.jpg') + imgFingerprint(withBase('/' + base + '.thumb.jpg'));
   } catch (_) {}
   return '';
 }
@@ -249,7 +270,9 @@ function tryTranscodeLiveVideos() {
   } catch (_) {
     return;
   }
-  if (!files.length) return;
+  // 只处理"存在非 avc 的 mp4"的情况（仓库现在只提交 avc 版，通常直接跳过）
+  const pending = files.filter(f => /\.mp4$/i.test(f) && !/\.avc\.mp4$/i.test(f));
+  if (!pending.length) return;
   const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
   if (probe.error) {
     console.log('实况视频：未找到 ffmpeg，跳过 H.264 兼容版转码（本地预览不受影响）');
@@ -257,8 +280,7 @@ function tryTranscodeLiveVideos() {
   }
   if (probe.status !== 0) return;
   let made = 0;
-  for (const name of files) {
-    if (!/\.mp4$/i.test(name) || /\.avc\.mp4$/i.test(name)) continue;
+  for (const name of pending) {
     const base = name.replace(/\.mp4$/i, '');
     const out = join(galleryDir, base + '.avc.mp4');
     if (existsSync(out)) continue; // 已有兼容版
@@ -289,15 +311,22 @@ function tryMakeThumbnails() {
   } catch (_) {
     return;
   }
-  if (!files.length) return;
+  // 缩略图已随仓库提交：只处理"有图片缺 .thumb.jpg"的情况（CI 兜底用）。
+  // 注意：.thumb.jpg 自身必须排除，否则会把已生成的缩略图当成"缺缩略图的图片"再生成一层。
+  const pending = files.filter(name => {
+    if (/\.thumb\.jpg$/i.test(name)) return false;
+    if (!/\.(jpe?g|png|webp)$/i.test(name)) return false;
+    const base = name.replace(/\.[a-z0-9]+$/i, '');
+    return !existsSync(join(galleryDir, base + '.thumb.jpg'));
+  });
+  if (!pending.length) return;
   const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
   if (probe.error || probe.status !== 0) {
     console.log('缩略图：未找到 ffmpeg，跳过（不影响构建）');
     return;
   }
   let made = 0;
-  for (const name of files) {
-    if (!/\.(jpe?g|png|webp)$/i.test(name)) continue;
+  for (const name of pending) {
     const base = name.replace(/\.[a-z0-9]+$/i, '');
     const out = join(galleryDir, base + '.thumb.jpg');
     if (existsSync(out)) continue; // 已有缩略图
@@ -407,7 +436,8 @@ function resolveObsidianEmbeds(body, slug) {
     for (const cand of candidates) {
       if (files.has(cand)) {
         // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）
-        return `![](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
+        const href = withBase('/assets/img/' + slug + '/') + cand;
+        return `![](<${href + imgFingerprint(href)}>)`;
       }
     }
     buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}`);
@@ -438,7 +468,8 @@ function resolveBareImages(body, slug) {
     }
     for (const cand of candidates) {
       if (files.has(cand)) {
-        return `![${alt}](<${withBase('/assets/img/' + slug + '/')}${cand}>)`;
+        const href = withBase('/assets/img/' + slug + '/') + cand;
+        return `![${alt}](<${href + imgFingerprint(href)}>)`;
       }
     }
     buildErrors.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}`);
@@ -484,16 +515,22 @@ function loadPosts() {
 }
 
 // ---------- 页面骨架 ----------
-function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false } = {}) {
+function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false, amapAttrs = false } = {}) {
   const keywords = site.keywords || `${site.name},${site.author}`;
   const absPath = pagePath || '/';
   const fullUrl = SITE_URL + absPath;
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
+  // 高德 key 只在 Portal 页注入：普通页面不暴露任何 key；REST key 已移除，改走 Worker 代理
+  const amapAttrsHtml = amapAttrs
+    ? ` data-amap-js-key="${site.amapJsKey || ''}" data-amap-js-code="${site.amapJsCode || ''}" data-api-base="${site.apiBase || ''}"`
+    : '';
   const remoteAssets = localOnly ? '' : `
   <link rel="preconnect" href="https://registry.npmmirror.com">
   <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin>
-  <link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css">
+  <!-- 字体 CSS 异步加载：不阻塞首屏渲染；preload 优先拉取，就绪后切换为 stylesheet -->
+  <link rel="preload" as="style" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css"></noscript>
   <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>`;
   return `<!DOCTYPE html>
 <html lang="${site.lang}" data-exsearch-api="${withBase(`/${EXSEARCH_HASH}.json`)}">
@@ -504,10 +541,8 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe7">
   <meta name="keywords" content="${keywords}">
   ${remoteAssets}
-  <link rel="preload" as="style" href="${withBase(`/assets/ExSearch/ExSearch.css`)}" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="${withBase(`/assets/ExSearch/ExSearch.css`)}"></noscript>
   <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
-  <link rel="stylesheet" href="${withBase(`/assets/custom.css?v=${ASSET_V}`)}">
+  <link rel="stylesheet" href="${withBase(`/assets/custom.css?v=${hashAssetFile('assets/custom.css')}`)}">
   <link rel="stylesheet" href="${withBase(`/assets/fontawesome/all.min.css`)}">
   <script>
     window.ExSearchConfig = {
@@ -526,6 +561,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <link rel="apple-touch-icon" sizes="180x180" href="${withBase(`/apple-touch-icon.png`)}" />
   <meta name="apple-mobile-web-app-title" content="${site.name}" />
   <link rel="manifest" href="${withBase(`/site.webmanifest`)}" />
+  <link rel="canonical" href="${fullUrl}">
   <meta name="application-name" content="${site.name}">
   <meta name="build-version" content="${BUILD_VERSION}">
   <meta name="apple-mobile-web-app-title" content="${site.name}">
@@ -544,7 +580,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:card" content="summary">
 </head>
-<body data-about-url="${withBase(`/about/`)}" data-amap-key="${site.amapKey || ''}" data-amap-js-key="${site.amapJsKey || ''}" data-amap-js-code="${site.amapJsCode || ''}"${bodyData}>`;
+<body data-about-url="${withBase(`/about/`)}"${amapAttrsHtml}${bodyData}>`;
 }
 
 function shellStart() {
@@ -616,10 +652,8 @@ function sideTags() {
 }
 
 function shellEnd(extraScripts = '', includeSearch = true) {
-  const searchScripts = includeSearch
-    ? `<script defer src="${withBase(`/assets/ExSearch/jquery.min.js`)}"></script>
-<script defer src="${withBase(`/assets/ExSearch/ExSearch.js`)}"></script>`
-    : '';
+  // 搜索（jQuery + ExSearch）改为按需懒加载：首次点击搜索按钮/按 / 时才注入，
+  // 见 layout.js 的 initSearchLazyLoad —— 不再在每个页面预载 87KB 的 jQuery。
   return `</main>
         <footer class="site-footer">
           <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
@@ -648,8 +682,7 @@ function shellEnd(extraScripts = '', includeSearch = true) {
 </div>
 
 ${extraScripts}
-<script type="module" src="${withBase(`/assets/js/layout.js?v=${ASSET_V}`)}"></script>
-${searchScripts}
+<script type="module" src="${withBase(`/assets/js/layout.js?v=${hashAssetFile('assets/js/layout.js')}`)}"></script>
 </body>
 </html>`;
 }
@@ -732,7 +765,7 @@ function buildIndexPage(posts, pageIndex, totalPages) {
   ${entries}
 </main>
 <div class="stream-status stream-status-bottom" id="stream-status-bottom" data-state="${pageIndex >= totalPages ? 'end' : 'idle'}" aria-live="polite">${statusText}</div>
-` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js?v=${ASSET_V}`)}"></script>`);
+` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js?v=${hashAssetFile('assets/js/index.js')}`)}"></script>`);
   return html;
 }
 
@@ -777,7 +810,7 @@ function buildPostPage(post, prev, next) {
   const bodyHtml = wrapFigureRuns(renderMarkdown(post.body));
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
-<script type="module" src="${withBase(`/assets/js/post.js?v=${ASSET_V}`)}"></script>`;
+<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -812,7 +845,7 @@ function buildMemoPage(post, prev, next) {
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
   const photosHtml = figures.length ? photosetHtml(figures) : '';
-  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js?v=${ASSET_V}`)}"></script>`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
@@ -880,7 +913,7 @@ function buildAboutPage() {
   const trackedUrls = _posts.map(p => `/archives/${p.slug}/`);
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
-<script type="module" src="${withBase(`/assets/js/about.js?v=${ASSET_V}`)}"></script>`;
+<script type="module" src="${withBase(`/assets/js/about.js?v=${hashAssetFile('assets/js/about.js')}`)}"></script>`;
   const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() }) + shellStart() + `
 <section class="about-section">
   <div class="about-section-head">
@@ -921,36 +954,6 @@ function buildAboutPage() {
   return html;
 }
 
-// ---------- RSS ----------
-function buildFeed() {
-  const items = _posts.slice(0, 20).map(p => {
-    const bodyHtml = renderMarkdown(p.body).replace(/<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>/g, '');
-    return `<item>
-  <title>${escapeXml(p.title)}</title>
-  <link>${SITE_URL}/archives/${p.slug}/</link>
-  <guid isPermaLink="true">${SITE_URL}/archives/${p.slug}/</guid>
-  <pubDate>${p.date.toUTCString()}</pubDate>
-  <author>${escapeXml(site.author)}</author>
-  <description><![CDATA[${escapeXml(bodyHtml)}]]></description>
-</item>`;
-  }).join('');
-  return `<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link><description>${escapeXml(site.description)}</description><docs>http://www.rssboard.org/rss-specification</docs><generator>blog-replica</generator><image><url>${SITE_URL}/logo.png</url><title>${escapeXml(site.name)}</title><link>${SITE_URL}/</link></image><language>${site.lang}</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate><pubDate>${new Date().toUTCString()}</pubDate>${items}</channel></rss>`;
-}
-
-function buildAtom() {
-  const items = _posts.slice(0, 20).map(p => `<entry>
-  <title>${escapeXml(p.title)}</title>
-  <link href="${SITE_URL}/archives/${p.slug}/"/>
-  <id>${SITE_URL}/archives/${p.slug}/</id>
-  <updated>${p.date.toISOString()}</updated>
-  <summary>${escapeXml(p.excerpt)}</summary>
-  <author><name>${escapeXml(site.author)}</name></author>
-</entry>`).join('');
-  return `<?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>${site.name}</title><link href="${SITE_URL}/" rel="alternate"/><id>${SITE_URL}/</id><updated>${new Date().toISOString()}</updated>${items}</feed>`;
-}
-
 // ---------- ExSearch 索引（对齐原站格式：顶层仅 posts/pages，tags/categories 为对象数组） ----------
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
@@ -969,6 +972,36 @@ function buildSearchIndex() {
   }
   const pages = [{ title: 'About', date: site.since + ' 10:00:00+08:00', path: withBase(`/about/`), text: aboutText, tags: [], categories: [] }];
   return JSON.stringify({ posts, pages });
+}
+
+// ---------- sitemap.xml / robots.txt ----------
+function escapeXml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildSitemap() {
+  const urls = new Set();
+  urls.add(SITE_URL + '/');
+  for (let page = 2; page <= totalPages; page++) urls.add(SITE_URL + `/page/${page}/`);
+  urls.add(SITE_URL + '/archives/');
+  urls.add(SITE_URL + '/about/');
+  _posts.forEach(p => urls.add(SITE_URL + `/archives/${p.slug}/`));
+  categoriesWithCount().forEach(c => urls.add(SITE_URL + `/category/${encodeURIComponent(c.name)}/`));
+  tagsWithCount().forEach(t => urls.add(SITE_URL + `/tag/${encodeURIComponent(t.name)}/`));
+  const now = new Date().toISOString();
+  const items = [...urls].map(u =>
+    `  <url><loc>${escapeXml(u)}</loc><lastmod>${now}</lastmod></url>`
+  ).join('\n');
+  return `<?xml version='1.0' encoding='UTF-8'?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${items}\n</urlset>\n`;
+}
+
+function buildRobots() {
+  return `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`;
 }
 
 // ---------- 404 ----------
@@ -1005,10 +1038,11 @@ function buildRedirectPage(from, to) {
 
 // Portal 管理页：与 about/archives 相同的博客框架（头部/侧边栏/页脚），主内容区挂载管理界面
 function buildPortalPage() {
-  // Portal 页被内容自动刷新排除（防止丢草稿），因此它的 css/js 必须带构建版本指纹，
+  // Portal 页被内容自动刷新排除（防止丢草稿），因此它的 css/js 必须带内容哈希指纹，
   // 否则部署后首次打开会命中 SW stale-while-revalidate 的旧缓存，一直跑旧代码。
-  const v = '?v=' + encodeURIComponent(BUILD_VERSION);
-  const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css${v}`)}">
+  const v = '?v=' + hashAssetFile('assets/js/portal-view.js');
+  const vcss = '?v=' + hashAssetFile('assets/portal.css');
+  const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css${vcss}`)}">
 <meta name="theme-color" content="#f5f5f7">`;
   const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js${v}`)}"></script>`;
   const html = headHtml(`Blog Portal - ${site.name}`, {
@@ -1016,6 +1050,7 @@ function buildPortalPage() {
     bodyData: ' class="page-portal"',
     extraHead: extraHead,
     localOnly: true,
+    amapAttrs: true,
   }) + shellStart() + `
 <div id="portal-root"></div>
 ` + shellEnd(scripts, false);
@@ -1042,16 +1077,20 @@ function copyDir(src, dest) {
   }
 }
 
-// 给 dist 里所有 JS 的相对模块导入（./xxx.js）加 ?v=ASSET_V：
-// 每次部署 URL 变化 → SW 缓存失效 → 手机必定拿到新代码（杜绝旧版残留）
+// 给 dist 里所有 JS 的相对模块导入（./xxx.js）加 ?v=<该文件内容哈希>：
+// 被导入文件内容变了 → 导入方 URL 变化 → SW 缓存失效拿到新代码；没变 → URL 不变不重下
 function versionAssetImports(dir) {
   for (const name of readdirSync(dir)) {
     const s = join(dir, name);
     if (statSync(s).isDirectory()) { versionAssetImports(s); continue; }
     if (!name.endsWith('.js')) continue;
     let src = readFileSync(s, 'utf-8');
-    const out = src.replace(/(from\s+['"])(\.[^'"]+\.js)(['"])/g, (m, p1, p2, p3) =>
-      p2.includes('?') ? m : `${p1}${p2}?v=${ASSET_V}${p3}`);
+    const out = src.replace(/(from\s+['"])(\.[^'"]+\.js)(['"])/g, (m, p1, p2, p3) => {
+      if (p2.includes('?')) return m;
+      // 导入路径相对 dist/assets/js/ 下的当前文件，映射回 static/assets/js/ 源文件算哈希
+      const srcRel = 'assets/js/' + normalize(join(dirname(name), p2)).replace(/\\/g, '/');
+      return `${p1}${p2}?v=${hashAssetFile(srcRel)}${p3}`;
+    });
     if (out !== src) writeFileSync(s, out, 'utf-8');
   }
 }
@@ -1115,6 +1154,8 @@ writePage('404.html', build404());
 writePage('portal.html', buildPortalPage());
 writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
 writePage('version.json', JSON.stringify({ v: BUILD_VERSION }));
+writePage('sitemap.xml', buildSitemap());
+writePage('robots.txt', buildRobots());
 
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));

@@ -1,12 +1,18 @@
 /**
- * blog-stats Worker — 点赞 + 浏览量统计接口（Cloudflare Workers + KV）
+ * blog-stats Worker — 点赞 + 浏览量统计 + 高德地理代理（Cloudflare Workers + KV）
  *
  * GET  /api/stats?keys=a,b,c   批量查询 { likes: {a:n}, views: {a:n} }（首页用，一次请求）
  * GET  /api/likes/total        全站点赞总数 { total: n }（About 页用，60s 边缘缓存）
  * POST /api/like  {key}        点赞 +1（同一 IP 每 5 分钟限 8 次）
  * POST /api/view  {key}        浏览 +1（同一 IP 同一篇 1 小时内只计一次）
  *
- * KV 键：like:<key> / view:<key> / rl:<ipHash>:<5分钟桶> / seen:<key哈希>:<1小时桶>
+ * 高德 REST 代理（key 只存在于 Worker 环境变量 AMAP_REST_KEY，绝不下发到浏览器）：
+ * GET  /api/geo/ip                            → restapi v3/ip（IP 定位，城市级）
+ * GET  /api/geo/regeo?location=lng,lat        → restapi v3/geocode/regeo（逆地理）
+ * GET  /api/geo/convert?locations=..&coordsys=gps → restapi v3/assistant/coordinate/convert
+ * 限频：每 IP 每 5 分钟最多 30 次；仅允许博客域名 / localhost 来源（防盗刷）
+ *
+ * KV 键：like:<key> / view:<key> / rl:<ipHash>:<5分钟桶> / seen:<key哈希>:<1小时桶> / rl:geo:<ipHash>:<5分钟桶>
  * key 约定：文章路径，如 /Blog/archives/<slug>/
  */
 const CORS = {
@@ -15,6 +21,19 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
+
+// 高德代理仅允许博客站与本地预览来源（无 Origin 头的直接请求也放行，便于 curl 自测）
+function originAllowed(request) {
+  const origin = request.headers.get('Origin');
+  if (!origin) return true;
+  try {
+    const o = new URL(origin);
+    if (o.hostname === 'localhost' || o.hostname === '127.0.0.1' || o.hostname === '::1') return true;
+    return o.origin === 'https://anthony-hcy.github.io';
+  } catch (_) {
+    return false;
+  }
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -41,6 +60,44 @@ function intOr(v, fallback) {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+// 高德 REST 代理：转发请求并把结果原样返回（portal 端解析逻辑不变）
+async function geoProxy(request, url, env, ipHash) {
+  if (!originAllowed(request)) return json({ error: 'origin not allowed' }, 403);
+  const amapKey = (env.AMAP_REST_KEY || '').trim();
+  if (!amapKey) return json({ error: 'geo proxy not configured' }, 503);
+
+  // 限频：每 IP 每 5 分钟最多 30 次（防盗刷）
+  const bucket = Math.floor(Date.now() / 300000);
+  const rlKey = 'rl:geo:' + ipHash + ':' + bucket;
+  const recent = intOr(await env.STATS.get(rlKey), 0);
+  if (recent >= 30) return json({ error: 'rate limited' }, 429);
+  await env.STATS.put(rlKey, String(recent + 1), { expirationTtl: 300 });
+
+  const service = url.pathname.slice('/api/geo/'.length);
+  let target = '';
+  if (service === 'ip') {
+    target = 'https://restapi.amap.com/v3/ip?key=' + amapKey;
+  } else if (service === 'regeo') {
+    const loc = String(url.searchParams.get('location') || '').slice(0, 40);
+    if (!/^[\d.,-]+$/.test(loc)) return json({ error: 'bad location' }, 400);
+    target = 'https://restapi.amap.com/v3/geocode/regeo?key=' + amapKey + '&location=' + encodeURIComponent(loc);
+  } else if (service === 'convert') {
+    const locations = String(url.searchParams.get('locations') || '').slice(0, 60);
+    const coordsys = url.searchParams.get('coordsys') === 'gps' ? 'gps' : 'gps';
+    if (!/^[\d.,-]+$/.test(locations)) return json({ error: 'bad locations' }, 400);
+    target = 'https://restapi.amap.com/v3/assistant/coordinate/convert?key=' + amapKey + '&locations=' + encodeURIComponent(locations) + '&coordsys=' + coordsys;
+  } else {
+    return json({ error: 'not found' }, 404);
+  }
+  try {
+    const r = await fetch(target);
+    const data = await r.json();
+    return json(data);
+  } catch (_) {
+    return json({ error: 'amap upstream failed' }, 502);
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return preflight();
@@ -48,6 +105,11 @@ export default {
     const ipHash = await sha256hex(request.headers.get('cf-connecting-ip') || 'unknown');
 
     try {
+      // ---------- 高德地理代理 ----------
+      if (request.method === 'GET' && url.pathname.startsWith('/api/geo/')) {
+        return geoProxy(request, url, env, ipHash);
+      }
+
       // ---------- 批量查询 ----------
       if (request.method === 'GET' && url.pathname === '/api/stats') {
         const raw = url.searchParams.get('keys') || '';

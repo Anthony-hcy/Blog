@@ -6,7 +6,9 @@
      之后每次打开直接读缓存秒播，不重复下载（此前卡第一帧是缓存了"分段响应"，
      现在缓存完整文件即正确）
    跨域请求（npmmirror 字体、不蒜子、GitHub API）不拦截，交给浏览器 */
-var CACHE = 'haelcy-v4';
+// v5：资源 URL 全部改为内容哈希指纹（build.mjs），本次部署后缓存版本号不再需要频繁升级，
+// 内容没变的资源 URL 不变、缓存直达；内容变了的资源 URL 变化、自动换新缓存。
+var CACHE = 'haelcy-v5';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();

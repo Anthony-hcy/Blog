@@ -1,6 +1,6 @@
 /**
  * gen-placeholders.mjs — 生成站点占位图（纯 Node，无依赖）
- * 输出：logo、favicon-96、apple-touch-icon、封面示例图（均为简单纯色 PNG）
+ * 输出：logo、apple-touch-icon、封面示例图（均为简单纯色 PNG）
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
@@ -56,7 +56,6 @@ function makePng(width, height, rgb) {
 // ---------- 输出文件 ----------
 const files = {
   'logo.png': [180, 180, [34, 32, 25]],
-  'favicon-96x96.png': [96, 96, [34, 32, 25]],
   'apple-touch-icon.png': [180, 180, [34, 32, 25]],
 };
 

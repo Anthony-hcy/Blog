@@ -8,7 +8,7 @@
 - 亮/暗双主题（跟随系统自动切换）
 - 文章页支持 KaTeX 公式、图片画廊（PhotoSwipe）
 - 全站搜索（ExSearch，本地 JSON 索引）
-- 归档、分类、标签、关于页、RSS
+- 归档、分类、标签、关于页
 - 手机端管理面板 Blog Portal（Posts / Edit / Images / Status）
 
 ## 快速开始
@@ -59,6 +59,8 @@ draft: false
 - **Edit**：在线写 Markdown，保存即提交到仓库并触发重新构建
 - **Images**：按文章上传图片、复制 Markdown 引用、删除
 - **Status**：查看构建状态、手动触发 Rebuild
+
+> RSS/Atom 暂未提供（如需启用见 `使用指南.md` 的「RSS/Atom（暂未启用）」一节）。
 
 ## 致谢
 

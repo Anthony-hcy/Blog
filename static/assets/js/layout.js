@@ -1,13 +1,7 @@
 import {
-  buildApiRoots,
-  escapeHtml,
-  formatDateYmd,
   normalizeExternalLinks,
-  parsePositiveInt,
   readStorage,
 } from './shared/site-core.js';
-import { ensurePageviewTracked } from './shared/babel-pageview.js';
-import { initBabelComments } from './shared/babel-comments.js';
 
 function initPortalNavVisibility() {
   const portalLinks = Array.from(document.querySelectorAll('.js-portal-nav-link'));
@@ -35,112 +29,6 @@ function initPortalNavVisibility() {
       syncPortalLinks();
     }
   });
-}
-
-function initLatestInteractions(apiBase) {
-  const lists = Array.from(document.querySelectorAll('.js-latest-interactions'));
-  if (!lists.length) return;
-
-  const api = buildApiRoots(apiBase).babelApi;
-  const aboutUrl = document.body ? document.body.dataset.aboutUrl || '/about/' : '/about/';
-
-  function withScrollParam(urlLike, targetId) {
-    try {
-      const url = new URL(urlLike, window.location.origin);
-      url.searchParams.set('scroll', targetId);
-      return url.pathname + url.search;
-    } catch (_) {
-      return String(urlLike || '');
-    }
-  }
-
-  function renderMessage(message) {
-    lists.forEach(function(list) {
-      list.innerHTML =
-        '<li class="interaction-empty">' + escapeHtml(message) + '</li>';
-    });
-  }
-
-  function renderComments(comments) {
-    lists.forEach(function(list) {
-      const limit = parsePositiveInt(list.dataset.limit || '6', 6);
-      let archivesRoot = String(list.dataset.archivesRoot || '/archives/');
-      if (!archivesRoot.endsWith('/')) {
-        archivesRoot += '/';
-      }
-
-      const subset = comments.slice(0, limit);
-      if (!subset.length) {
-        list.innerHTML =
-          '<li class="interaction-empty">No recent comments yet.</li>';
-        return;
-      }
-
-      const html = subset
-        .map(function(item) {
-          const postId = String(item.post_id || '').trim();
-          const username =
-            escapeHtml(String(item.username || 'Guest').trim()) || 'Guest';
-
-          let raw = String(item.content || '').replace(/\s+/g, ' ').trim();
-          if (raw.length > 58) {
-            raw = raw.slice(0, 58) + '...';
-          }
-
-          const content = escapeHtml(raw || '(No text)');
-          const timeText = formatDateYmd(item.create_time);
-          let href = '#';
-          if (postId) {
-            href =
-              postId === 'about'
-                ? withScrollParam(aboutUrl, 'comments')
-                : withScrollParam(archivesRoot + encodeURIComponent(postId) + '/', 'comments');
-          }
-
-          const meta = timeText ? username + ' · ' + timeText : username;
-          return (
-            '<li>' +
-            '<a class="interaction-link" href="' +
-            href +
-            '">' +
-            '<span class="interaction-meta">' +
-            meta +
-            '</span>' +
-            '<span class="interaction-text">' +
-            content +
-            '</span>' +
-            '</a>' +
-            '</li>'
-          );
-        })
-        .join('');
-
-      list.innerHTML = html;
-    });
-  }
-
-  if (!api) {
-    renderMessage('No interaction feed available.');
-    return;
-  }
-
-  const maxLimit = lists.reduce(function(acc, list) {
-    return Math.max(acc, parsePositiveInt(list.dataset.limit || '6', 6));
-  }, 6);
-
-  fetch(api + '/comments/recent?page=1&page_size=' + Math.max(maxLimit, 1))
-    .then(function(res) {
-      return res.json();
-    })
-    .then(function(res) {
-      if (res.code !== 200 || !Array.isArray(res.data)) {
-        throw new Error('Bad interactions response');
-      }
-      renderComments(res.data.filter(Boolean));
-    })
-    .catch(function() {
-      renderMessage('Unable to load interactions.');
-    });
 }
 
 function initRouteNavActiveState() {
@@ -400,13 +288,75 @@ function initMobileMenu() {
   setMenuOpen(false);
 }
 
+// 搜索懒加载：jQuery（87KB）+ ExSearch 只在首次点搜索按钮 / 按 / 时才注入，
+// 不预载到每个页面（部署体积与解析成本都更小）。注入完成后聚焦搜索框即打开（ExSearch 绑定在 .search-form-input 上）。
+function initSearchLazyLoad() {
+  var trigger = document.querySelector('.search-form-input');
+  if (!trigger) return;
+
+  var loaded = false;
+  var cssInjected = false;
+
+  function assetBase() {
+    var css = document.querySelector('link[rel="stylesheet"][href*="custom.css"]');
+    var href = css ? (css.getAttribute('href') || '') : '';
+    var m = href.match(/^(.*\/)assets\/custom\.css/);
+    return m ? m[1] : '';
+  }
+
+  function injectScript(src, done) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.async = false;
+    s.onload = done;
+    s.onerror = done; // 出错也继续，避免搜索按钮卡死
+    document.body.appendChild(s);
+  }
+
+  function loadSearch() {
+    if (loaded) return;
+    loaded = true;
+    var base = assetBase();
+
+    if (!cssInjected) {
+      cssInjected = true;
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = base + 'assets/ExSearch/ExSearch.css';
+      document.head.appendChild(css);
+    }
+
+    injectScript(base + 'assets/ExSearch/jquery.min.js', function() {
+      injectScript(base + 'assets/ExSearch/ExSearch.js', function() {
+        var input = document.querySelector('.search-form-input');
+        if (input) input.focus(); // ExSearch 监听 .search-form-input 的 focus → 打开搜索遮罩
+      });
+    });
+  }
+
+  trigger.addEventListener('click', function(event) {
+    event.preventDefault();
+    loadSearch();
+  });
+  trigger.addEventListener('focus', function() {
+    loadSearch();
+  });
+
+  // 键盘 / 快捷打开（输入框/文本区聚焦时忽略）
+  document.addEventListener('keydown', function(event) {
+    var tag = (document.activeElement || {}).tagName || '';
+    if (event.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' &&
+        !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      loadSearch();
+    }
+  });
+}
+
 function initLayout() {
-  const apiBase = document.body ? document.body.dataset.apiBase || '' : '';
-  ensurePageviewTracked({ apiBase: apiBase });
   normalizeExternalLinks(document);
   initPortalNavVisibility();
-  initLatestInteractions(apiBase);
-  initBabelComments({ apiBase: apiBase });
+  initSearchLazyLoad();
   initInContainerScrollNavigation();
   initRouteNavActiveState();
   initMobileMenu();

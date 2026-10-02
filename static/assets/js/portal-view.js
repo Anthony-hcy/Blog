@@ -40,7 +40,8 @@
   var editorView = 'edit'; // 编辑 | 预览
   var memoPhotos = []; // 说说模式的图片列表 [{url, name}]
 
-  var AMAP_KEY = (document.body && document.body.dataset.amapKey || '').trim();
+  // REST key 已从浏览器移除：IP/逆地理/坐标转换全部走 Worker 代理（data-api-base）
+  var API_BASE = (document.body && document.body.dataset.apiBase || '').trim();
   var AMAP_JS_KEY = (document.body && document.body.dataset.amapJsKey || '').trim();
   var AMAP_JS_CODE = (document.body && document.body.dataset.amapJsCode || '').trim();
   var portalRoot = null;
@@ -696,10 +697,10 @@
       if (e.target.closest('.memo-photo-add')) openPicker();
     });
     var locBtn = portalRoot.querySelector('#btn-locate');
-    if (AMAP_KEY) {
+    if (API_BASE) {
       locBtn.addEventListener('click', function () { locateAmap(locBtn); });
     } else {
-      locBtn.hidden = true; // 未配置高德 key 则不显示自动定位
+      locBtn.hidden = true; // 未配置 Worker 代理（data-api-base）则不显示自动定位
     }
 
     // 模式切换
@@ -1119,7 +1120,7 @@
   // 失败时改用高德 IP 定位（只到城市级，用户可手动补充区县）
   // diag 数组收集各环节失败原因，全链路失败时展示给用户反馈
   function ipLocate(btn, oldText, note, diag) {
-    return fetch('https://restapi.amap.com/v3/ip?key=' + AMAP_KEY)
+    return fetch(API_BASE + '/api/geo/ip')
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var city = Array.isArray(d.city) ? '' : (d.city || '');
@@ -1193,7 +1194,7 @@
 
   // 高德自动定位：优先 GPS（WGS-84 → GCJ-02 → 逆地理到区/县）；失败退回 IP 定位（城市级）
   function locateAmap(btn) {
-    if (!AMAP_KEY) { toast('定位服务未配置', true); return; }
+    if (!API_BASE) { toast('定位服务未配置', true); return; }
     if (!navigator.geolocation) { ipLocate(btn, btn.innerHTML, '浏览器不支持定位', ['GPS:不支持']); return; }
     var oldText = btn.innerHTML;
     var diag = [];
@@ -1210,7 +1211,7 @@
           locateReset(btn, oldText);
           return;
         }
-        return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + r.loc)
+        return fetch(API_BASE + '/api/geo/regeo?location=' + encodeURIComponent(r.loc))
           .then(function (r) { return r.json(); })
           .then(function (d) {
             if (d.status !== '1' || !d.regeocode) throw new Error('地名解析失败');
@@ -1229,11 +1230,11 @@
     }
     navigator.geolocation.getCurrentPosition(function (pos) {
       var ll = pos.coords.longitude.toFixed(6) + ',' + pos.coords.latitude.toFixed(6);
-      fetch('https://restapi.amap.com/v3/assistant/coordinate/convert?key=' + AMAP_KEY + '&locations=' + ll + '&coordsys=gps')
+      fetch(API_BASE + '/api/geo/convert?locations=' + encodeURIComponent(ll) + '&coordsys=gps')
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.status !== '1' || !d.locations) { diag.push('GPS:转换失败'); throw new Error('x'); }
-          return fetch('https://restapi.amap.com/v3/geocode/regeo?key=' + AMAP_KEY + '&location=' + d.locations).then(function (r) { return r.json(); });
+          return fetch(API_BASE + '/api/geo/regeo?location=' + encodeURIComponent(d.locations)).then(function (r) { return r.json(); });
         })
         .then(function (d) {
           if (d.status !== '1' || !d.regeocode) { diag.push('GPS:解析失败'); throw new Error('x'); }

@@ -20,15 +20,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # 无 npm 依赖（marked 已 vendor 进 vendor/），无需 setup-node / npm ci
-      # ffmpeg 只用于给实况视频转码 H.264 兼容版（桌面浏览器播 HEVC 需要）。
-      # 没有实况视频的构建（普通增删改文章/图片）就跳过安装。
+      # ffmpeg 只用于：①给实况视频转码 H.264 兼容版（仓库只提交 .avc.mp4，通常用不到）
+      #             ②给缺 .thumb.jpg 的图片生成 480px 缩略图（兜底，正常也已随仓库提交）
+      # 两种情况都没有的构建（普通增删改文章）就跳过安装，省 80MB 下载 + 十几秒。
       # 安装优先走静态包直连下载（~80MB，十几秒），apt 仅作备用（apt 很慢）。
       - name: Check ffmpeg needed
         id: check-ffmpeg
         run: |
           NEEDS=false
+          # ① 存在非 avc 的原始 mp4（新实况图未转码就提交了）
           if find static/assets/img -type f -name '*.mp4' ! -name '*.avc.mp4' 2>/dev/null | grep -q .; then
             NEEDS=true
+          fi
+          # ② 存在缺 .thumb.jpg 的图片（图片新增/重传后未生成缩略图）
+          if [ "$NEEDS" != "true" ]; then
+            while IFS= read -r img; do
+              [ -z "$img" ] && continue
+              thumb="${img%.*}.thumb.jpg"
+              if [ ! -f "$thumb" ]; then NEEDS=true; break; fi
+            done < <(find static/assets/img -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.webp' \) ! -name '*.thumb.jpg' 2>/dev/null)
           fi
           echo "needs_ffmpeg=$NEEDS" >> "$GITHUB_OUTPUT"
       - name: Install ffmpeg

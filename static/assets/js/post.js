@@ -1,4 +1,3 @@
-import { createBabelMetricsClient } from './shared/babel-metrics.js';
 import { initPhotoSwipeInScope } from './shared/photoswipe.js';
 import { renderKatexWhenReady } from './shared/katex-render.js';
 
@@ -20,8 +19,6 @@ function showAuthEditLinksWhenAuthorized() {
 
 function initPostPage() {
   initPhotoSwipeInScope(document);
-  const metrics = createBabelMetricsClient({});
-  metrics.registerEntries([document]);
   showAuthEditLinksWhenAuthorized();
   renderKatexWhenReady();
 }

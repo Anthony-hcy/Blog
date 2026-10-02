@@ -86,3 +86,18 @@ await api('/accounts/' + accountId + '/workers/scripts/' + SCRIPT_NAME + '/subdo
 const url = 'https://' + SCRIPT_NAME + '.' + sub.subdomain + '.workers.dev';
 console.log('LIVE:', url);
 console.log('试试: curl "' + url + '/api/stats?keys=/test/"');
+
+// 4. 上传 AMAP_REST_KEY secret（高德地理代理用；不设置时 geo 接口返回 503）
+//    注意：key 只进 Worker 环境，绝不写入仓库或下发到浏览器
+const amapKey = process.env.AMAP_REST_KEY;
+if (amapKey) {
+  await api('/accounts/' + accountId + '/workers/scripts/' + SCRIPT_NAME + '/secrets', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'AMAP_REST_KEY', type: 'secret_text', text: amapKey }),
+  });
+  console.log('Secret AMAP_REST_KEY uploaded');
+} else {
+  console.log('SKIP: 未设置环境变量 AMAP_REST_KEY，geo 代理将返回 503（拿到 key 后重跑本脚本即可）');
+}
+console.log('geo 代理测试: curl "' + url + '/api/geo/ip"');
