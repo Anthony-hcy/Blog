@@ -45,6 +45,13 @@
   aspect-ratio: 1 / 1 !important;
 }
 
+/* ===== 文章页单图也撑满容器 ===== */
+/* photoset 内 img 已有 width:100%（.photoset 规则）；单图（独立段落）只有 max-width:100%，
+   配合 srcset 的 sizes=auto 会按懒加载占位 300px 解码，导致大图显示成 300px 小图、右侧留白 */
+.article-body figure.pswp-item img {
+  width: 100%;
+}
+
 /* ===== 主页 memo：文字与图片左对齐（去掉原主题 48px 缩进） ===== */
 .entry-memo .memo-content { padding-left: 0; }
 
