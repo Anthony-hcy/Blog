@@ -1038,6 +1038,19 @@
   }
 
   // 编辑/预览切换：编辑 = Markdown 文本框，预览 = marked 渲染
+  // 编辑器预览：把 Obsidian 双链 ![[文件名]] 转成图片语法（用本次已暂存图片的真实 URL，
+  // 未命中时回退到 gallery 目录，与构建端 gallery 回退一致；构建产物以构建端解析为准）
+  function wikiImagesToMd(s) {
+    return (s || '').replace(/!\[\[([^\]]+)\]\]/g, function (m, n) {
+      var hit = null;
+      for (var i = 0; i < pendingEditorImages.length; i++) {
+        if (pendingEditorImages[i].name === n) { hit = pendingEditorImages[i]; break; }
+      }
+      var url = hit ? hit.url : BASE + 'assets/img/gallery/' + n;
+      return '![' + n.replace(/\.[^.]+$/, '') + '](' + url + ')';
+    });
+  }
+
   function setEditorView(view) {
     editorView = view;
     var body = portalRoot.querySelector('#edit-body');
@@ -1050,7 +1063,7 @@
       body.hidden = true;
       loadMarked().then(function (md) {
         if (editorView !== 'preview') return; // 用户已切回编辑
-        preview.innerHTML = md ? md.parse(body.value || '') : '<p>' + esc(body.value || '') + '</p>';
+        preview.innerHTML = md ? md.parse(wikiImagesToMd(body.value)) : '<p>' + esc(body.value || '') + '</p>';
         preview.hidden = false;
       });
     } else {
@@ -1096,12 +1109,14 @@
       body: body,
     });
     var images = pendingEditorImages.filter(function (img) {
-      if (body.indexOf(img.url) >= 0) return true;
+      // 正文引用（双链 ![[文件名]] 或旧的完整链接 URL）→ 图片随文提交
+      if (body.indexOf('![[' + img.name + ']]') >= 0 || body.indexOf(img.url) >= 0) return true;
       // 实况视频：正文里有其配对图片（同名 .jpg）时一并提交
       if (img.isVideo) {
         var pairName = img.name.replace(/\.mp4$/i, '.jpg');
         return pendingEditorImages.some(function (other) {
-          return !other.isVideo && other.name === pairName && body.indexOf(other.url) >= 0;
+          return !other.isVideo && other.name === pairName &&
+            (body.indexOf('![[' + pairName + ']]') >= 0 || body.indexOf(other.url) >= 0);
         });
       }
       return false;
@@ -1696,9 +1711,10 @@
   function useImage(siteUrl, rawUrl, name, dataUrl) {
     if (editMode === 'post') {
       // Markdown 光标处插入图片语法；若当前在预览则切回编辑
+      // 统一采用 Obsidian 双链形式 ![[文件名]]，与手写博客一致（构建端会解析成图片）
       setEditorView('edit');
       var ta = portalRoot.querySelector('#edit-body');
-      var mdText = '\n![' + (name || 'image') + '](' + siteUrl + ')\n';
+      var mdText = '\n![[' + (name || 'image') + ']]\n';
       var start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
       var end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ta.value.length;
       ta.setRangeText(mdText, start, end, 'end');
