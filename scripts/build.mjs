@@ -383,8 +383,10 @@ function photosetHtml(figures) {
 
 // 只把「段落里仅有图片、且连着 2 张以上」包成并排相框；单张保持整幅，与原站一致
 function wrapFigureRuns(html) {
+  // 只合并同一段落内的连续 figure：figure 内容匹配加 (?:(?!</p>|<p>)[\s\S]) 禁止跨越段落边界，
+  // 否则 [\s\S]*?</figure> 会回溯穿过文字段落，把前面单图段落整段吸进后面的相框（图位置错乱）。
   return html.replace(
-    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
+    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"(?:(?!<\/p>|<p>)[\s\S])*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
     (block) => photosetHtml(figuresFromHtml(block))
   );
 }
@@ -440,14 +442,16 @@ function resolveObsidianEmbeds(body, slug) {
     for (const cand of candidates) {
       if (slugFiles && slugFiles.has(cand)) {
         // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）
+        // 不在这里拼 ?v= 指纹：renderer.image 会对所有图片统一加指纹并读取尺寸/缩略图/实况视频，
+        // 提前拼上指纹会导致后三者读取失败（URL 带查询串找不到文件）
         const href = withBase('/assets/img/' + slug + '/') + cand;
-        return `![](<${href + imgFingerprint(href)}>)`;
+        return `![](<${href}>)`;
       }
     }
     for (const cand of candidates) {
       if (galleryFiles && galleryFiles.has(cand)) {
         const href = withBase('/assets/img/gallery/') + cand;
-        return `![](<${href + imgFingerprint(href)}>)`;
+        return `![](<${href}>)`;
       }
     }
     buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}（gallery 目录里也没有）`);
@@ -478,8 +482,9 @@ function resolveBareImages(body, slug) {
     }
     for (const cand of candidates) {
       if (files.has(cand)) {
+        // 同 resolveObsidianEmbeds：不提前拼指纹，交给 renderer.image 统一处理
         const href = withBase('/assets/img/' + slug + '/') + cand;
-        return `![${alt}](<${href + imgFingerprint(href)}>)`;
+        return `![${alt}](<${href}>)`;
       }
     }
     buildErrors.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}`);
