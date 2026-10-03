@@ -112,6 +112,10 @@ renderer.image = (token) => {
     ? ` data-pswp-width="${dim.width}" data-pswp-height="${dim.height}"`
     : '';
   const flex = dim ? Math.round((dim.width / dim.height) * 10000) / 100 : 50;
+  // 真实宽高比放在 <img> 上：width:100% + aspect-ratio → 图片高度确定（宽/比例），
+  // photoset 并排时行高由图片比例撑开，横图完整显示、不被 cover 裁剪。
+  // 不放 figure 上，避免 flex stretch 与百分比高度的循环解析（浏览器对 sizes=auto 图片的行高怪癖）。
+  const imgRatioAttr = dim ? ` style="aspect-ratio: ${dim.width} / ${dim.height}"` : '';
   // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层（单次播放，不循环）
   const live = liveVideoFor(href);
   const liveClass = live ? ' live-photo' : '';
@@ -126,7 +130,7 @@ renderer.image = (token) => {
   const srcsetAttr = thumb
     ? ` srcset="${withBase(thumb)} 480w, ${fullSrc} ${dim ? dim.width : 1024}w" sizes="auto"`
     : '';
-  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${imgRatioAttr}${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 function renderMarkdown(md) {
@@ -377,7 +381,7 @@ function figuresFromHtml(html) {
 
 function photosetHtml(figures) {
   return `<div class="photoset">${groupPhotos(figures).map(row =>
-    `<div class="photos">${row.map(f => f.html.replace(/style="flex: [\d.]+"/, `style="flex: ${f.flex}"`)).join('')}</div>`
+    `<div class="photos">${row.map(f => f.html.replace(/flex: [\d.]+/, `flex: ${f.flex}`)).join('')}</div>`
   ).join('')}</div>`;
 }
 
