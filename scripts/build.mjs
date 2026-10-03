@@ -304,28 +304,21 @@ function tryTranscodeLiveVideos() {
 // 构建时生成 480px 缩略图：主页/文章里的图片显示宽度只有几百 px，
 // 直接加载 4MB 原图会让手机解码卡顿。生成 .thumb.jpg 供 srcset 优先加载。
 function tryMakeThumbnails() {
-  // 遍历 static/assets/img 下所有目录（gallery、各文章目录等），
-  // 与 CI 的 ffmpeg 检查口径一致（此前只扫 gallery，post 目录大图永远没缩略图）。
-  const imgRoot = join(ASSETS_SRC, 'assets', 'img');
-  const pending = [];
-  const walk = (dir) => {
-    let names;
-    try { names = readdirSync(dir); } catch (_) { return; }
-    for (const name of names) {
-      const abs = join(dir, name);
-      let st;
-      try { st = statSync(abs); } catch (_) { continue; }
-      if (st.isDirectory()) {
-        if (name !== 'avatars') walk(abs); // avatars 小头像无需缩略图
-        continue;
-      }
-      if (/\.thumb\.jpg$/i.test(name)) continue; // .thumb.jpg 自身必须排除
-      if (!/\.(jpe?g|png|webp)$/i.test(name)) continue;
-      const base = name.replace(/\.[a-z0-9]+$/i, '');
-      if (!existsSync(join(dir, base + '.thumb.jpg'))) pending.push({ dir, name, base });
-    }
-  };
-  walk(imgRoot);
+  const galleryDir = join(ASSETS_SRC, 'assets', 'img', 'gallery');
+  let files;
+  try {
+    files = readdirSync(galleryDir);
+  } catch (_) {
+    return;
+  }
+  // 缩略图已随仓库提交：只处理"有图片缺 .thumb.jpg"的情况（CI 兜底用）。
+  // 注意：.thumb.jpg 自身必须排除，否则会把已生成的缩略图当成"缺缩略图的图片"再生成一层。
+  const pending = files.filter(name => {
+    if (/\.thumb\.jpg$/i.test(name)) return false;
+    if (!/\.(jpe?g|png|webp)$/i.test(name)) return false;
+    const base = name.replace(/\.[a-z0-9]+$/i, '');
+    return !existsSync(join(galleryDir, base + '.thumb.jpg'));
+  });
   if (!pending.length) return;
   const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
   if (probe.error || probe.status !== 0) {
@@ -333,11 +326,12 @@ function tryMakeThumbnails() {
     return;
   }
   let made = 0;
-  for (const { dir, name, base } of pending) {
-    const out = join(dir, base + '.thumb.jpg');
+  for (const name of pending) {
+    const base = name.replace(/\.[a-z0-9]+$/i, '');
+    const out = join(galleryDir, base + '.thumb.jpg');
     if (existsSync(out)) continue; // 已有缩略图
     const r = spawnSync('ffmpeg', [
-      '-y', '-i', join(dir, name),
+      '-y', '-i', join(galleryDir, name),
       '-vf', "scale='min(480,iw)':-2",
       '-q:v', '7', '-frames:v', '1',
       out,
@@ -390,9 +384,7 @@ function photosetHtml(figures) {
 // 只把「段落里仅有图片、且连着 2 张以上」包成并排相框；单张保持整幅，与原站一致
 function wrapFigureRuns(html) {
   return html.replace(
-    // figure 内容禁止跨段落（(?:(?!</p>|<p>)[\s\S]) 不吞 </p>/<p>），
-    // 避免回溯把「紧邻的单图段落」也吸进相框
-    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"(?:(?!<\/p>|<p>)[\s\S])*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
+    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"[\s\S]*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
     (block) => photosetHtml(figuresFromHtml(block))
   );
 }
@@ -447,16 +439,15 @@ function resolveObsidianEmbeds(body, slug) {
     }
     for (const cand of candidates) {
       if (slugFiles && slugFiles.has(cand)) {
-        // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）。
-        // 注意：不在这里拼指纹——renderer.image 会统一加 ?v= 并读尺寸/缩略图/实况视频
+        // 路径含空格，用尖括号包裹（Markdown 标准的含空格目标写法）
         const href = withBase('/assets/img/' + slug + '/') + cand;
-        return `![](<${href}>)`;
+        return `![](<${href + imgFingerprint(href)}>)`;
       }
     }
     for (const cand of candidates) {
       if (galleryFiles && galleryFiles.has(cand)) {
         const href = withBase('/assets/img/gallery/') + cand;
-        return `![](<${href}>)`;
+        return `![](<${href + imgFingerprint(href)}>)`;
       }
     }
     buildErrors.push(`双链图片未找到：static/assets/img/${slug}/${name}（gallery 目录里也没有）`);
@@ -487,9 +478,8 @@ function resolveBareImages(body, slug) {
     }
     for (const cand of candidates) {
       if (files.has(cand)) {
-        // 同样不提前拼指纹，由 renderer.image 统一加
         const href = withBase('/assets/img/' + slug + '/') + cand;
-        return `![${alt}](<${href}>)`;
+        return `![${alt}](<${href + imgFingerprint(href)}>)`;
       }
     }
     buildErrors.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}`);
