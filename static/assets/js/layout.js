@@ -371,13 +371,21 @@ function pathBase() {
 }
 
 // PWA：注册 Service Worker（/Blog/ 子路径与根路径部署均兼容）
+// 注意：不要在 window.load 里注册——全站图片 loading="lazy" 会把 load 事件推迟
+// 很长时间（实测可达 120 秒），首访用户在此期间完全不受 SW 控制；
+// 改在 DOMContentLoaded（或模块已执行时 DOM 通常已可交互）尽早注册。
 function initServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', function() {
+  function register() {
     navigator.serviceWorker.register(pathBase() + 'sw.js').catch(function() {
       /* 注册失败不影响页面 */
     });
-  });
+  }
+  if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    register();
+  } else {
+    document.addEventListener('DOMContentLoaded', register);
+  }
 }
 
 // PWA 内容自动更新：App 回到前台/页面恢复时，比对构建版本指纹，

@@ -48,8 +48,10 @@ self.addEventListener('fetch', function (event) {
   }
 
   if (req.mode === 'navigate') {
-    // 缓存秒开 + 后台更新（有新部署时页面里的版本检查会自动刷新）
-    event.respondWith(staleWhileRevalidate(req));
+    // network-first：内容永远最新，断网回退缓存
+    // （此前误用 staleWhileRevalidate 会先返回缓存旧页面，部署新内容后用户
+    //   仍看到旧页面/旧分类计数，要等后台更新 + 版本检查触发刷新才会纠正）
+    event.respondWith(networkFirst(req));
     return;
   }
   if (/\.(png|jpe?g|gif|webp|svg|avif|ico|woff2?|ttf)$/i.test(url.pathname) ||
@@ -70,6 +72,20 @@ function cacheFirst(req) {
       }
       return res;
     });
+  });
+}
+
+// 页面导航专用：network-first——网络可用时永远返回最新内容（并更新缓存），
+// 网络失败（断网/服务器 5xx）时回退到缓存，保证离线可读。
+function networkFirst(req) {
+  return fetch(req).then(function (res) {
+    if (res && res.ok) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(req, copy); });
+    }
+    return res;
+  }).catch(function () {
+    return caches.match(req);
   });
 }
 
