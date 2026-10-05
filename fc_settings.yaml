@@ -15,8 +15,10 @@ SETTINGS_FRIENDS_LINKS: {
     enable: true,
     json_api_or_path: "",
     list: [
-        # 测试：regenm（无 RSS 且首页结构不匹配内置规则，预期抓不到文章，用于演示"失联"）
+        # 测试：regenm（无 RSS，靠 HTML 规则兜底抓取成功）
         ["regenm", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
+        # 测试：失眠海峡（有 Atom feed：/feed/atom/）
+        ["失眠海峡", "https://blog.imalan.cn/", "https://blog.imalan.cn/logo.jpg"],
     ]
 }
 
