@@ -1010,8 +1010,16 @@ function buildFcirclePage() {
     .fcircle-sort button:hover { border-color: var(--accent); color: var(--accent); }
     .fcircle-sort button.is-active { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast, #fff); }
     .fcircle-empty { color: var(--meta); padding: 40px 0; text-align: center; }
+    .fcircle-section .entry-memo { margin-bottom: 20px; }
+    .fcircle-section .entry-memo .memo-head { margin-bottom: 6px; }
+    .fcircle-section .entry-memo .memo-content { padding-left: 50px; }
     .fcircle-section .entry-memo .memo-content a { color: inherit; }
     .fcircle-section .entry-memo .memo-content a:hover { color: var(--accent); }
+    .memo-avatar-letter {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; font-weight: 600;
+      color: var(--accent-contrast, #fff); background: var(--accent);
+    }
   </style>`;
   const scripts = `<script type="module" src="${withBase(`/assets/js/fcircle.js?v=${hashAssetFile('assets/js/fcircle.js')}`)}"></script>`;
   const html = headHtml(`朋友圈 - ${site.name}`, { pagePath: '/fcircle/', extraHead }) + shellStart() + `

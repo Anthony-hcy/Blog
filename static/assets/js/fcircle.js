@@ -15,6 +15,18 @@
     });
   }
 
+  // 友链来源站：FriendCircle 采集友链页时不做 URL 拼接（官方 TODO），
+  // 相对路径头像（如 ../images/x.png）需按来源站补全。换数据源时更新这一处。
+  var FC_AVATAR_BASE = 'https://regenm.github.io';
+
+  function resolveAvatar(src) {
+    src = String(src == null ? '' : src).trim();
+    if (!src) return '';
+    if (/^https?:\/\//i.test(src)) return src;
+    var rel = src.replace(/^\.\.?\//, '').replace(/^\/+/, '');
+    return FC_AVATAR_BASE + '/' + rel;
+  }
+
   var rootEl = document.getElementById('fcircle-root');
   var statsEl = document.getElementById('fcircle-stats');
   if (!rootEl) return;
@@ -27,9 +39,12 @@
       return String(b[sortRule] || '').localeCompare(String(a[sortRule] || ''));
     });
     rootEl.innerHTML = sorted.map(function (a) {
+      var avatar = resolveAvatar(a.avatar);
       return '<div class="entry-memo">' +
         '<div class="memo-head">' +
-          '<img class="memo-avatar" src="' + esc(a.avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" onerror="this.style.visibility=\'hidden\'">' +
+          (avatar
+            ? '<img class="memo-avatar" src="' + esc(avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'memo-avatar memo-avatar-letter\',textContent:(this.alt||\'?\').charAt(0).toUpperCase()}))">'
+            : '<span class="memo-avatar memo-avatar-letter">' + esc((a.author || '?').charAt(0).toUpperCase()) + '</span>') +
           '<div class="memo-author">' +
             '<strong>' + esc(a.author) + '</strong>' +
             '<span>' + esc(a[sortRule] || '') + '</span>' +
