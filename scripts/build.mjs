@@ -134,7 +134,32 @@ renderer.image = (token) => {
 };
 
 function renderMarkdown(md) {
-  return marked.parse(md, { renderer });
+  let html = marked.parse(md, { renderer });
+  // 音乐卡片：{{music <链接>}} → 官方外链播放器 iframe
+  // 先处理独立成段（<p>{{music …}}</p>），再处理行内残余
+  html = html.replace(/<p>\{\{\s*music\s+([^}]+?)\s*\}\}<\/p>/gi, (m, url) => musicCardHtml(url.trim()) || m);
+  html = html.replace(/\{\{\s*music\s+([^}]+?)\s*\}\}/gi, (m, url) => musicCardHtml(url.trim()) || m);
+  return html;
+}
+
+// ---------- 音乐卡片（{{music <链接>}} → 官方外链播放器 iframe） ----------
+// 网易云：https://music.163.com/#/song?id=xxx 或 https://y.music.163.com/m/song?id=xxx
+// QQ音乐：https://i.y.qq.com/v8/playsong.html?songid=xxx（QQ App 分享长链）
+// 纯数字也可直接当 QQ songid 用。
+function musicCardHtml(link) {
+  link = String(link || '').trim();
+  let src = '';
+  if (/music\.163\.com/.test(link)) {
+    const m = /[?&]id=(\d+)/.exec(link);
+    if (m) src = `https://music.163.com/outchain/player?type=2&id=${m[1]}&auto=0&height=66`;
+  } else if (/y\.qq\.com/.test(link)) {
+    const m = /[?&]songid=(\d+)/.exec(link);
+    if (m) src = `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${m[1]}&songtype=0`;
+  } else if (/^\d+$/.test(link)) {
+    src = `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${link}&songtype=0`;
+  }
+  if (!src) return '';
+  return `<div class="music-player"><div class="music-player__embed"><iframe src="${escapeHtml(src)}" title="音乐播放器" loading="lazy" frameborder="0" allow="autoplay"></iframe></div></div>`;
 }
 
 function excerptFrom(text, len = 120) {
@@ -637,6 +662,7 @@ function sideInSite() {
       <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="fcircle" href="${withBase(`/fcircle/`)}" target="_self"><i class="fa-solid fa-users in-site-link-icon" aria-hidden="true"></i><span>朋友圈</span></a>
       <a href="${withBase(`/portal.html`)}" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
     </nav>
   </section>`;
@@ -969,6 +995,41 @@ function buildAboutPage() {
   return html;
 }
 
+// 朋友圈页：memo 风格渲染友链聚合数据（data 由 fcircle-data.yml 采集生成，见 site-root/fcircle-data.json）
+function buildFcirclePage() {
+  const extraHead = `<style>
+    .fcircle-section { max-width: 720px; }
+    .fcircle-head h2 { margin-bottom: 8px; }
+    .fcircle-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 20px; font-size: 13px; color: var(--meta); }
+    .fcircle-stat b { color: var(--text); font-weight: 600; }
+    .fcircle-sort { display: flex; gap: 8px; margin-bottom: 16px; }
+    .fcircle-sort button {
+      border: 1px solid var(--rule); background: transparent; color: var(--meta);
+      padding: 4px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; transition: all .18s ease;
+    }
+    .fcircle-sort button:hover { border-color: var(--accent); color: var(--accent); }
+    .fcircle-sort button.is-active { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast, #fff); }
+    .fcircle-empty { color: var(--meta); padding: 40px 0; text-align: center; }
+    .fcircle-section .entry-memo .memo-content a { color: inherit; }
+    .fcircle-section .entry-memo .memo-content a:hover { color: var(--accent); }
+  </style>`;
+  const scripts = `<script type="module" src="${withBase(`/assets/js/fcircle.js?v=${hashAssetFile('assets/js/fcircle.js')}`)}"></script>`;
+  const html = headHtml(`朋友圈 - ${site.name}`, { pagePath: '/fcircle/', extraHead }) + shellStart() + `
+<section class="fcircle-section">
+  <div class="fcircle-head">
+    <h2>朋友圈</h2>
+  </div>
+  <div class="fcircle-stats" id="fcircle-stats"></div>
+  <div class="fcircle-sort">
+    <button type="button" class="js-fcircle-sort is-active" data-rule="created">最新发布</button>
+    <button type="button" class="js-fcircle-sort" data-rule="updated">最新更新</button>
+  </div>
+  <div class="fcircle-list" id="fcircle-root"></div>
+</section>
+` + shellEnd(scripts);
+  return html;
+}
+
 // ---------- ExSearch 索引（对齐原站格式：顶层仅 posts/pages，tags/categories 为对象数组） ----------
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
@@ -1165,6 +1226,9 @@ for (const tag of tagsWithCount()) {
 
 // 关于页
 writePage('about/index.html', buildAboutPage());
+
+// 朋友圈页
+writePage('fcircle/index.html', buildFcirclePage());
 
 // 其他
 writePage('404.html', build404());

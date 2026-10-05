@@ -1,0 +1,49 @@
+# ===== 朋友圈采集配置（FriendCircle）=====
+# 数据源：regenm.github.io 的友链页（朋友博客，标准 butterfly 结构，内置规则可直接解析）
+DEPLOY_TYPE: "github"
+
+LINK: [
+     { link: "https://regenm.github.io/link/", theme: "butterfly" },
+]
+
+# 配置项友链（后续想补充/修正手写友链时打开 enable 即可，与 LINK 并存）
+SETTINGS_FRIENDS_LINKS: {
+    enable: false,
+    json_api_or_path: "",
+    list: []
+}
+
+# 屏蔽"网站"区的非博客站点（它们没有文章 RSS，只拦文章抓取；如需从列表剔除请修改友链页本身）
+BLOCK_SITE: [
+    "https://hexo.io/",
+    "https://www.youtube.com/",
+    "https://www.weibo.com/",
+    "https://twitter.com/",
+]
+
+BLOCK_SITE_REVERSE: false
+
+# 每个友链最多收录几篇文章
+MAX_POSTS_NUM: 5
+
+# 距今超过 90 天的文章在下次运行时自动清理（0 = 不清理，文章只增不减）
+OUTDATE_CLEAN: 90
+
+CRON: "0 0,6,12,18,21 * * *"
+
+# 极简模式：只产出 data.json（部署到 GitHub Pages 供前端读取）
+SIMPLE_MODE: true
+
+DATABASE: "sqlite"
+
+# AI 摘要（未启用）
+GENERATE_SUMMARY: {
+    enabled: false,
+    provider: "all",
+    max_concurrent: 3,
+    wait_on_rate_limit: true,
+    max_chars: 8000,
+    gemini: { models: [] },
+    siliconflow: { models: [] },
+    bigmodel: { models: [] },
+}
