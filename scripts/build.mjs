@@ -1002,13 +1002,6 @@ function buildFcirclePage() {
     .fcircle-head h2 { margin-bottom: 8px; }
     .fcircle-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 20px; font-size: 13px; color: var(--meta); }
     .fcircle-stat b { color: var(--text); font-weight: 600; }
-    .fcircle-sort { display: flex; gap: 8px; margin-bottom: 16px; }
-    .fcircle-sort button {
-      border: 1px solid var(--rule); background: transparent; color: var(--meta);
-      padding: 4px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; transition: all .18s ease;
-    }
-    .fcircle-sort button:hover { border-color: var(--accent); color: var(--accent); }
-    .fcircle-sort button.is-active { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast, #fff); }
     .fcircle-empty { color: var(--meta); padding: 40px 0; text-align: center; }
     .fcircle-section .entry-memo { margin-bottom: 20px; }
     .fcircle-section .entry-memo .memo-head { margin-bottom: 6px; }
@@ -1028,10 +1021,6 @@ function buildFcirclePage() {
     <h2>朋友圈</h2>
   </div>
   <div class="fcircle-stats" id="fcircle-stats"></div>
-  <div class="fcircle-sort">
-    <button type="button" class="js-fcircle-sort is-active" data-rule="created">最新发布</button>
-    <button type="button" class="js-fcircle-sort" data-rule="updated">最新更新</button>
-  </div>
   <div class="fcircle-list" id="fcircle-root"></div>
 </section>
 ` + shellEnd(scripts);

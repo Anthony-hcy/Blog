@@ -1,29 +1,56 @@
 {
   "statistical_data": {
-    "friends_num": 6,
+    "friends_num": 1,
     "active_num": 1,
-    "error_num": 5,
-    "article_num": 2,
-    "last_updated_time": "2026-10-05 21:27:04"
+    "error_num": 0,
+    "article_num": 5,
+    "last_updated_time": "2026-10-05 22:09:34"
   },
   "article_data": [
     {
       "floor": 1,
-      "title": "从 Cubism Runtime 到 PSD：Live2D 改图背后的两条路线",
-      "created": "2026-10-04",
-      "updated": "2026-10-04",
-      "link": "https://moeary.github.io/posts/live2d-cubism-runtime-mesh-psd/",
-      "author": "moeary",
-      "avatar": "../images/moeary.png"
+      "title": "《蛇结》",
+      "created": "2026-10-03",
+      "updated": "2026-10-03",
+      "link": "https://regenm.github.io/2026/10/03/%E3%80%8A%E8%9B%87%E7%BB%93%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
     },
     {
       "floor": 2,
-      "title": "Pixi：不止是 Python 包管理器的跨语言项目管理实践",
-      "created": "2026-08-25",
-      "updated": "2026-08-25",
-      "link": "https://moeary.github.io/posts/Pixi-%E6%9C%80%E5%BC%BA%E5%A4%A7%E7%9A%84Python%E5%8C%85%E7%AE%A1%E7%90%86%E5%99%A8,%E5%90%8C%E6%97%B6%E4%B8%8D%E6%AD%A2%E4%BA%8E%E7%AE%A1%E7%90%86Python/",
-      "author": "moeary",
-      "avatar": "../images/moeary.png"
+      "title": "2026-8-17",
+      "created": "2026-08-17",
+      "updated": "2026-08-17",
+      "link": "https://regenm.github.io/2026/08/17/2026-8-17/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 3,
+      "title": "技术无意义-AI时代的自我思考",
+      "created": "2026-08-17",
+      "updated": "2026-08-17",
+      "link": "https://regenm.github.io/2026/08/17/%E6%8A%80%E6%9C%AF%E6%97%A0%E6%84%8F%E4%B9%89-AI%E6%97%B6%E4%BB%A3%E7%9A%84%E8%87%AA%E6%88%91%E6%80%9D%E8%80%83/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 4,
+      "title": "DSP音频处理",
+      "created": "2026-07-23",
+      "updated": "2026-07-23",
+      "link": "https://regenm.github.io/2026/07/23/DSP%E9%9F%B3%E9%A2%91%E5%A4%84%E7%90%86/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 5,
+      "title": "音频解码",
+      "created": "2026-07-19",
+      "updated": "2026-07-19",
+      "link": "https://regenm.github.io/2026/07/19/%E9%9F%B3%E9%A2%91%E8%A7%A3%E7%A0%81/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
     }
   ]
 }

@@ -1,24 +1,26 @@
 # ===== 朋友圈采集配置（FriendCircle）=====
-# 数据源：regenm.github.io 的友链页（朋友博客，标准 butterfly 结构，内置规则可直接解析）
+# 数据源模式：手动友链清单（SETTINGS_FRIENDS_LINKS）——把要收录的友链博客主页 URL 逐个加进 list
+# 每个友链必须有 RSS（或匹配 css_rules.yaml 的 HTML 规则）才能抓到文章；
+# 无 RSS 的会出现在"失联"统计里（error_num）。
 DEPLOY_TYPE: "github"
 
-LINK: [
-     { link: "https://regenm.github.io/link/", theme: "butterfly" },
-]
+# 友链页爬取（本方案不用，保持空）
+LINK: []
 
-# 配置项友链（后续想补充/修正手写友链时打开 enable 即可，与 LINK 并存）
+# 手动友链清单：
+#   ["名字", "主页URL", "头像URL", "可选订阅后缀"]
+#   订阅后缀：默认自动探测 atom.xml / feed/atom / rss.xml / rss2.xml / feed / index.xml；
+#   特殊后缀（如 hello.xml）才需要第 4 项
 SETTINGS_FRIENDS_LINKS: {
-    enable: false,
+    enable: true,
     json_api_or_path: "",
-    list: []
+    list: [
+        # 测试：regenm（无 RSS 且首页结构不匹配内置规则，预期抓不到文章，用于演示"失联"）
+        ["regenm", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
+    ]
 }
 
-# 屏蔽"网站"区的非博客站点（它们没有文章 RSS，只拦文章抓取；如需从列表剔除请修改友链页本身）
 BLOCK_SITE: [
-    "https://hexo.io/",
-    "https://www.youtube.com/",
-    "https://www.weibo.com/",
-    "https://twitter.com/",
 ]
 
 BLOCK_SITE_REVERSE: false

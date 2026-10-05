@@ -32,11 +32,11 @@
   if (!rootEl) return;
 
   var articles = [];
-  var sortRule = 'created'; // created | updated
 
   function render() {
+    // 统一按「最近发布」（created）倒序，平铺展示，不分组
     var sorted = articles.slice().sort(function (a, b) {
-      return String(b[sortRule] || '').localeCompare(String(a[sortRule] || ''));
+      return String(b.created || '').localeCompare(String(a.created || ''));
     });
     rootEl.innerHTML = sorted.map(function (a) {
       var avatar = resolveAvatar(a.avatar);
@@ -47,7 +47,7 @@
             : '<span class="memo-avatar memo-avatar-letter">' + esc((a.author || '?').charAt(0).toUpperCase()) + '</span>') +
           '<div class="memo-author">' +
             '<strong>' + esc(a.author) + '</strong>' +
-            '<span>' + esc(a[sortRule] || '') + '</span>' +
+            '<span>' + esc(a.created || '') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="memo-content"><a href="' + esc(a.link) + '" target="_blank" rel="noopener nofollow">' + esc(a.title) + '</a></div>' +
@@ -63,17 +63,6 @@
       '<span class="fcircle-stat"><b>' + s.article_num + '</b> 文章</span>' +
       '<span class="fcircle-stat">更新于 ' + esc(s.last_updated_time) + '</span>';
   }
-
-  // 排序切换
-  Array.prototype.forEach.call(document.querySelectorAll('.js-fcircle-sort'), function (btn) {
-    btn.addEventListener('click', function () {
-      sortRule = btn.getAttribute('data-rule');
-      Array.prototype.forEach.call(document.querySelectorAll('.js-fcircle-sort'), function (b) {
-        b.classList.toggle('is-active', b === btn);
-      });
-      render();
-    });
-  });
 
   // 加 ?t= 避免浏览器命中旧缓存（部署后 SW 可能还留着旧 data.json）
   fetch(pathBase() + 'fcircle-data.json?t=' + Date.now())
