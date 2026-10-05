@@ -972,7 +972,10 @@ function buildAboutPage() {
 // ---------- ExSearch 索引（对齐原站格式：顶层仅 posts/pages，tags/categories 为对象数组） ----------
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
-    title: p.title,
+    // memo 与归档页/分类页/上下篇导航保持一致：显示「作者: 正文摘录」，post 用标题
+    title: p.type === 'memo'
+      ? `${site.author}: ${excerptFrom(p.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`
+      : p.title,
     date: p.type === 'memo' ? p.dateText + ':00+08:00' : p.dateText + ' 10:00:00+08:00',
     path: withBase(`/archives/${p.slug}/`),
     text: excerptFrom(p.body, 4000),
