@@ -963,7 +963,11 @@ const CHRONICLE_CSS = `<style>
       font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
       color: var(--text-3); text-align: right; white-space: nowrap;
     }
-    .about-timeline-mark { flex: 0 0 18px; width: 18px; margin-right: 10px; position: relative; }
+    /* align-self: stretch 必须保留：flex 行默认 flex-start 会让这个空 span 高度塌成 0，
+       ::before 的 top:0/bottom:0 竖线就整条消失（grid 布局时是默认拉伸的） */
+    .about-timeline-mark {
+      flex: 0 0 18px; width: 18px; align-self: stretch; margin-right: 10px; position: relative;
+    }
     .about-timeline-mark::before {
       content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
       width: 2px; margin-left: -1px; background: var(--rule);
