@@ -40,7 +40,7 @@
   function avatarHtml(a, cls) {
     var avatar = resolveAvatar(a.avatar);
     if (avatar) {
-      return '<img class="' + cls + '" src="' + esc(avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'' + cls + ' memo-avatar-letter\',textContent:(this.alt||\'?\').charAt(0).toUpperCase()}))">';
+      return '<img class="' + cls + '" src="' + esc(avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'' + cls + ' memo-avatar-letter\',textContent:(this.alt||\'?\').charAt(0).toUpperCase()}))">';
     }
     return '<span class="' + cls + ' memo-avatar-letter">' + esc((a.author || '?').charAt(0).toUpperCase()) + '</span>';
   }

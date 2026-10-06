@@ -34,7 +34,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["Akilarの糖果屋", "https://akilar.top/", "https://npm.elemecdn.com/akiblog@1.0.2/img/siteicon/favicon.png"],
         ["Fiveth's Blog", "https://blog.fiveth.cc/", "https://blog.gochi.cn/logo/icon.ico"],
         ["Cirry's Blog", "https://cirry.cn/", "https://cirry.cn/favicon.svg"],
-        ["Fomalhaut", "https://www.fomal.cc/", ""],
+        ["Fomalhaut", "https://www.fomal.cc/", "https://sourcebucket.s3.bitiful.net/img/avatar.webp"],
         ["屠·城", "https://www.haomwei.com/", "https://www.haomwei.com/favicons/apple-touch-icon-57x57.png"],
         ["葱苓小筑", "https://blog.ciraos.top/", "https://blog.ciraos.top/favicon.ico"],
         ["Eurkon", "https://blog.eurkon.com/", "https://npm.elemecdn.com/eurkon-cdn/hexo/images/user/favicon.jpg"],
@@ -45,7 +45,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["始终", "https://liam.page/", "https://liam.page/images/favicon/apple-touch-icon.png"],
         ["科学空间", "https://spaces.ac.cn/", ""],
         ["子夜松声", "https://xyzbz.cn/", "https://img.xyzbz.cn/i/2026/02/22/699aab573ab41.png"],
-        ["東风", "https://easte.cc/", ""],
+        ["東风", "https://easte.cc/", "https://easte.cc/favicon.svg"],
         ["崔话记", "https://cuixiping.com/", "https://cuixiping.com/favicon.ico", "blog/feed/"],
 
         ["毛伊西格", "https://sigge.cn/", "https://img.alicdn.com/imgextra/i3/195462922/O1CN01AAJuGWHZUOD0blSy_!!195462922.png_.webp"],
