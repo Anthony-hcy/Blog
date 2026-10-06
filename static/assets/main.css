@@ -1476,6 +1476,13 @@ body {
   flex: 0 0 1.05em;
 }
 
+/* 内联 SVG 图标（朋友圈双圆环）：与 FontAwesome 图标同样占 1.05em 方块并居中 */
+svg.in-site-link-icon {
+  display: block;
+  height: 1.05em;
+  overflow: visible;
+}
+
 .in-site-link:hover {
   color: var(--text-2);
   border-color: rgba(141, 183, 203, 0.45);
