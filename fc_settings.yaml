@@ -17,7 +17,7 @@ SETTINGS_FRIENDS_LINKS: {
     json_api_or_path: "",
     list: [
         # ---- 测试/已接入 ----
-        ["regenm", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
+        ["Regen", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
         ["失眠海峡", "https://blog.imalan.cn/", "https://blog.imalan.cn/logo.jpg"],
         # ---- 收藏夹「个人博客」批量接入 ----
         ["peterjxl - 博客园", "https://www.cnblogs.com/PeterJXL/", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
@@ -43,7 +43,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["流纹 - 博客园", "https://www.cnblogs.com/lwk9527/", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
         ["R1cky's Blog", "https://r1cky.com/", "https://dl.ryq.me/image/logo.svg", "feed/index.xml"],
         ["始终", "https://liam.page/", "https://liam.page/images/favicon/apple-touch-icon.png"],
-        ["科学空间", "https://spaces.ac.cn/", ""],
+        ["科学空间", "https://spaces.ac.cn/", "https://spaces.ac.cn/usr/themes/geekg/images/mlogo.png"],
         ["子夜松声", "https://xyzbz.cn/", "https://img.xyzbz.cn/i/2026/02/22/699aab573ab41.png"],
         ["東风", "https://easte.cc/", "https://easte.cc/favicon.svg"],
         ["崔话记", "https://cuixiping.com/", "https://cuixiping.com/favicon.ico", "blog/feed/"],
@@ -51,9 +51,9 @@ SETTINGS_FRIENDS_LINKS: {
         ["毛伊西格", "https://sigge.cn/", "https://img.alicdn.com/imgextra/i3/195462922/O1CN01AAJuGWHZUOD0blSy_!!195462922.png_.webp"],
         ["扶苏", "https://pwsz.com/", "https://weavatar.com/avatar/8e5566d153dba1c372c54eae02401d96?s=96&d=404"],
         ["亚灿网志", "https://blog.manyacan.com/", "https://blog.manyacan.com/favicon.ico"],
-        ["2B博客", "https://blog.2broear.com/", "https://blog.2broear.com/favicon.ico"],
+        ["2BROEAR", "https://blog.2broear.com/", "https://blog.2broear.com/favicon.ico"],
         ["南香香", "https://99887766554433221100.cn/", "https://q2.qlogo.cn/headimg_dl?dst_uin=826719912&spec=640"],
-        ["一叶竹", "https://iyyz.org/", "https://iyyz.org/usr/uploads/2022/06/3823768491.png"],
+        ["一叶竹", "https://iyyz.org/", "https://iyyz.org/tx.png"],
         ["韩情脉脉", "https://hxy.cc/", "https://hxy.cc/favicon.ico"],
         ["皮皮社", "https://www.pipishe.com/", "https://www.pipishe.com/favicon.ico"],
         ["二猫blog", "https://jingxin18.cn/", "https://cdn.jingxin18.cn/wp-content/uploads/2026/06/cropped-b5a224-1.webp"],
