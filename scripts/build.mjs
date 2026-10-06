@@ -1026,7 +1026,7 @@ function buildFcirclePage() {
       display: block; margin: 28px auto 0; padding: 8px 28px;
       border: 1px solid var(--rule); border-radius: 999px;
       background: transparent; color: var(--meta);
-      font-size: 13px; letter-spacing: 0.12em; cursor: pointer;
+      font-family: inherit; font-size: 13px; letter-spacing: 0.18em; cursor: pointer;
       transition: all .18s ease;
     }
     .fcircle-more:hover { border-color: var(--accent); color: var(--accent); }
