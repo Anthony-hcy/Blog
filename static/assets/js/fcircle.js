@@ -32,6 +32,9 @@
   if (!rootEl) return;
 
   var articles = [];
+  // 分页：初始展示 PAGE_SIZE 条，点击「且看下文」每次再加载 PAGE_SIZE 条，到底显示「春和景明，终有尽时」
+  var PAGE_SIZE = 20;
+  var visibleCount = PAGE_SIZE;
 
   // 头像 HTML：真实图片加载失败时降级为作者首字母占位（cls 复用 memo-avatar-letter 样式）
   function avatarHtml(a, cls) {
@@ -47,8 +50,10 @@
     var sorted = articles.slice().sort(function (a, b) {
       return String(b.created || '').localeCompare(String(a.created || ''));
     });
+    // 每次重新切片+分组：加载更多后此前被页边界切开的块会自动合并
+    var page = sorted.slice(0, visibleCount);
     var blocks = [];
-    sorted.forEach(function (a) {
+    page.forEach(function (a) {
       var last = blocks[blocks.length - 1];
       if (last && last.author === a.author) {
         last.items.push(a);
@@ -56,7 +61,8 @@
         blocks.push({ author: a.author, items: [a] });
       }
     });
-    rootEl.innerHTML = blocks.map(function (b) {
+    var hasMore = visibleCount < sorted.length;
+    var html = blocks.map(function (b) {
       var first = b.items[0];
       return '<div class="fcircle-block">' +
         '<div class="fcircle-block-head">' +
@@ -72,7 +78,22 @@
           }).join('') +
         '</div>' +
       '</div>';
-    }).join('') || '<div class="fcircle-empty">暂无数据——首次采集完成后可见。</div>';
+    }).join('');
+    if (sorted.length === 0) {
+      html = '<div class="fcircle-empty">暂无数据——首次采集完成后可见。</div>';
+    } else if (hasMore) {
+      html += '<button type="button" class="fcircle-more" id="fcircle-more">且看下文</button>';
+    } else {
+      html += '<div class="fcircle-end">春和景明，终有尽时</div>';
+    }
+    rootEl.innerHTML = html;
+    var moreBtn = document.getElementById('fcircle-more');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', function () {
+        visibleCount += PAGE_SIZE;
+        render();
+      });
+    }
   }
 
   function renderStats(s) {

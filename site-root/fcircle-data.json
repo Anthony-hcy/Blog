@@ -3,8 +3,8 @@
     "friends_num": 2,
     "active_num": 2,
     "error_num": 0,
-    "article_num": 10,
-    "last_updated_time": "2026-10-06 13:57:13"
+    "article_num": 30,
+    "last_updated_time": "2026-10-06 14:28:11"
   },
   "article_data": [
     {
@@ -94,6 +94,186 @@
       "created": "2026-07-09",
       "updated": "2026-07-09",
       "link": "https://regenm.github.io/2026/07/09/%E6%AD%8C%E6%9B%B2%E6%9E%B6%E6%9E%84/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 11,
+      "title": "关于执行者到领导者的痛苦转换",
+      "created": "2026-07-04",
+      "updated": "2026-07-04",
+      "link": "https://blog.imalan.cn/archives/painful-shift-from-a-executor-to-a-leader/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 12,
+      "title": "熊猫小A: 镰仓，江之岛和河口湖附近。最近紫阳花开得正盛呢。",
+      "created": "2026-06-27",
+      "updated": "2026-06-27",
+      "link": "https://blog.imalan.cn/archives/memo-20260627-1137/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 13,
+      "title": "结构设计笔记",
+      "created": "2026-06-22",
+      "updated": "2026-06-22",
+      "link": "https://regenm.github.io/2026/06/22/%E7%BB%93%E6%9E%84%E8%AE%BE%E8%AE%A1%E7%AC%94%E8%AE%B0/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 14,
+      "title": "systemd管理服务",
+      "created": "2026-06-22",
+      "updated": "2026-06-22",
+      "link": "https://regenm.github.io/2026/06/22/systemd%E7%AE%A1%E7%90%86%E6%9C%8D%E5%8A%A1/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 15,
+      "title": "tabby terminal sftp问题",
+      "created": "2026-06-22",
+      "updated": "2026-06-22",
+      "link": "https://regenm.github.io/2026/06/22/tabby-terminal-sftp%E9%97%AE%E9%A2%98/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 16,
+      "title": "《献给阿尔吉侬的花束》",
+      "created": "2026-06-17",
+      "updated": "2026-06-17",
+      "link": "https://regenm.github.io/2026/06/17/%E3%80%8A%E7%8C%AE%E7%BB%99%E9%98%BF%E5%B0%94%E5%90%89%E4%BE%AC%E7%9A%84%E8%8A%B1%E6%9D%9F%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 17,
+      "title": "AI 博客问题挑战",
+      "created": "2026-06-14",
+      "updated": "2026-06-14",
+      "link": "https://blog.imalan.cn/archives/ai-blog-question-challenge/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 18,
+      "title": "frp内网穿透",
+      "created": "2026-06-12",
+      "updated": "2026-06-12",
+      "link": "https://regenm.github.io/2026/06/12/frp%E5%86%85%E7%BD%91%E7%A9%BF%E9%80%8F/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 19,
+      "title": "东京游记 Vol. 2 - 街头逛逛",
+      "created": "2026-06-07",
+      "updated": "2026-06-07",
+      "link": "https://blog.imalan.cn/archives/tokyo-travel-2024-vol2/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 20,
+      "title": "《克林索尔的最后夏天》",
+      "created": "2026-06-02",
+      "updated": "2026-06-02",
+      "link": "https://regenm.github.io/2026/06/02/%E3%80%8A%E5%85%8B%E6%9E%97%E7%B4%A2%E5%B0%94%E7%9A%84%E6%9C%80%E5%90%8E%E5%A4%8F%E5%A4%A9%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 21,
+      "title": "caddy托管工具",
+      "created": "2026-06-01",
+      "updated": "2026-06-01",
+      "link": "https://regenm.github.io/2026/06/01/caddy%E6%89%98%E7%AE%A1%E5%B7%A5%E5%85%B7/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 22,
+      "title": "音浪太强不晃会被撞到地上",
+      "created": "2026-05-31",
+      "updated": "2026-05-31",
+      "link": "https://blog.imalan.cn/archives/dance-to-the-music/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 23,
+      "title": "熊猫小A: 人生呐，就是关关难过关关过！",
+      "created": "2026-05-27",
+      "updated": "2026-05-27",
+      "link": "https://blog.imalan.cn/archives/memo-20260528-0000/",
+      "author": "失眠海峡",
+      "avatar": "https://blog.imalan.cn/logo.jpg"
+    },
+    {
+      "floor": 24,
+      "title": "《世界的逻辑》",
+      "created": "2026-04-16",
+      "updated": "2026-04-16",
+      "link": "https://regenm.github.io/2026/04/16/%E3%80%8A%E4%B8%96%E7%95%8C%E7%9A%84%E9%80%BB%E8%BE%91%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 25,
+      "title": "《资本论》",
+      "created": "2026-04-16",
+      "updated": "2026-04-16",
+      "link": "https://regenm.github.io/2026/04/16/%E3%80%8A%E8%B5%84%E6%9C%AC%E8%AE%BA%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 26,
+      "title": "《第一性原理》",
+      "created": "2026-04-16",
+      "updated": "2026-04-16",
+      "link": "https://regenm.github.io/2026/04/16/%E3%80%8A%E7%AC%AC%E4%B8%80%E6%80%A7%E5%8E%9F%E7%90%86%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 27,
+      "title": "《软件设计的哲学》",
+      "created": "2026-04-11",
+      "updated": "2026-04-11",
+      "link": "https://regenm.github.io/2026/04/11/%E3%80%8A%E8%BD%AF%E4%BB%B6%E8%AE%BE%E8%AE%A1%E7%9A%84%E5%93%B2%E5%AD%A6%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 28,
+      "title": "系统学",
+      "created": "2026-04-11",
+      "updated": "2026-04-11",
+      "link": "https://regenm.github.io/2026/04/11/%E3%80%8A%E7%B3%BB%E7%BB%9F%E5%AD%A6%E3%80%8B/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 29,
+      "title": "吉他谱",
+      "created": "2026-03-29",
+      "updated": "2026-03-29",
+      "link": "https://regenm.github.io/2026/03/29/%E5%90%89%E4%BB%96%E8%B0%B1/",
+      "author": "regenm",
+      "avatar": "https://regenm.github.io/images/touxiang.jpg"
+    },
+    {
+      "floor": 30,
+      "title": "安卓开发：WebAPK打包",
+      "created": "2026-03-27",
+      "updated": "2026-03-27",
+      "link": "https://regenm.github.io/2026/03/27/%E5%AE%89%E5%8D%93%E5%BC%80%E5%8F%91%EF%BC%9AWebAPK%E6%89%93%E5%8C%85/",
       "author": "regenm",
       "avatar": "https://regenm.github.io/images/touxiang.jpg"
     }

@@ -1022,6 +1022,18 @@ function buildFcirclePage() {
     }
     .fcircle-item-title { color: var(--text); }
     .fcircle-item-title:hover { color: var(--accent); }
+    .fcircle-more {
+      display: block; margin: 28px auto 0; padding: 8px 28px;
+      border: 1px solid var(--rule); border-radius: 999px;
+      background: transparent; color: var(--meta);
+      font-size: 13px; letter-spacing: 0.12em; cursor: pointer;
+      transition: all .18s ease;
+    }
+    .fcircle-more:hover { border-color: var(--accent); color: var(--accent); }
+    .fcircle-end {
+      margin-top: 28px; text-align: center;
+      color: var(--text-3); font-size: 13px; letter-spacing: 0.18em;
+    }
     .memo-avatar-letter {
       display: flex; align-items: center; justify-content: center;
       font-size: 17px; font-weight: 600;
