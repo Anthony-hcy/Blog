@@ -1,11 +1,11 @@
 # 朋友圈数据采集（FriendCircle 极简模式）
-# 每天 0/6/12/18/21 点下载官方 fcircle_core 二进制，采集友链 RSS，生成 data.json 提交回仓库，
+# 每天北京时间 04:00（UTC 20:00）跑一次：下载官方 fcircle_core 二进制，采集友链 RSS，生成 data.json 提交回仓库，
 # 触发 deploy.yml 构建部署，前端 /fcircle/ 页面读取 site-root/fcircle-data.json。
 name: Update Friend Circle Data
 
 on:
   schedule:
-    - cron: "0 0,6,12,18,21 * * *"
+    - cron: "0 20 * * *"
   workflow_dispatch:
 
 permissions:

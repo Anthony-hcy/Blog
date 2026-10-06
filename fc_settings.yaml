@@ -1,7 +1,7 @@
 # ===== 朋友圈采集配置（FriendCircle）=====
 # 数据源模式：手动友链清单（SETTINGS_FRIENDS_LINKS）——把要收录的友链博客主页 URL 逐个加进 list
 # 每个友链必须有 RSS（或匹配 css_rules.yaml 的 HTML 规则）才能抓到文章；
-# 无 RSS 的会出现在"失联"统计里（error_num）。
+# 无 RSS 且无匹配规则的会出现在"失联"统计里（error_num），不影响其他友链。
 DEPLOY_TYPE: "github"
 
 # 友链页爬取（本方案不用，保持空）
@@ -10,15 +10,45 @@ LINK: []
 # 手动友链清单：
 #   ["名字", "主页URL", "头像URL", "可选订阅后缀"]
 #   订阅后缀：默认自动探测 atom.xml / feed/atom / rss.xml / rss2.xml / feed / index.xml；
-#   特殊后缀（如 hello.xml）才需要第 4 项
+#   特殊后缀（如 hello.xml）才需要第 4 项。
+#   头像留空 "" 时前端自动显示作者首字母占位。
 SETTINGS_FRIENDS_LINKS: {
     enable: true,
     json_api_or_path: "",
     list: [
-        # 测试：regenm（无 RSS，靠 HTML 规则兜底抓取成功）
+        # ---- 测试/已接入 ----
         ["regenm", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
-        # 测试：失眠海峡（有 Atom feed：/feed/atom/）
         ["失眠海峡", "https://blog.imalan.cn/", "https://blog.imalan.cn/logo.jpg"],
+        # ---- 收藏夹「个人博客」批量接入 ----
+        ["peterjxl - 博客园", "https://www.cnblogs.com/PeterJXL", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
+        ["张洪Heo", "https://blog.zhheo.com/", "https://blog.zhheo.com/img/favicon4.0.webp"],
+        ["雪中小屋", "https://xueayi.site/", "https://xueayi.site/favicon.ico"],
+        ["柳意梧情博客", "https://lywq.muyin.site/", "https://blog.muyin.site/upload/liuyiwuqing.png"],
+        ["晴空树", "https://pinaland.cn/", "https://pinaland.cn/usr/themes/VOID/static/favicon_32px.ico"],
+        ["从 01 开始", "https://www.peterjxl.com/", "https://image.peterjxl.com/blog/re0.jpg"],
+        ["Moear", "https://moeary.github.io/", "https://moeary.github.io/assets/img/favicons/apple-touch-icon.png"],
+        ["Ariasakaの小窝", "https://blog.yaria.top/", "https://blog.yaria.top/favicon.ico"],
+        ["白のblog", "https://blog.mashiro.pro/", "https://iro.mashiro.pro/Sakurairo_Vision/basic/favicon.ico"],
+        ["小孙同学", "https://blog.guoqi.dev/", ""],
+        ["安知鱼", "https://blog.anheyu.com/", "https://blog.anheyu.com/favicon.ico"],
+        ["Akilarの糖果屋", "https://akilar.top/", "https://npm.elemecdn.com/akiblog@1.0.2/img/siteicon/favicon.png"],
+        ["Fiveth's Blog", "https://blog.fiveth.cc/", "https://blog.gochi.cn/logo/icon.ico"],
+        ["Cirry's Blog", "https://cirry.cn/", "https://cirry.cn/favicon.svg"],
+        ["Fomalhaut", "https://www.fomal.cc/", ""],
+        ["屠·城", "https://www.haomwei.com/", "https://www.haomwei.com/favicons/apple-touch-icon-57x57.png"],
+        ["葱苓小筑", "https://blog.ciraos.top/", "https://blog.ciraos.top/favicon.ico"],
+        ["Eurkon", "https://blog.eurkon.com/", "https://npm.elemecdn.com/eurkon-cdn/hexo/images/user/favicon.jpg"],
+        ["韩朔的博客", "https://hans2936.github.io/", "https://hans2936.github.io/favicon.ico"],
+        ["LOGI", "https://logi.im/", "https://logi.im/favicon.ico", "feed"],
+        ["流纹 - 博客园", "https://www.cnblogs.com/lwk9527", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
+        ["R1cky's Blog", "https://r1cky.com/", "https://dl.ryq.me/image/logo.svg", "feed/index.xml"],
+        ["始终", "https://liam.page/", "https://liam.page/images/favicon/apple-touch-icon.png"],
+        ["科学空间", "https://spaces.ac.cn/", ""],
+        ["子夜松声", "https://xyzbz.cn/", "https://img.xyzbz.cn/i/2026/02/22/699aab573ab41.png"],
+        ["東风", "https://easte.cc/", ""],
+        ["毛伊西格", "https://sigge.cn/", "https://img.alicdn.com/imgextra/i3/195462922/O1CN01AAJuGWHZUOD0blSy_!!195462922.png_.webp"],
+        ["品味苏州", "https://pwsz.com/", "https://pwsz.com/wp-content/uploads/2026/01/pwsz.com-cropped-pwsz.com-pwsz-logo-100-pwsz-logo-100-cropped-pwsz.com-pwsz-logo-100-pwsz-logo-100-32x32.png"],
+        ["亚灿网志", "https://blog.manyacan.com/", "https://blog.manyacan.com/favicon.ico"],
     ]
 }
 
@@ -35,7 +65,8 @@ MAX_POSTS_NUM: 20
 # 文章清理：0 = 不清理（文章只增不减，靠前端分页渲染缓解加载压力）
 OUTDATE_CLEAN: 0
 
-CRON: "0 0,6,12,18,21 * * *"
+# FriendCircle 自身常驻调度用；本项目由 GitHub Actions schedule 触发（fcircle-data.yml），此处不生效
+CRON: "0 20 * * *"
 
 # 极简模式：只产出 data.json（部署到 GitHub Pages 供前端读取）
 SIMPLE_MODE: true
