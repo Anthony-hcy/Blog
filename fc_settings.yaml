@@ -46,6 +46,8 @@ SETTINGS_FRIENDS_LINKS: {
         ["科学空间", "https://spaces.ac.cn/", ""],
         ["子夜松声", "https://xyzbz.cn/", "https://img.xyzbz.cn/i/2026/02/22/699aab573ab41.png"],
         ["東风", "https://easte.cc/", ""],
+        ["崔话记", "https://cuixiping.com/", "https://cuixiping.com/favicon.ico", "blog/feed/"],
+
         ["毛伊西格", "https://sigge.cn/", "https://img.alicdn.com/imgextra/i3/195462922/O1CN01AAJuGWHZUOD0blSy_!!195462922.png_.webp"],
         ["品味苏州", "https://pwsz.com/", "https://pwsz.com/wp-content/uploads/2026/01/pwsz.com-cropped-pwsz.com-pwsz-logo-100-pwsz-logo-100-cropped-pwsz.com-pwsz-logo-100-pwsz-logo-100-32x32.png"],
         ["亚灿网志", "https://blog.manyacan.com/", "https://blog.manyacan.com/favicon.ico"],
