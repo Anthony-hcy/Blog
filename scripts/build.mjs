@@ -1006,7 +1006,7 @@ function buildFcirclePage() {
     .fcircle-block { margin-bottom: 30px; }
     .fcircle-block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .fcircle-block-avatar {
-      width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+      width: 40px; height: 40px; border-radius: 4px; object-fit: cover;
       flex-shrink: 0; border: 1px solid var(--rule);
     }
     .fcircle-block-author strong { font-size: 1.05rem; font-weight: 600; color: var(--text); }
