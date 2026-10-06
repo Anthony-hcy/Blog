@@ -662,7 +662,7 @@ function sideInSite() {
       <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
-      <a class="in-site-link js-route-nav-link" data-nav-kind="fcircle" href="${withBase(`/fcircle/`)}" target="_self"><i class="fa-solid fa-users in-site-link-icon" aria-hidden="true"></i><span>朋友圈</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="fcircle" href="${withBase(`/fcircle/`)}" target="_self"><svg class="in-site-link-icon" viewBox="0 0 24 24" aria-hidden="true" style="width:1.05em;height:1.05em;display:block;margin:auto"><circle cx="8.5" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="15.5" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span>FCIRCLE</span></a>
       <a href="${withBase(`/portal.html`)}" target="_self" class="in-site-link js-route-nav-link js-portal-nav-link" data-nav-kind="portal" aria-hidden="true" style="display:none"><i class="fa-solid fa-pen-to-square in-site-link-icon" aria-hidden="true"></i><span>Portal</span></a>
     </nav>
   </section>`;
