@@ -20,7 +20,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["regenm", "https://regenm.github.io/", "https://regenm.github.io/images/touxiang.jpg"],
         ["失眠海峡", "https://blog.imalan.cn/", "https://blog.imalan.cn/logo.jpg"],
         # ---- 收藏夹「个人博客」批量接入 ----
-        ["peterjxl - 博客园", "https://www.cnblogs.com/PeterJXL", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
+        ["peterjxl - 博客园", "https://www.cnblogs.com/PeterJXL/", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
         ["张洪Heo", "https://blog.zhheo.com/", "https://blog.zhheo.com/img/favicon4.0.webp"],
         ["雪中小屋", "https://xueayi.site/", "https://xueayi.site/favicon.ico"],
         ["柳意梧情博客", "https://lywq.muyin.site/", "https://blog.muyin.site/upload/liuyiwuqing.png"],
@@ -40,7 +40,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["Eurkon", "https://blog.eurkon.com/", "https://npm.elemecdn.com/eurkon-cdn/hexo/images/user/favicon.jpg"],
         ["韩朔的博客", "https://hans2936.github.io/", "https://hans2936.github.io/favicon.ico"],
         ["LOGI", "https://logi.im/", "https://logi.im/favicon.ico", "feed"],
-        ["流纹 - 博客园", "https://www.cnblogs.com/lwk9527", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
+        ["流纹 - 博客园", "https://www.cnblogs.com/lwk9527/", "https://assets.cnblogs.com/favicon_v3_3.ico", "rss"],
         ["R1cky's Blog", "https://r1cky.com/", "https://dl.ryq.me/image/logo.svg", "feed/index.xml"],
         ["始终", "https://liam.page/", "https://liam.page/images/favicon/apple-touch-icon.png"],
         ["科学空间", "https://spaces.ac.cn/", ""],
