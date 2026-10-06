@@ -946,16 +946,114 @@ function buildTaxonomyPage(kind, name, posts) {
   return html;
 }
 
+// ---------- 关于页「编年史」时间线 ----------
+// 数据见 content/chronicle.json：date 可留空（留空则该条不显示时间），tag 可选。
+const CHRONICLE_CSS = `<style>
+    .about-chronicle-intro { margin: 0 0 20px; color: var(--text-3); font-size: 13.5px; }
+    .about-timeline { list-style: none; margin: 0; padding: 16px 16px 18px; }
+    .about-timeline-item {
+      display: grid;
+      grid-template-columns: 96px 18px minmax(0, 1fr);
+      grid-template-areas: "time mark body";
+      column-gap: 10px;
+    }
+    .about-timeline-time {
+      grid-area: time; padding-top: 2px;
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+      color: var(--text-3); text-align: right; white-space: nowrap;
+    }
+    .about-timeline-mark { grid-area: mark; position: relative; }
+    .about-timeline-mark::before {
+      content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+      width: 2px; margin-left: -1px; background: var(--rule);
+    }
+    .about-timeline-mark::after {
+      content: ''; position: absolute; left: 50%; top: 6px;
+      width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 0 3px var(--bg);
+    }
+    .about-timeline-item:first-child .about-timeline-mark::before { top: 12px; }
+    .about-timeline-item:last-child .about-timeline-mark::before { bottom: auto; height: 11px; }
+    .about-timeline-body { grid-area: body; padding-bottom: 22px; }
+    .about-timeline-item:last-child .about-timeline-body { padding-bottom: 0; }
+    .about-timeline-head { margin: 0 0 4px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+    .about-timeline-title { font-weight: 600; color: var(--text); }
+    .about-timeline-tag {
+      padding: 1px 7px; border: 1px solid var(--rule); border-radius: 999px;
+      font-size: 11.5px; line-height: 1.6; color: var(--text-3); white-space: nowrap;
+    }
+    .about-timeline-tag.is-fix { border-color: rgba(217,119,87,.5); color: #d97757; }
+    .about-timeline-desc { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.8; }
+    @media (max-width: 640px) {
+      .about-timeline-item {
+        grid-template-columns: 18px minmax(0, 1fr);
+        grid-template-areas: "mark time" "mark body";
+        row-gap: 2px;
+      }
+      .about-timeline-time { text-align: left; padding-top: 0; }
+    }
+  </style>`;
+
+function renderChronicleItems(entries) {
+  return entries.map((entry) => {
+    const date = String(entry.date || '').trim();
+    const tag = String(entry.tag || '').trim();
+    const title = escapeHtml(String(entry.title || '').trim());
+    const desc = String(entry.desc || '').trim();
+    const timeHtml = date ? `<span class="about-timeline-time">${escapeHtml(date)}</span>` : '';
+    const tagHtml = tag
+      ? `<span class="about-timeline-tag${tag === '修复' ? ' is-fix' : ''}">${escapeHtml(tag)}</span>`
+      : '';
+    const descHtml = desc ? `        <p class="about-timeline-desc">${escapeHtml(desc)}</p>\n` : '';
+    return `    <li class="about-timeline-item">
+      ${timeHtml}
+      <span class="about-timeline-mark" aria-hidden="true"></span>
+      <div class="about-timeline-body">
+        <p class="about-timeline-head"><span class="about-timeline-title">${title}</span>${tagHtml}</p>
+${descHtml}      </div>
+    </li>`;
+  }).join('\n');
+}
+
+function buildChronicleSection() {
+  const dataPath = join(CONTENT_DIR, 'chronicle.json');
+  if (!existsSync(dataPath)) return '';
+  let data;
+  try {
+    data = JSON.parse(readFileSync(dataPath, 'utf-8'));
+  } catch (error) {
+    console.warn(`[chronicle] content/chronicle.json 解析失败，已跳过编年史：${error.message}`);
+    return '';
+  }
+  const entries = (Array.isArray(data.entries) ? data.entries : []).filter(e => e && (e.title || e.desc));
+  if (!entries.length) return '';
+  // 默认最新在上（desc）：数据文件按时间正序追加即可，渲染时倒序；order 填 "asc" 可改回旧在上。
+  const order = String(data.order || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+  const ordered = order === 'asc' ? entries : entries.slice().reverse();
+  const intro = String(data.intro || '').trim();
+  const introHtml = intro ? `  <p class="about-chronicle-intro">${escapeHtml(intro)}</p>\n` : '';
+  return `<section class="about-section about-chronicle">
+  <div class="about-section-head">
+    <h2>${escapeHtml(String(data.title || 'Chronicle'))}</h2>
+  </div>
+${introHtml}  <ol class="about-timeline">
+${renderChronicleItems(ordered)}
+  </ol>
+</section>
+`;
+}
+
 function buildAboutPage() {
   const mdPath = join(CONTENT_DIR, 'pages', 'about.md');
   const md = existsSync(mdPath) ? readFileSync(mdPath, 'utf-8') : '# About\n\n（还没有写关于页。）';
   const { body } = parseFrontmatter(md);
   const bodyHtml = renderMarkdown(body);
   const trackedUrls = _posts.map(p => `/archives/${p.slug}/`);
+  const chronicleSection = buildChronicleSection();
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/about.js?v=${hashAssetFile('assets/js/about.js')}`)}"></script>`;
-  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() }) + shellStart() + `
+  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS : '') }) + shellStart() + `
 <section class="about-section">
   <div class="about-section-head">
     <h2>About Me</h2>
@@ -991,7 +1089,7 @@ function buildAboutPage() {
     </article>
   </div>
 </section>
-` + shellEnd(scripts);
+${chronicleSection}` + shellEnd(scripts);
   return html;
 }
 
