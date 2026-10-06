@@ -3,6 +3,11 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
+  # 采集 workflow（GITHUB_TOKEN 提交的 chore: update friend circle data）不会触发 push 事件，
+  # 用 workflow_run 监听其完成事件来触发部署，保证定时任务采集的数据能自动上线
+  workflow_run:
+    workflows: ["Update Friend Circle Data"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +21,8 @@ concurrency:
 
 jobs:
   build:
+    # workflow_run 的 completed 事件无论成功失败都会触发，只在采集成功时才部署
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
