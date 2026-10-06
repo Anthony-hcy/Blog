@@ -1003,11 +1003,25 @@ function buildFcirclePage() {
     .fcircle-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 20px; font-size: 13px; color: var(--meta); }
     .fcircle-stat b { color: var(--text); font-weight: 600; }
     .fcircle-empty { color: var(--meta); padding: 40px 0; text-align: center; }
-    .fcircle-section .entry-memo { margin-bottom: 20px; }
-    .fcircle-section .entry-memo .memo-head { margin-bottom: 6px; }
-    .fcircle-section .entry-memo .memo-content { padding-left: 50px; }
-    .fcircle-section .entry-memo .memo-content a { color: inherit; }
-    .fcircle-section .entry-memo .memo-content a:hover { color: var(--accent); }
+    .fcircle-block { margin-bottom: 30px; }
+    .fcircle-block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .fcircle-block-avatar {
+      width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; border: 1px solid var(--rule);
+    }
+    .fcircle-block-author strong { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+    .fcircle-block-items {
+      border-left: 3px solid var(--rule-light);
+      padding-left: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .fcircle-item { display: flex; align-items: baseline; gap: 12px; line-height: 1.55; }
+    .fcircle-item-date {
+      font-size: 0.85rem; font-family: var(--mono); color: var(--text-3);
+      flex-shrink: 0; min-width: 74px;
+    }
+    .fcircle-item-title { color: var(--text); }
+    .fcircle-item-title:hover { color: var(--accent); }
     .memo-avatar-letter {
       display: flex; align-items: center; justify-content: center;
       font-size: 17px; font-weight: 600;

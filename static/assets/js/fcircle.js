@@ -33,24 +33,44 @@
 
   var articles = [];
 
+  // 头像 HTML：真实图片加载失败时降级为作者首字母占位（cls 复用 memo-avatar-letter 样式）
+  function avatarHtml(a, cls) {
+    var avatar = resolveAvatar(a.avatar);
+    if (avatar) {
+      return '<img class="' + cls + '" src="' + esc(avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'' + cls + ' memo-avatar-letter\',textContent:(this.alt||\'?\').charAt(0).toUpperCase()}))">';
+    }
+    return '<span class="' + cls + ' memo-avatar-letter">' + esc((a.author || '?').charAt(0).toUpperCase()) + '</span>';
+  }
+
   function render() {
-    // 统一按「最近发布」（created）倒序，平铺展示，不分组
+    // 统一按「最近发布」（created）倒序；连续同一作者的文章合并成一个块（块头一个头像+名字，块内日期仍区分）
     var sorted = articles.slice().sort(function (a, b) {
       return String(b.created || '').localeCompare(String(a.created || ''));
     });
-    rootEl.innerHTML = sorted.map(function (a) {
-      var avatar = resolveAvatar(a.avatar);
-      return '<div class="entry-memo">' +
-        '<div class="memo-head">' +
-          (avatar
-            ? '<img class="memo-avatar" src="' + esc(avatar) + '" alt="' + esc(a.author) + '" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'memo-avatar memo-avatar-letter\',textContent:(this.alt||\'?\').charAt(0).toUpperCase()}))">'
-            : '<span class="memo-avatar memo-avatar-letter">' + esc((a.author || '?').charAt(0).toUpperCase()) + '</span>') +
-          '<div class="memo-author">' +
-            '<strong>' + esc(a.author) + '</strong>' +
-            '<span>' + esc(a.created || '') + '</span>' +
-          '</div>' +
+    var blocks = [];
+    sorted.forEach(function (a) {
+      var last = blocks[blocks.length - 1];
+      if (last && last.author === a.author) {
+        last.items.push(a);
+      } else {
+        blocks.push({ author: a.author, items: [a] });
+      }
+    });
+    rootEl.innerHTML = blocks.map(function (b) {
+      var first = b.items[0];
+      return '<div class="fcircle-block">' +
+        '<div class="fcircle-block-head">' +
+          avatarHtml(first, 'fcircle-block-avatar') +
+          '<div class="fcircle-block-author"><strong>' + esc(b.author) + '</strong></div>' +
         '</div>' +
-        '<div class="memo-content"><a href="' + esc(a.link) + '" target="_blank" rel="noopener nofollow">' + esc(a.title) + '</a></div>' +
+        '<div class="fcircle-block-items">' +
+          b.items.map(function (a) {
+            return '<div class="fcircle-item">' +
+              '<time class="fcircle-item-date">' + esc(a.created || '') + '</time>' +
+              '<a class="fcircle-item-title" href="' + esc(a.link) + '" target="_blank" rel="noopener nofollow">' + esc(a.title) + '</a>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
       '</div>';
     }).join('') || '<div class="fcircle-empty">暂无数据——首次采集完成后可见。</div>';
   }
