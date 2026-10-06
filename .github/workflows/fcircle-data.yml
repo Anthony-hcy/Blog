@@ -30,7 +30,7 @@ jobs:
           chmod +x fcircle_core
 
       - name: Run collector (simple mode)
-        run: ./fcircle_core
+        run: ./fcircle_core > collect.log 2>&1
         env:
           TZ: Asia/Shanghai
 
@@ -38,6 +38,10 @@ jobs:
         run: |
           mkdir -p site-root
           cp data.json site-root/fcircle-data.json
+
+      # 提取失联友链明细（供前端提示框展示哪些站本次没获取到）
+      - name: Extract error friends
+        run: python scripts/extract_errors.py collect.log site-root/fcircle-errors.json
 
       # 反爬站（l3on.site 拒非浏览器 UA；zhangjet.com TLS 指纹反爬 curl 也拒）用
       # python urllib（带浏览器 UA）抓 feed 后合并进 data.json
@@ -47,7 +51,7 @@ jobs:
       - name: Commit updated data
         uses: EndBug/add-and-commit@v9
         with:
-          add: "site-root/fcircle-data.json"
+          add: "site-root/fcircle-data.json site-root/fcircle-errors.json"
           message: "chore: update friend circle data"
           default_author: github_actions
           push: true

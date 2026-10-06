@@ -31,6 +31,22 @@
   var statsEl = document.getElementById('fcircle-stats');
   if (!rootEl) return;
 
+  // 失联提示框：展示每次定时获取未成功的友链（数据由 workflow 的 extract_errors.py 生成）
+  var errorsEl = document.getElementById('fcircle-errors');
+  if (errorsEl) {
+    fetch(pathBase() + 'fcircle-errors.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.errors || !d.errors.length) return;
+        var names = d.errors.map(function (e) {
+          return e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">' + esc(e.name) + '</a>' : esc(e.name);
+        }).join('、');
+        errorsEl.innerHTML = '<b>本次定时获取未成功（' + d.errors.length + ' 站）</b>：' + names;
+        errorsEl.hidden = false;
+      })
+      .catch(function () {});
+  }
+
   var articles = [];
   // 分页：初始展示 PAGE_SIZE 条，点击「且看下文」每次再加载 PAGE_SIZE 条，到底显示「春和景明，终有尽时」
   var PAGE_SIZE = 20;

@@ -1002,6 +1002,15 @@ function buildFcirclePage() {
     .fcircle-head h2 { margin-bottom: 8px; }
     .fcircle-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 20px; font-size: 13px; color: var(--meta); }
     .fcircle-stat b { color: var(--text); font-weight: 600; }
+    .fcircle-errors {
+      margin: 0 0 20px; padding: 10px 14px;
+      border: 1px solid var(--rule); border-left: 3px solid #d97757;
+      background: rgba(217,119,87,.08); border-radius: 6px;
+      font-size: 13px; color: var(--text-2); line-height: 1.7;
+    }
+    .fcircle-errors b { color: var(--text); font-weight: 600; }
+    .fcircle-errors a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+    .fcircle-errors a:hover { color: var(--accent); }
     .fcircle-empty { color: var(--meta); padding: 40px 0; text-align: center; }
     .fcircle-block { margin-bottom: 30px; }
     .fcircle-block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -1047,6 +1056,7 @@ function buildFcirclePage() {
     <h2>朋友圈</h2>
   </div>
   <div class="fcircle-stats" id="fcircle-stats"></div>
+  <div class="fcircle-errors" id="fcircle-errors" hidden></div>
   <div class="fcircle-list" id="fcircle-root"></div>
 </section>
 ` + shellEnd(scripts);

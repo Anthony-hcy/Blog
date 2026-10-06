@@ -77,6 +77,11 @@ def main():
     with open(DATA_PATH, encoding='utf-8') as f:
         data = json.load(f)
     authors = [s[0] for s in SITES]
+    # 保留各站旧条目：抓取失败的站回填旧数据，避免网络波动时从朋友圈消失
+    old_by_author = {}
+    for a in data['article_data']:
+        if a.get('author') in authors:
+            old_by_author.setdefault(a['author'], []).append(a)
     data['article_data'] = [a for a in data['article_data'] if a.get('author') not in authors]
     base = max((int(a.get('floor', 0)) for a in data['article_data']), default=0)
     total = 0
@@ -85,7 +90,12 @@ def main():
             xml_text = fetch(feed_url)
             items = parse_atom(xml_text) if kind == 'atom' else parse_rss(xml_text)
         except Exception as e:
-            print(f'{author}: skip ({e})')
+            print(f'{author}: skip ({e}), keep {len(old_by_author.get(author, []))} old entries')
+            for old in old_by_author.get(author, []):
+                base += 1
+                old = dict(old)
+                old['floor'] = base
+                data['article_data'].append(old)
             continue
         rows = []
         for it in items:
