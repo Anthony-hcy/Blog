@@ -949,20 +949,21 @@ function buildTaxonomyPage(kind, name, posts) {
 // ---------- 关于页「编年史」时间线 ----------
 // 数据见 content/chronicle.json：date 可留空（留空则该条不显示时间），tag 可选。
 const CHRONICLE_CSS = `<style>
-    .about-chronicle-intro { margin: 0 0 20px; color: var(--text-3); font-size: 13.5px; }
-    .about-timeline { list-style: none; margin: 0; padding: 16px 16px 18px; }
-    .about-timeline-item {
-      display: grid;
-      grid-template-columns: 96px 18px minmax(0, 1fr);
-      grid-template-areas: "time mark body";
-      column-gap: 10px;
+    /* 导语与 About Me 正文同字号同缩进（.article-body / .about-intro 的 16px） */
+    .about-chronicle-intro {
+      margin: 0; padding: 18px 16px 0;
+      color: var(--text-2); font-size: 1rem; line-height: 1.8;
     }
+    .about-timeline { list-style: none; margin: 0; padding: 10px 16px 18px; }
+    .about-timeline-item { display: flex; align-items: flex-start; }
+    /* 时间列宽度取 ISO 日期的 10 字符（ch 随字体自适应），右对齐让日期紧贴左内边距；
+       留空的日期仍占位，保证竖线与圆点对齐 */
     .about-timeline-time {
-      grid-area: time; padding-top: 2px;
+      flex: 0 0 10ch; width: 10ch; margin-right: 8px; padding-top: 3px;
       font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
       color: var(--text-3); text-align: right; white-space: nowrap;
     }
-    .about-timeline-mark { grid-area: mark; position: relative; }
+    .about-timeline-mark { flex: 0 0 18px; width: 18px; margin-right: 10px; position: relative; }
     .about-timeline-mark::before {
       content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
       width: 2px; margin-left: -1px; background: var(--rule);
@@ -974,7 +975,7 @@ const CHRONICLE_CSS = `<style>
     }
     .about-timeline-item:first-child .about-timeline-mark::before { top: 12px; }
     .about-timeline-item:last-child .about-timeline-mark::before { bottom: auto; height: 11px; }
-    .about-timeline-body { grid-area: body; padding-bottom: 22px; }
+    .about-timeline-body { flex: 1 1 auto; min-width: 0; padding-bottom: 22px; }
     .about-timeline-item:last-child .about-timeline-body { padding-bottom: 0; }
     .about-timeline-head { margin: 0 0 4px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
     .about-timeline-title { font-weight: 600; color: var(--text); }
@@ -983,14 +984,20 @@ const CHRONICLE_CSS = `<style>
       font-size: 11.5px; line-height: 1.6; color: var(--text-3); white-space: nowrap;
     }
     .about-timeline-tag.is-fix { border-color: rgba(217,119,87,.5); color: #d97757; }
-    .about-timeline-desc { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.8; }
+    .about-timeline-desc { margin: 0; color: var(--text-2); font-size: 1rem; line-height: 1.8; }
     @media (max-width: 640px) {
       .about-timeline-item {
+        display: grid;
         grid-template-columns: 18px minmax(0, 1fr);
         grid-template-areas: "mark time" "mark body";
-        row-gap: 2px;
+        column-gap: 10px; row-gap: 2px;
       }
-      .about-timeline-time { text-align: left; padding-top: 0; }
+      .about-timeline-mark { grid-area: mark; margin-right: 0; }
+      .about-timeline-time {
+        grid-area: time; flex: none; width: auto; margin: 0;
+        text-align: left; padding-top: 0;
+      }
+      .about-timeline-body { grid-area: body; }
     }
   </style>`;
 
@@ -1000,7 +1007,7 @@ function renderChronicleItems(entries) {
     const tag = String(entry.tag || '').trim();
     const title = escapeHtml(String(entry.title || '').trim());
     const desc = String(entry.desc || '').trim();
-    const timeHtml = date ? `<span class="about-timeline-time">${escapeHtml(date)}</span>` : '';
+    const timeHtml = `<span class="about-timeline-time">${date ? escapeHtml(date) : ''}</span>`;
     const tagHtml = tag
       ? `<span class="about-timeline-tag${tag === '修复' ? ' is-fix' : ''}">${escapeHtml(tag)}</span>`
       : '';
@@ -1009,7 +1016,7 @@ function renderChronicleItems(entries) {
       ${timeHtml}
       <span class="about-timeline-mark" aria-hidden="true"></span>
       <div class="about-timeline-body">
-        <p class="about-timeline-head"><span class="about-timeline-title">${title}</span>${tagHtml}</p>
+        <p class="about-timeline-head">${tagHtml}<span class="about-timeline-title">${title}</span></p>
 ${descHtml}      </div>
     </li>`;
   }).join('\n');
