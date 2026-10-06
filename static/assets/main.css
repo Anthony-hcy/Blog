@@ -615,11 +615,12 @@ figure.pswp-item figcaption {
 .entry-memo .memo-content blockquote,
 .memo-page .memo-content blockquote,
 .article-body blockquote {
-  margin: 24px 0;
-  padding: 10px 14px 10px 18px;
-  border-left: 3px solid var(--accent);
-  background: rgba(0,0,0,0.03);
+  margin: 1em 0;
+  padding: 0 0 0 1em;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
   color: var(--text-2);
+  background: transparent;
 }
 
 .entry-memo .memo-content blockquote > *:last-child,
