@@ -39,10 +39,10 @@ jobs:
           mkdir -p site-root
           cp data.json site-root/fcircle-data.json
 
-      # l3on.site 拒绝无浏览器 UA 的请求（FriendCircle 采集 403/404），
-      # 用带 UA 的请求抓其 /feed/ 后合并进 data.json
-      - name: Merge l3on.site articles
-        run: python scripts/fetch_l3on.py site-root/fcircle-data.json
+      # 反爬站（l3on.site 拒非浏览器 UA；zhangjet.com TLS 指纹反爬 curl 也拒）用
+      # python urllib（带浏览器 UA）抓 feed 后合并进 data.json
+      - name: Merge anti-bot sites
+        run: python scripts/fetch_antibot.py site-root/fcircle-data.json
 
       - name: Commit updated data
         uses: EndBug/add-and-commit@v9
