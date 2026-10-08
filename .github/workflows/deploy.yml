@@ -122,6 +122,8 @@ jobs:
         env:
           HOST: ${{ secrets.ALIYUN_HOST }}
         run: |
-          rsync -az --delete \
+          # --no-owner/--no-group：不要把 runner 的数字 UID（1001）带到服务器上，
+          # 落地文件保持服务器原有的 root:root，免得出现 UNKNOWN:UNKNOWN 属主
+          rsync -az --delete --no-owner --no-group \
             -e "ssh -i ~/.ssh/haelcy_deploy -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15" \
             dist/ "root@${HOST}:/var/www/blog/dist/"

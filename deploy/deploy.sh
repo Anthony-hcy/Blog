@@ -44,7 +44,9 @@ echo "  ✅ 站内资源全部存在"
 
 echo "── 3/4 打包并上传"
 TARBALL="$(mktemp -t haelcy-dist-XXXXXX.tgz)"
-tar -czf "$TARBALL" dist
+# --owner=root --group=root：不要把本机（Windows/MSYS）的数字 UID 带到服务器上，
+# 否则落地文件会显示成 197608:197121 这种不存在的属主
+tar --owner=root --group=root -czf "$TARBALL" dist
 scp "${SSH_OPTS[@]}" "$TARBALL" "${USER}@${HOST}:/tmp/haelcy-dist.tgz"
 rm -f "$TARBALL"
 
