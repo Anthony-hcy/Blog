@@ -19,8 +19,25 @@
   var IMG_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
   // 站点基础路径（/Blog/ 或 /），用于图片 URL 与 marked 动态加载
-  var BASE = (location.pathname.match(/^(\/[^/]+)?\//) || ['', '/'])[1] || '/';
+  // 以脚本自身 src 反推站点根（portal.html 位于站点根，两种部署都正确）
+  var BASE = siteBaseFromScript();
+  if (!BASE) {
+    BASE = (location.pathname.match(/^(\/[^/]+)?\//) || ['', '/'])[1] || '/';
+  }
   if (BASE.charAt(BASE.length - 1) !== '/') BASE += '/';
+  function siteBaseFromScript() {
+    try {
+      var scripts = document.getElementsByTagName('script');
+      for (var i = 0; i < scripts.length; i++) {
+        var src = scripts[i].getAttribute('src') || '';
+        if (src.indexOf('/assets/js/') < 0) continue;
+        var path = new URL(src, location.href).pathname;
+        var k = path.indexOf('/assets/js/');
+        if (k >= 0) return path.slice(0, k + 1);
+      }
+    } catch (e) { /* 取不到就退回下面的兜底 */ }
+    return '';
+  }
   var ASSET_PREFIX = BASE + 'assets/img/';
   var PORTAL_HASH = '#/portal';
 

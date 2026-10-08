@@ -21,8 +21,23 @@ const PAGE_SIZE = 10;
 
 // ---------- 配置 ----------
 const site = JSON.parse(readFileSync(join(ROOT, 'site.config.json'), 'utf-8')).site;
+// 环境变量覆盖：让同一份源码既能发布到 GitHub Pages（base=/Blog），
+// 也能发布到自有域名根路径（base=/）。SITE_BASE=__root__ 表示空字符串（根路径）。
+if (process.env.SITE_URL) site.url = process.env.SITE_URL;
+if (process.env.SITE_BASE !== undefined) {
+  site.base = process.env.SITE_BASE === '__root__' ? '' : process.env.SITE_BASE;
+}
 const SITE_URL = site.url.replace(/\/+$/, '');
 const BASE = (site.base || '').replace(/\/+$/, '');
+// 历史遗留前缀：早期用 Pages 版 Portal 发帖时，正文里的图片被写成 /Blog/assets/...；
+// 迁到自有域名根路径后该前缀会 404，所以解析正文路径时统一剥掉（与当前 BASE 无关）。
+const LEGACY_BASE = '/Blog';
+const stripBase = (path) => {
+  let p = String(path == null ? '' : path);
+  if (BASE && p.startsWith(BASE + '/')) p = p.slice(BASE.length);
+  else if (p.startsWith(LEGACY_BASE + '/')) p = p.slice(LEGACY_BASE.length);
+  return p;
+};
 const withBase = (path) => {
   if (typeof path !== 'string' || !path.startsWith('/')) return path || '';
   // 已含 base 前缀则不再叠加（幂等），避免 /Blog/Blog/
@@ -105,7 +120,8 @@ marked.setOptions({ gfm: true, breaks: true }); // 单换行也换行（说说/�
 const renderer = new marked.Renderer();
 // marked v15 的 image 渲染器只接收一个 token 对象（含 href/title/text 字段）
 renderer.image = (token) => {
-  const href = (token && token.href) || '';
+  // 先归一化：正文里可能残留历史 /Blog/ 前缀（见 stripBase），剥掉后交给下游各 helper
+  const href = stripBase((token && token.href) || '');
   const text = (token && token.text) || '';
   const dim = imageSize(href);
   const sizeAttrs = dim
@@ -142,24 +158,41 @@ function renderMarkdown(md) {
   return html;
 }
 
-// ---------- 音乐卡片（{{music <链接>}} → 官方外链播放器 iframe） ----------
+// ---------- 音乐卡片（{{music <链接>}} → 官方外链播放器 iframe + 跳转原平台） ----------
 // 网易云：https://music.163.com/#/song?id=xxx 或 https://y.music.163.com/m/song?id=xxx
 // QQ音乐：https://i.y.qq.com/v8/playsong.html?songid=xxx（QQ App 分享长链）
 // 纯数字也可直接当 QQ songid 用。
+// 版权限制说明：非 VIP 歌曲两家都能完整播放；VIP 歌曲 QQ 仅约 60 秒试听、网易云完全不可播。
+// 因此卡片附一个「去原平台」链接，访问者可一键跳转完整收听。
 function musicCardHtml(link) {
   link = String(link || '').trim();
-  let src = '';
+  let src = '';       // 外链播放器 iframe 地址
+  let target = '';    // 原平台歌曲页（试听受限时的兜底出口）
+  let platform = '';  // 链接文案里的平台名
   if (/music\.163\.com/.test(link)) {
     const m = /[?&]id=(\d+)/.exec(link);
-    if (m) src = `https://music.163.com/outchain/player?type=2&id=${m[1]}&auto=0&height=66`;
+    if (m) {
+      src = `https://music.163.com/outchain/player?type=2&id=${m[1]}&auto=0&height=66`;
+      target = `https://music.163.com/#/song?id=${m[1]}`;
+      platform = '网易云音乐';
+    }
   } else if (/y\.qq\.com/.test(link)) {
     const m = /[?&]songid=(\d+)/.exec(link);
-    if (m) src = `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${m[1]}&songtype=0`;
+    if (m) {
+      src = `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${m[1]}&songtype=0`;
+      target = `https://i.y.qq.com/v8/playsong.html?songid=${m[1]}`;
+      platform = 'QQ音乐';
+    }
   } else if (/^\d+$/.test(link)) {
     src = `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${link}&songtype=0`;
+    target = `https://i.y.qq.com/v8/playsong.html?songid=${link}`;
+    platform = 'QQ音乐';
   }
   if (!src) return '';
-  return `<div class="music-player"><div class="music-player__embed"><iframe src="${escapeHtml(src)}" title="音乐播放器" loading="lazy" frameborder="0" allow="autoplay"></iframe></div></div>`;
+  const jump = target
+    ? `<a class="music-player__link" href="${escapeHtml(target)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>在${platform}打开</a>`
+    : '';
+  return `<div class="music-player"><div class="music-player__embed"><iframe src="${escapeHtml(src)}" title="音乐播放器" loading="lazy" frameborder="0" allow="autoplay"></iframe></div>${jump}</div>`;
 }
 
 function excerptFrom(text, len = 120) {
@@ -695,9 +728,16 @@ function sideTags() {
 function shellEnd(extraScripts = '', includeSearch = true) {
   // 搜索（jQuery + ExSearch）改为按需懒加载：首次点击搜索按钮/按 / 时才注入，
   // 见 layout.js 的 initSearchLazyLoad —— 不再在每个页面预载 87KB 的 jQuery。
+  // 备案信息：site.config.json 里填了 icp / police 才会渲染（未备案时保持原样）。
+  const icp = site.icp
+    ? `\n          <span><a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">${escapeHtml(site.icp)}</a></span>`
+    : '';
+  const police = site.police
+    ? `\n          <span><a href="https://beian.mps.gov.cn/" target="_blank" rel="noreferrer">${escapeHtml(site.police)}</a></span>`
+    : '';
   return `</main>
         <footer class="site-footer">
-          <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>
+          <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>${icp}${police}
         </footer>
         </div>
     </section>
@@ -1245,7 +1285,7 @@ function buildRedirectPage(from, to) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="0; url=${target}">
-  <link rel="canonical" href="${SITE_URL}${target}">
+  <link rel="canonical" href="${SITE_URL}${stripBase(target)}">
   <title>正在跳转 - ${site.name}</title>
   <style>body{font-family:system-ui,-apple-system,sans-serif;margin:3rem auto;max-width:560px;padding:0 1rem;line-height:1.8;color:#333}code{background:#f2f2f2;padding:2px 6px;border-radius:4px}</style>
 </head>
@@ -1384,6 +1424,27 @@ writePage('robots.txt', buildRobots());
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));
 versionAssetImports(join(DIST, 'assets/js'));
 copyDir(join(ROOT, 'site-root'), DIST);
+// site-root 是逐字节拷贝的，其中的绝对路径必须按当前部署前缀改写，
+// 否则迁到根路径后 PWA manifest 会指向 /Blog/icons/*.png（404）、start_url 也错。
+rewriteSiteRootAbsolutePaths();
+
+// 把 site-root 拷进来的文本文件里形如 "/Blog/xxx" 的绝对路径换成当前部署前缀。
+// （.js 不在此列：site-root 下的 JS 只用相对路径，避免误改已做内容哈希的资源）
+function rewriteSiteRootAbsolutePaths() {
+  const exts = ['.webmanifest', '.json', '.txt', '.html'];
+  const visit = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, entry.name);
+      if (entry.isDirectory()) { visit(abs); continue; }
+      if (!exts.some(ext => entry.name.endsWith(ext))) continue;
+      const raw = readFileSync(abs, 'utf-8');
+      if (!raw.includes('"/Blog/')) continue;
+      const patched = raw.replace(/"(\/Blog\/[^"]*)"/g, (m, q) => `"${withBase(stripBase(q))}"`);
+      if (patched !== raw) writeFileSync(abs, patched);
+    }
+  };
+  visit(DIST);
+}
 
 // 双链图片解析错误：全部页面写完后统一报错并中止（防止 ![[...]] 原样上线）
 if (buildErrors.length) {

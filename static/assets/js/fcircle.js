@@ -4,9 +4,26 @@
   'use strict';
 
   // 站点子路径（/Blog/ 或 /），与 layout.js 的 pathBase 一致
+  // 以脚本自身 src 反推站点根：根路径部署下 /fcircle/ 页也必须解析成 /，
+  // 否则会去取 /fcircle/fcircle-data.json（404），朋友圈数据整页为空。
   function pathBase() {
+    var fromScript = siteBaseFromScript();
+    if (fromScript) return fromScript;
     var m = location.pathname.match(/^(\/[^/]+)?\//);
     return (m && m[1] ? m[1] : '') + '/';
+  }
+  function siteBaseFromScript() {
+    try {
+      var scripts = document.getElementsByTagName('script');
+      for (var i = 0; i < scripts.length; i++) {
+        var src = scripts[i].getAttribute('src') || '';
+        if (src.indexOf('/assets/js/') < 0) continue;
+        var path = new URL(src, location.href).pathname;
+        var k = path.indexOf('/assets/js/');
+        if (k >= 0) return path.slice(0, k + 1);
+      }
+    } catch (e) { /* 取不到就退回下面的兜底 */ }
+    return '';
   }
 
   function esc(s) {

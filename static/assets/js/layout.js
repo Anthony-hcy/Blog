@@ -365,9 +365,27 @@ function initLayout() {
 initLayout();
 
 // 站点子路径（/Blog/ 或 /）
+// 以本脚本自身的 src 反推站点根：/Blog/assets/js/layout.js → /Blog/；/assets/js/layout.js → /。
+// 旧实现取 location.pathname 的第一段，在根路径部署下会把 /archives/xxx/ 误判成 /archives/，
+// 导致 SW 注册与 version.json 探测打到 /archives/sw.js、/archives/version.json（404）。
 function pathBase() {
+  var fromScript = siteBaseFromScript();
+  if (fromScript) return fromScript;
   var m = location.pathname.match(/^(\/[^/]+)?\//);
   return (m && m[1] ? m[1] : '') + '/';
+}
+function siteBaseFromScript() {
+  try {
+    var scripts = document.getElementsByTagName('script');
+    for (var i = 0; i < scripts.length; i++) {
+      var src = scripts[i].getAttribute('src') || '';
+      if (src.indexOf('/assets/js/') < 0) continue;
+      var path = new URL(src, location.href).pathname;
+      var k = path.indexOf('/assets/js/');
+      if (k >= 0) return path.slice(0, k + 1);
+    }
+  } catch (e) { /* 取不到就退回下面的兜底 */ }
+  return '';
 }
 
 // PWA：注册 Service Worker（/Blog/ 子路径与根路径部署均兼容）
