@@ -78,52 +78,29 @@ jobs:
       - uses: actions/deploy-pages@v4
 
       # ============================================================
-      # 国内直连：同一份源码、同一个 commit 再构建一次「根路径版」，
-      # 同步到阿里云轻量服务器（haelcy.cn）。两站的页面内容因此始终一致，
-      # 唯一差别是 URL 前缀（GitHub Pages 是 /Blog，自有域名是 /）与 canonical 域名。
+      # 国内直连（haelcy.cn）：同一份源码、同一个 commit 再构建一次「根路径版」做自检。
+      # 两站的页面内容始终一致，唯一差别是 URL 前缀（Pages 是 /Blog，自有域名是 /）
+      # 与 canonical 域名。
       #
-      # 需要两个仓库 Secret（Settings → Secrets and variables → Actions）：
-      #   ALIYUN_HOST     120.24.234.170
-      #   ALIYUN_SSH_KEY  部署私钥全文（公钥已装进服务器 ~/.ssh/authorized_keys）
-      # 没配置时整段自动跳过，不影响上面的 GitHub Pages 部署。
-      # Secrets 不能在 if 里直接引用，所以先用一步探测再决定后续步骤是否执行，
-      # 这样私钥只在真正需要它的步骤里出现，第三方 action 看不到。
+      # 站点上线采用「服务器主动拉取」模型 —— 这里不再往服务器推任何东西：
+      #   服务器上 haelcy-pull.timer 每 5 分钟查一次本仓库 main 的最新提交，
+      #   有变化就用 codeload 下载源码包，用同一份 scripts/build.mjs 本地构建
+      #   （SITE_URL=https://haelcy.cn SITE_BASE=__root__），再原子替换站点目录。
+      #
+      # 好处：
+      #   1. GitHub 侧不再需要 SSH 登录服务器 —— 阿里云的「异地登录」告警从根上消失，
+      #      而且仓库里不必再保存一把能 root 登录服务器的私钥。
+      #   2. 服务器短暂离线也不会丢部署：下一轮拉取会自己补上。
+      # 代价：站点更新有最多 5 分钟延迟（博客场景无所谓）。
+      #
+      # 服务器侧入口：/opt/haelcy-blog/deploy.sh ｜ 日志：/var/log/haelcy-pull.log
+      # （以前用过的 ALIYUN_HOST / ALIYUN_SSH_KEY 两个 Secret 已不再需要，可删除）
       # ============================================================
-      - name: Probe Aliyun deploy secret
-        id: aliyun
-        env:
-          KEY: ${{ secrets.ALIYUN_SSH_KEY }}
-        run: |
-          if [ -n "$KEY" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; fi
-
       - name: Build for haelcy.cn (root path)
-        if: steps.aliyun.outputs.ready == 'true'
         env:
           SITE_URL: https://haelcy.cn
           SITE_BASE: __root__
         run: node scripts/build.mjs
 
       - name: Self-check built assets
-        if: steps.aliyun.outputs.ready == 'true'
         run: node deploy/check-assets.mjs
-
-      - name: Set up SSH for Aliyun
-        if: steps.aliyun.outputs.ready == 'true'
-        env:
-          KEY: ${{ secrets.ALIYUN_SSH_KEY }}
-          HOST: ${{ secrets.ALIYUN_HOST }}
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/haelcy_deploy && chmod 600 ~/.ssh/haelcy_deploy
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Rsync to Aliyun
-        if: steps.aliyun.outputs.ready == 'true'
-        env:
-          HOST: ${{ secrets.ALIYUN_HOST }}
-        run: |
-          # --no-owner/--no-group：不要把 runner 的数字 UID（1001）带到服务器上，
-          # 落地文件保持服务器原有的 root:root，免得出现 UNKNOWN:UNKNOWN 属主
-          rsync -az --delete --no-owner --no-group \
-            -e "ssh -i ~/.ssh/haelcy_deploy -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15" \
-            dist/ "root@${HOST}:/var/www/blog/dist/"
