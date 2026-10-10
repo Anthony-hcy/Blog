@@ -51,11 +51,21 @@ jobs:
       - name: Install ffmpeg
         if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
         run: |
-          # 优先静态包直连下载：runner 网络偶发抖动（DNS/连接失败）时自动重试多轮
+          # 优先静态包直连下载：runner 网络偶发抖动（DNS/连接失败）时自动重试多轮。
+          # 注意：第三方 CDN 有时会返回 200 + 一段 HTML 错误页，curl 视为成功，
+          # 于是 tar 拿到垃圾数据直接失败（2026-10-11 真实发生过一次）。
+          # 所以每轮都先用 xz -t 校验，内容不合法就丢掉重来；三轮都不行再退回 apt。
+          rm -f /tmp/ff.tar.xz
           for i in 1 2 3; do
-            if curl -fsSL --connect-timeout 15 --retry 3 --retry-all-errors --retry-delay 2 https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ff.tar.xz; then
+            curl -fsSL --connect-timeout 15 --retry 3 --retry-all-errors --retry-delay 2 \
+              https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+              -o /tmp/ff.tar.xz || true
+            if [ -s /tmp/ff.tar.xz ] && xz -t /tmp/ff.tar.xz 2>/dev/null; then
+              echo "静态包校验通过（第 $i 轮）"
               break
             fi
+            echo "第 $i 轮拿到的内容不可用，重试"
+            rm -f /tmp/ff.tar.xz
             [ "$i" -lt 3 ] && sleep 3
           done
           if [ -s /tmp/ff.tar.xz ]; then
@@ -63,11 +73,9 @@ jobs:
             sudo ln -sf /opt/ffmpeg /usr/local/bin/ffmpeg
             sudo ln -sf /opt/ffprobe /usr/local/bin/ffprobe
           else
-            # 备用：apt（update 也带一次重试）
-            sudo apt-get install -y -qq ffmpeg || {
-              sudo apt-get update -qq || { sleep 3; sudo apt-get update -qq; }
-              sudo apt-get install -y -qq ffmpeg
-            }
+            # 备用：apt（先 update 再装，顺序不能反）
+            sudo apt-get update -qq || { sleep 3; sudo apt-get update -qq; }
+            sudo apt-get install -y -qq ffmpeg
           fi
           ffmpeg -version | head -1
       - run: node scripts/build.mjs
