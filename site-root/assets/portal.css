@@ -20,7 +20,7 @@
 .portal-body {
   background: var(--p-bg);
   color: var(--p-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--sans);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }

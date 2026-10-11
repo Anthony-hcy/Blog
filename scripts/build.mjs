@@ -598,12 +598,15 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   const fullUrl = SITE_URL + absPath;
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
-  const remoteAssets = localOnly ? '' : `
+  // 字体与统计分开：字体是排版的一部分（portal 页也要，否则标题字体会和其他页不一致），
+  // localOnly 只用于屏蔽第三方统计脚本。
+  const fontAssets = `
   <link rel="preconnect" href="https://registry.npmmirror.com">
   <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin>
   <!-- 字体 CSS 异步加载：不阻塞首屏渲染；preload 优先拉取，就绪后切换为 stylesheet -->
   <link rel="preload" as="style" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css"></noscript>
+  <noscript><link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-webfont/1.7.0/files/lxgwwenkaiscreen.css"></noscript>`;
+  const remoteAssets = localOnly ? fontAssets : fontAssets + `
   <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>`;
   return `<!DOCTYPE html>
 <html lang="${site.lang}" data-exsearch-api="${withBase(`/${EXSEARCH_HASH}.json`)}">
@@ -1302,7 +1305,10 @@ function buildPortalPage() {
   // Portal 页被内容自动刷新排除（防止丢草稿），因此它的 css/js 必须带内容哈希指纹，
   // 否则部署后首次打开会命中 SW stale-while-revalidate 的旧缓存，一直跑旧代码。
   const v = '?v=' + hashAssetFile('assets/js/portal-view.js');
-  const vcss = '?v=' + hashAssetFile('assets/portal.css');
+  // portal.css 实际发布的是 site-root/assets/portal.css（构建时 site-root 覆盖 static/assets 里的旧同名副本），
+  // 所以哈希必须按真正发布的那份算，否则改了样式而 URL 不变 → 首次打开命中 SW 的旧缓存。
+  const portalCssSrc = join(ROOT, 'site-root', 'assets', 'portal.css');
+  const vcss = '?v=v' + hashContent(readFileSync(existsSync(portalCssSrc) ? portalCssSrc : join(ASSETS_SRC, 'assets', 'portal.css'), 'utf-8'));
   const extraHead = `<link rel="stylesheet" href="${withBase(`/assets/portal.css${vcss}`)}">
 <meta name="theme-color" content="#f5f5f7">`;
   const scripts = `<script type="module" src="${withBase(`/assets/js/portal-view.js${v}`)}"></script>`;
