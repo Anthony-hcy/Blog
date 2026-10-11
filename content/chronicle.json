@@ -98,6 +98,42 @@
       "tag": "功能",
       "title": "侧边栏朋友圈入口",
       "desc": "换成手绘线条双圆环（微信朋友圈样式）配 FCIRCLE 文案，并修掉它与其它导航项的基线和间距差异。"
+    },
+    {
+      "date": "2026-10-08",
+      "tag": "优化",
+      "title": "双站部署：先试了「阿里云服务器 + 备案」这条路",
+      "desc": "在 GitHub Pages 之外又买阿里云轻量服务器做国内直连，脚本、nginx 配置和一键切站流程都写好了；最终因为备案与维护成本太高而放弃、服务器退款，转向海外托管。"
+    },
+    {
+      "date": "2026-10-11",
+      "tag": "建立",
+      "title": "haelcy.cn 上线：Vercel 主站 + GitHub Pages 镜像",
+      "desc": "同一份源码走两条构建线：Vercel 监听仓库自动构建根路径版并绑定 haelcy.cn（www.haelcy.cn 308 跳回主域），Actions 继续构建 /Blog 前缀版喂 GitHub Pages。实测广州首页 TTFB 0.2–0.6 秒。"
+    },
+    {
+      "date": "2026-10-11",
+      "tag": "优化",
+      "title": "解析弃用 Cloudflare，改阿里云云解析",
+      "desc": "Cloudflare 橙云代理把广州流量绕到洛杉矶（2–14 秒且时常超时），先改灰云 CNAME 直连 Vercel；随后把权威解析整体迁到阿里云云解析（NS 换成 dns13/dns14.hichina.com）。apex 用两条 A 记录，因为云解析不支持根域 CNAME。"
+    },
+    {
+      "date": "2026-10-11",
+      "tag": "修复",
+      "title": "Portal 标题字体和站内不一致",
+      "desc": "三层原因：构建时字体引入被 localOnly 和统计脚本一起剥掉了、portal.css 把系统字体栈写死在 .portal-body、portal-view.js 运行时给 #portal-root 注入内联 font-family 压过一切（还重复插一份不带版本号的 CSS 被浏览器缓存）。三处都改掉后标题跟上主题字体。"
+    },
+    {
+      "date": "2026-10-11",
+      "tag": "修复",
+      "title": "/portal 打不开，只有 /portal.html 能开",
+      "desc": "Vercel 默认不做 clean URL（GitHub Pages 会 308 到 /portal），补 vercel.json 把 /portal 与 /portal/ 永久重定向到 /portal.html。"
+    },
+    {
+      "date": "2026-10-11",
+      "tag": "修复",
+      "title": "Live 图缺 H.264 兼容版",
+      "desc": "两处实况图的 .avc.mp4 与缩略图只存在于 CI 产物里、没有提交回仓库，缺文件时构建脚本会静默降级；补齐进仓库后实况播放恢复正常。"
     }
   ]
 }
