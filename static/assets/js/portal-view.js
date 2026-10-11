@@ -319,14 +319,18 @@
   function ensureCss() {
     if (cssLoaded) return;
     cssLoaded = true;
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = BASE + 'assets/portal.css';
-    document.head.appendChild(link);
+    // 页面本身已用「带内容哈希」的 URL 引过 portal.css（见 build.mjs 的 buildPortalPage），
+    // 这里直接复用，避免再插一份不带哈希的副本被浏览器缓存数小时导致样式改动不生效。
+    if (!document.querySelector('link[href*="assets/portal.css"]')) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = BASE + 'assets/portal.css';
+      document.head.appendChild(link);
+    }
     var style = document.createElement('style');
     style.textContent = [
       '#portal-root { --p-bg:#f5f5f7; --p-card:#fff; --p-text:#1c1c1e; --p-text-2:#6e6e73; --p-text-3:#aeaeb2; --p-accent:#0a84ff; --p-danger:#ff3b30; --p-border:#e5e5ea; --p-btn-bg:#f2f2f7; --p-radius:12px; }',
-      '#portal-root { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }',
+      '#portal-root { font-family:var(--sans); }',
       '#portal-root .portal-view { display:none; }',
       '#portal-root .portal-view.is-active { display:block; }',
       '#portal-root [hidden] { display:none !important; }',
