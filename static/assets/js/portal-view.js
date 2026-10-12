@@ -330,7 +330,10 @@
     var style = document.createElement('style');
     style.textContent = [
       '#portal-root { --p-bg:#f5f5f7; --p-card:#fff; --p-text:#1c1c1e; --p-text-2:#6e6e73; --p-text-3:#aeaeb2; --p-accent:#0a84ff; --p-danger:#ff3b30; --p-border:#e5e5ea; --p-btn-bg:#f2f2f7; --p-radius:12px; }',
-      '#portal-root { font-family:var(--sans); }',
+      // 工具界面刻意用系统字体（iOS 风格）：这里若换成 var(--sans)，手机端按钮/工具栏的
+      // 字宽会变，New post 等元素的位置随之偏移。站点标题的主题字体由页面链入的 webfont 提供，
+      // 不需要在这里覆盖。
+      '#portal-root { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }',
       '#portal-root .portal-view { display:none; }',
       '#portal-root .portal-view.is-active { display:block; }',
       '#portal-root [hidden] { display:none !important; }',
