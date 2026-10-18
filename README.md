@@ -21,13 +21,30 @@ python -m http.server 8080 --directory dist   # 本地预览 http://localhost:80
 ## 目录结构
 
 ```
-content/posts/*.md    # 文章（frontmatter: title/date/slug/type/category/tags/...）
-content/pages/        # 关于页
-scripts/build.mjs     # 构建脚本（Markdown → 静态页）
-site-root/            # 站点根文件（favicon/logo/manifest/portal）
-static/assets/        # 主题资源（CSS/JS/字体）
-site.config.json      # 站点配置（站名/简介/社交链接）
+content/                 # 内容（构建的唯一输入源头之一）
+  posts/*.md             #   文章（frontmatter: title/date/slug/type/category/tags/…）
+  pages/about.md         #   关于页
+  chronicle.json         #   关于页「编年史」时间线
+static/assets/           # 站点资源（CSS/JS/字体/图片），整目录拷进 dist
+site-root/               # 站点根文件（favicon/logo/manifest/portal.css/sw.js/好友圈数据）
+scripts/build.mjs        # 唯一的构建脚本：Markdown → dist/
+scripts/*.mjs|*.py       # 素材处理、好友圈采集等辅助工具（构建不调用）
+deploy/                  # 部署到自有服务器 / 构建产物自检
+docs/                    # 说明文档：使用指南、问题记录、项目结构
+vendor/marked.esm.js     # Markdown 渲染库（随仓库内置，无需 npm install）
+site.config.json         # 站点配置：站名 / 简介 / 社交链接 / 友链
+dist/                    # 构建产物（git 忽略，可随时重新生成）
 ```
+
+更细的职责划分与「改了会出问题」的红线见 [docs/项目结构.md](docs/项目结构.md)。
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [docs/使用指南.md](docs/使用指南.md) | 新手教程：发文、传图、改站名、本地预览、双站部署 |
+| [docs/项目结构.md](docs/项目结构.md) | 目录职责、数据流、不能动的地方、常用命令 |
+| [docs/问题记录.md](docs/问题记录.md) | 踩过的坑与修法（遇到怪问题先翻这里） |
 
 ## 写文章
 
@@ -60,7 +77,7 @@ draft: false
 - **Images**：按文章上传图片、复制 Markdown 引用、删除
 - **Status**：查看构建状态、手动触发 Rebuild
 
-> RSS/Atom 暂未提供（如需启用见 `使用指南.md` 的「RSS/Atom（暂未启用）」一节）。
+> RSS/Atom 暂未提供（如需启用见 `docs/使用指南.md` 的「RSS/Atom（暂未启用）」一节）。
 
 ## 致谢
 
