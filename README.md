@@ -30,10 +30,11 @@ site-root/               # 站点根文件（favicon/logo/manifest/portal.css/sw
 scripts/build.mjs        # 唯一的构建脚本：Markdown → dist/
 scripts/*.mjs|*.py       # 素材处理、好友圈采集等辅助工具（构建不调用）
 deploy/                  # 部署到自有服务器 / 构建产物自检
-docs/                    # 说明文档：使用指南、问题记录、项目结构
+docs/                    # 说明文档：使用指南、问题记录、项目结构、学习笔记/
 vendor/marked.esm.js     # Markdown 渲染库（随仓库内置，无需 npm install）
 site.config.json         # 站点配置：站名 / 简介 / 社交链接 / 友链
 dist/                    # 构建产物（git 忽略，可随时重新生成）
+_tmp/                    # 本地临时与取证（git 忽略，可随时删）
 ```
 
 更细的职责划分与「改了会出问题」的红线见 [docs/项目结构.md](docs/项目结构.md)。
@@ -45,6 +46,7 @@ dist/                    # 构建产物（git 忽略，可随时重新生成）
 | [docs/使用指南.md](docs/使用指南.md) | 新手教程：发文、传图、改站名、本地预览、双站部署 |
 | [docs/项目结构.md](docs/项目结构.md) | 目录职责、数据流、不能动的地方、常用命令 |
 | [docs/问题记录.md](docs/问题记录.md) | 踩过的坑与修法（遇到怪问题先翻这里） |
+| [docs/学习笔记/](docs/学习笔记/) | 从零掌握本项目的三份学习清单（大量 `文件:行号` 证据） |
 
 ## 写文章
 

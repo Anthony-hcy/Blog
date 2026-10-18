@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 
+
+# 本地临时/取证目录（不追踪）
+_tmp/
+.zcode/
