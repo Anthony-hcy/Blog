@@ -5,8 +5,10 @@
 ## 特性
 
 - 首页文章流（长文 + memo 短篇混排）、分页无限加载
+- 首页超长 memo 自动折叠：正文 >150 字默认收起 6 行 + 「展开」（图片、链接地址不计字数；见 [docs/使用指南.md](docs/使用指南.md) 第十三节）
 - 亮/暗双主题（跟随系统自动切换）
 - 文章页支持 KaTeX 公式、图片画廊（PhotoSwipe）
+- 正文行内小字注释：`((补充说明))` → 灰色小字（语法迁自 Eyu.at，post / memo 通用；见 [docs/使用指南.md](docs/使用指南.md) 第十二节）
 - 全站搜索（ExSearch，本地 JSON 索引）
 - 归档、分类、标签、关于页
 - 手机端管理面板 Blog Portal（Posts / Edit / Images / Status）

@@ -200,4 +200,23 @@ function initIndexStream() {
   observer.observe(bottomSentinel);
 }
 
+
+// --- memo 折叠（首页 feed） ---
+// 服务端已把超长 memo 渲染成 .memo-fold.is-collapsed + 按钮，这里只做点击切换。
+// 用事件委托，无限滚动后注入的旧分页 memo 同样能展开/收起。
+function initMemoFolds() {
+  document.addEventListener('click', function (event) {
+    var toggle = event.target.closest ? event.target.closest('[data-memo-fold-toggle]') : null;
+    if (!toggle) return;
+    var fold = toggle.closest('[data-memo-fold]');
+    if (!fold) return;
+    var collapsed = fold.classList.toggle('is-collapsed');
+    fold.classList.toggle('is-expanded', !collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    var label = toggle.querySelector('.memo-fold-label');
+    if (label) label.textContent = collapsed ? '展开' : '收起';
+  });
+}
+
+initMemoFolds();
 initIndexStream();

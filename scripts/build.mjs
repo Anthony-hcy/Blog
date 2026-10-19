@@ -149,13 +149,40 @@ renderer.image = (token) => {
   return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${imgRatioAttr}${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
+// ---------- 自定义行内标记：((补充说明)) → 灰色小字 ----------
+// 语法迁移自 Eyu.at（那边由 Hugo 的 layouts/partials/obsidian/expand.html:95 做同样的替换）：
+//   ((补充说明))  →  <small>(补充说明)</small>
+// 用途：正文里的旁白、吐槽、名词解释；页面上比正文小一档且颜色更淡，
+// 样式见 static/assets/main.css 的「行内小字注释」。
+// 规则与 Eyu.at 保持一致：同一行内、内容不能再套 ASCII 圆括号（全角括号可以）。
+// 渲染时会把标记两侧的半角空格一起收掉，所以 `正文 ((注释)) 后文` 与 `正文((注释))后文` 效果相同。
+const INLINE_MARK_L = '\uE000';
+const INLINE_MARK_R = '\uE001';
+function resolveInlineMarks(html) {
+  if (!html.includes('((')) return html; // 没写这个语法就原样返回，零开销
+  // 先整体保护 <pre>/<code>：教程/代码块里演示的 ((…)) 必须原样显示，不能被替换
+  const blocks = [];
+  let out = html.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>|<code\b[^>]*>[\s\S]*?<\/code>/g, (blk) => {
+    const tok = INLINE_MARK_L + blocks.length + INLINE_MARK_R;
+    blocks.push(blk);
+    return tok;
+  });
+  // 注释要贴住前文才像注释：连同两侧的半角空格一起吃掉（Eyu.at 的正文也是直接紧贴写的）。
+  // 只吃空格/制表符，不吃换行，避免把段落之间、<br> 前后的结构改掉。
+  out = out.replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, (whole, inner) => `<small>(${inner.trim()})</small>`);
+  // 还原被保护的代码区间（用 split/join，避免替换串里的 $ 被当成特殊符号）
+  for (let i = 0; i < blocks.length; i++) out = out.split(INLINE_MARK_L + i + INLINE_MARK_R).join(blocks[i]);
+  return out;
+}
+
 function renderMarkdown(md) {
   let html = marked.parse(md, { renderer });
   // 音乐卡片：{{music <链接>}} → 官方外链播放器 iframe
   // 先处理独立成段（<p>{{music …}}</p>），再处理行内残余
   html = html.replace(/<p>\{\{\s*music\s+([^}]+?)\s*\}\}<\/p>/gi, (m, url) => musicCardHtml(url.trim()) || m);
   html = html.replace(/\{\{\s*music\s+([^}]+?)\s*\}\}/gi, (m, url) => musicCardHtml(url.trim()) || m);
-  return html;
+  // 行内小字注释最后做（此时正文已是 HTML，代码块已被保护）
+  return resolveInlineMarks(html);
 }
 
 // ---------- 音乐卡片（{{music <链接>}} → 官方外链播放器 iframe + 跳转原平台） ----------
@@ -197,6 +224,8 @@ function musicCardHtml(link) {
 
 function excerptFrom(text, len = 120) {
   const plain = text
+    // 摘要里的 ((补充说明)) 去掉一层括号、收掉两侧空格，和正文渲染后的样子一致
+    .replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, '($1)')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/<[^>]+>/g, '')
@@ -204,6 +233,21 @@ function excerptFrom(text, len = 120) {
     .replace(/\s+/g, ' ')
     .trim();
   return plain.length > len ? plain.slice(0, len) + '…' : plain;
+}
+
+// ---------- memo 折叠：正文字数超过阈值时，首页 feed 默认折叠 ----------
+// 只统计「正文文字」：图片引用（![[…]] / ![](…)）、链接地址、HTML 标签、Markdown 标记符
+// 和空白都不算字数，所以配图再多也不会把一条短说说误判成长文。
+const MEMO_FOLD_THRESHOLD = 150;
+function memoTextLength(md) {
+  const plain = String(md || '')
+    .replace(/!\[\[[^\]]*?\]\]/g, '')                 // 双链图片 ![[图.webp]]
+    .replace(/!\[[^\]]*?\]\([^)]*?\)/g, '')           // 标准图片 ![](图.webp)
+    .replace(/\[([^\]]*?)\]\([^)]*?\)/g, '$1')        // 链接只算文字，URL 不算
+    .replace(/<[^>]*>/g, '')                          // HTML 标签
+    .replace(/[`*_~]/g, '')                           // 强调 / 代码标记符
+    .replace(/\s+/g, '');                             // 空白、换行
+  return Array.from(plain).length;                    // 按字符数计（emoji 记 1）
 }
 
 function escapeHtml(value) {
@@ -582,7 +626,10 @@ function loadPosts() {
       location: data.location || '',
       category: data.category || '未分类',
       tags,
-      excerpt: data.excerpt || excerptFrom(resolvedBody),
+      // 手写摘要同样把小字注释还原成单层括号，并收掉两侧空格（与正文观感一致）
+      excerpt: data.excerpt
+        ? String(data.excerpt).replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, '($1)')
+        : excerptFrom(resolvedBody),
       banner: data.banner || '',
       body: resolvedBody,
     });
@@ -802,6 +849,20 @@ function entryMemo(post) {
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
   const photosHtml = figures.length ? photosetHtml(figures) : '';
+  // 正文字数超过阈值的 memo 在首页默认折叠：先渲染完整 HTML，再套一层裁剪容器，
+  // 展开/收起由 index.js 切换 .is-collapsed（详情页 /articles 不受影响，始终完整显示）。
+  const memoText = memoTextLength(post.body);
+  const foldable = memoText > MEMO_FOLD_THRESHOLD;
+  const bodyHtml = `<div class="memo-content">${contentHtml}</div>`;
+  const contentBlock = foldable
+    ? `<div class="memo-fold is-collapsed" data-memo-fold data-memo-length="${memoText}">
+    <div class="memo-fold-clip">${bodyHtml}</div>
+    <button type="button" class="memo-fold-btn" data-memo-fold-toggle aria-expanded="false">
+      <span class="memo-fold-label">展开</span>
+      <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+    </button>
+  </div>`
+    : bodyHtml;
   return `<div class="entry-memo pswp-gallery">
     <div class="memo-head">
       <img class="memo-avatar" src="${post.avatar ? withBase(post.avatar) : memoAvatar(post)}" alt="${escapeHtml(site.author)}">
@@ -810,7 +871,7 @@ function entryMemo(post) {
         <span>${post.dateText}</span>
       </div>
     </div>
-    <div class="memo-content">${contentHtml}</div>
+    ${contentBlock}
     ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
     ${photosHtml}
   </div>`;
