@@ -513,13 +513,49 @@ function avatarPool() {
 }
 
 // slug 稳定哈希：同一 memo 永远同一头像；头像池变化时会重新洗牌
-function memoAvatar(post) {
+function memoAvatarHash(post) {
   const pool = avatarPool();
-  if (!pool.length) return withBase(`/logo.png`);
+  if (!pool.length) return -1;
   let h = 0;
   for (const ch of post.slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return pool[h % pool.length];
+  return h % pool.length;
 }
+
+// 头像避重：按发布时间从早到晚排，每条 memo 的候选池排除「前两条 memo 实际用过的头像」。
+// 为什么按时间顺序算：新发一条 memo 只需知道它前面两条用了什么，已发布的 memo 头像不会变。
+// 池子不够时（张数 ≤ 避重数量）自动缩小避重数，保证至少不会和上一条相同。
+const MEMO_AVATAR_AVOID = 2;
+function assignMemoAvatars(posts) {
+  const pool = avatarPool();
+  if (!pool.length) return;
+  const avoid = Math.min(MEMO_AVATAR_AVOID, Math.max(0, pool.length - 1));
+  const recent = []; // 最近用过的头像，recent[0] = 上一条，recent[1] = 上上条
+  for (let i = posts.length - 1; i >= 0; i--) { // posts 是新→旧，反向遍历 = 从早到晚
+    const post = posts[i];
+    if (post.type !== 'memo') continue;
+    let used = post.avatar;
+    if (!used) {
+      const banned = new Set(recent);
+      const start = memoAvatarHash(post);
+      let pick = '';
+      for (let step = 0; step < pool.length; step++) {
+        const cand = pool[(start + step) % pool.length];
+        if (!banned.has(cand)) { pick = cand; break; }
+      }
+      used = pick || pool[start];
+      post.memoAvatar = used;
+    }
+    recent.unshift(used);
+    if (recent.length > avoid) recent.length = avoid;
+  }
+}
+
+// 取一条 memo 最终头像：手写 avatar 优先，其次避重分配结果，最后回退站点 logo
+function memoAvatar(post) {
+  if (post.avatar) return withBase(post.avatar);
+  return post.memoAvatar || avatarPool()[0] || withBase(`/logo.png`);
+}
+
 
 // ---------- Obsidian 双链图片：![[name.png]] → 站点图片链接 ----------
 // 图片放在 static/assets/img/<slug>/ 下（文件名与双链一致，扩展名可省略）
@@ -865,7 +901,7 @@ function entryMemo(post) {
     : bodyHtml;
   return `<div class="entry-memo pswp-gallery">
     <div class="memo-head">
-      <img class="memo-avatar" src="${post.avatar ? withBase(post.avatar) : memoAvatar(post)}" alt="${escapeHtml(site.author)}">
+      <img class="memo-avatar" src="${memoAvatar(post)}" alt="${escapeHtml(site.author)}">
       <div class="memo-author">
         <strong>${escapeHtml(site.author)}</strong>
         <span>${post.dateText}</span>
@@ -1429,6 +1465,7 @@ tryTranscodeLiveVideos();
 tryMakeThumbnails();
 
 _posts = loadPosts();
+assignMemoAvatars(_posts);
 const totalPages = Math.max(1, Math.ceil(_posts.length / PAGE_SIZE));
 
 rmSync(DIST, { recursive: true, force: true });
