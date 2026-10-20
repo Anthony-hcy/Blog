@@ -31,23 +31,38 @@ jobs:
       #             ②给缺 .thumb.jpg 的图片生成 480px 缩略图（兜底，正常也已随仓库提交）
       # 两种情况都没有的构建（普通增删改文章）就跳过安装，省 80MB 下载 + 十几秒。
       # 安装优先走静态包直连下载（~80MB，十几秒），apt 仅作备用（apt 很慢）。
+      #
+      # 判定口径必须和 scripts/build.mjs 严格一致，否则会出现「CI 装了 ffmpeg 却没用」
+      # 或「需要转码却没装」两种错配：
+      #   ① 实况视频：build.mjs 的 tryTranscodeLiveVideos() 只扫 gallery/，
+      #      并且只处理「有原片 .mp4 但缺同名 .avc.mp4」的条目。所以判定条件是
+      #      「存在 .mp4 且同名 .avc.mp4 不存在」——不能只看「存在非 avc 的 mp4」，
+      #      因为原片和 avc 版通常同时存在（原片用于存档），那种情况无需转码。
+      #   ② 缩略图：build.mjs 的 tryMakeThumbnails() 同样只扫 gallery/。
+      #      其他目录（文章配图、avatars/）本来就不在该脚本职责内，缺缩略图属正常，
+      #      拿它们当判定依据会让每次构建都误装 ffmpeg。
       - name: Check ffmpeg needed
         id: check-ffmpeg
         run: |
           NEEDS=false
-          # ① 存在非 avc 的原始 mp4（新实况图未转码就提交了）
-          if find static/assets/img -type f -name '*.mp4' ! -name '*.avc.mp4' 2>/dev/null | grep -q .; then
-            NEEDS=true
+          GALLERY=static/assets/img/gallery
+          # ① gallery 里存在原片 .mp4 但没有同名 .avc.mp4（新实况图未转码就提交了）
+          if [ -d "$GALLERY" ]; then
+            while IFS= read -r vid; do
+              [ -z "$vid" ] && continue
+              [ -f "${vid%.mp4}.avc.mp4" ] || { NEEDS=true; break; }
+            done < <(find "$GALLERY" -maxdepth 1 -type f -name '*.mp4' ! -name '*.avc.mp4' 2>/dev/null)
           fi
-          # ② 存在缺 .thumb.jpg 的图片（图片新增/重传后未生成缩略图）
-          if [ "$NEEDS" != "true" ]; then
+          # ② gallery 里存在缺 .thumb.jpg 的图片（图片新增/重传后未生成缩略图）
+          if [ "$NEEDS" != "true" ] && [ -d "$GALLERY" ]; then
             while IFS= read -r img; do
               [ -z "$img" ] && continue
               thumb="${img%.*}.thumb.jpg"
               if [ ! -f "$thumb" ]; then NEEDS=true; break; fi
-            done < <(find static/assets/img -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.webp' \) ! -name '*.thumb.jpg' 2>/dev/null)
+            done < <(find "$GALLERY" -maxdepth 1 -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.webp' \) ! -name '*.thumb.jpg' 2>/dev/null)
           fi
           echo "needs_ffmpeg=$NEEDS" >> "$GITHUB_OUTPUT"
+          echo "ffmpeg 需要安装: $NEEDS"
       - name: Install ffmpeg
         if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
         run: |

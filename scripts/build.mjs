@@ -376,8 +376,13 @@ function tryTranscodeLiveVideos() {
   } catch (_) {
     return;
   }
-  // 只处理"存在非 avc 的 mp4"的情况（仓库现在只提交 avc 版，通常直接跳过）
-  const pending = files.filter(f => /\.mp4$/i.test(f) && !/\.avc\.mp4$/i.test(f));
+  // 只处理「有原片 .mp4 但缺同名 .avc.mp4」的情况。
+  // 仓库里原片（存档用）和 avc 版通常同时存在，那种情况无需转码，
+  // 所以不能只筛「非 avc 的 mp4」——否则每次都会白探一次 ffmpeg。
+  const pending = files.filter(f => {
+    if (!/\.mp4$/i.test(f) || /\.avc\.mp4$/i.test(f)) return false;
+    return !existsSync(join(galleryDir, f.replace(/\.mp4$/i, '') + '.avc.mp4'));
+  });
   if (!pending.length) return;
   const probe = spawnSync('ffmpeg', ['-version'], { timeout: 5000, stdio: 'ignore' });
   if (probe.error) {
