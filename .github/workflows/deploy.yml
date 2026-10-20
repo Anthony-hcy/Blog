@@ -63,30 +63,50 @@ jobs:
           fi
           echo "needs_ffmpeg=$NEEDS" >> "$GITHUB_OUTPUT"
           echo "ffmpeg 需要安装: $NEEDS"
+      # 静态包下载一次就缓存起来：命中缓存时解压只要 1~2 秒，
+      # 避免「源站抽风 → 3 轮重试 ~180s → 退 apt」把构建拖到 4 分钟。
+      - name: Cache ffmpeg static build
+        if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/ff.tar.xz
+          key: ffmpeg-static-amd64-v1
       - name: Install ffmpeg
         if: steps.check-ffmpeg.outputs.needs_ffmpeg == 'true'
         run: |
-          # 优先静态包直连下载：runner 网络偶发抖动（DNS/连接失败）时自动重试多轮。
-          # 注意：第三方 CDN 有时会返回 200 + 一段 HTML 错误页，curl 视为成功，
-          # 于是 tar 拿到垃圾数据直接失败（2026-10-11 真实发生过一次）。
-          # 所以每轮都先用 xz -t 校验，内容不合法就丢掉重来；三轮都不行再退回 apt。
-          rm -f /tmp/ff.tar.xz
-          for i in 1 2 3; do
-            curl -fsSL --connect-timeout 15 --retry 3 --retry-all-errors --retry-delay 2 \
-              https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
-              -o /tmp/ff.tar.xz || true
-            if [ -s /tmp/ff.tar.xz ] && xz -t /tmp/ff.tar.xz 2>/dev/null; then
-              echo "静态包校验通过（第 $i 轮）"
-              break
-            fi
-            echo "第 $i 轮拿到的内容不可用，重试"
+          # 优先用缓存；没命中再下载。第三方 CDN 有时会返回 200 + 一段 HTML 错误页，
+          # curl 视为成功，所以每轮都先用 xz -t 校验，内容不合法就丢掉重来。
+          # 下载源按可靠性排序：GitHub Releases（BtbN）→ johnvansickle → apt。
+          if [ -s /tmp/ff.tar.xz ] && xz -t /tmp/ff.tar.xz 2>/dev/null; then
+            echo "命中 ffmpeg 缓存，跳过下载"
+          else
             rm -f /tmp/ff.tar.xz
-            [ "$i" -lt 3 ] && sleep 3
-          done
+            URLS=(
+              "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+              "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+            )
+            for i in 1 2 3; do
+              for u in "${URLS[@]}"; do
+                curl -fsSL --connect-timeout 15 --retry 2 --retry-all-errors --retry-delay 2 \
+                  "$u" -o /tmp/ff.tar.xz || true
+                if [ -s /tmp/ff.tar.xz ] && xz -t /tmp/ff.tar.xz 2>/dev/null; then
+                  echo "静态包校验通过（第 $i 轮）: $u"
+                  break 2
+                fi
+                echo "第 $i 轮内容不可用，换源重试: $u"
+                rm -f /tmp/ff.tar.xz
+              done
+              [ "$i" -lt 3 ] && sleep 2
+            done
+          fi
           if [ -s /tmp/ff.tar.xz ]; then
-            sudo tar -xJf /tmp/ff.tar.xz -C /opt --strip-components=1
-            sudo ln -sf /opt/ffmpeg /usr/local/bin/ffmpeg
-            sudo ln -sf /opt/ffprobe /usr/local/bin/ffprobe
+            # 两种包目录结构不同（BtbN 在 bin/ 下，johnvansickle 是平铺），用 find 兜住
+            rm -rf /tmp/ffx && mkdir -p /tmp/ffx
+            tar -xJf /tmp/ff.tar.xz -C /tmp/ffx --strip-components=1
+            FF=$(find /tmp/ffx -type f -name ffmpeg | head -1)
+            FP=$(find /tmp/ffx -type f -name ffprobe | head -1)
+            sudo install -m755 "$FF" /usr/local/bin/ffmpeg
+            [ -n "$FP" ] && sudo install -m755 "$FP" /usr/local/bin/ffprobe || true
           else
             # 备用：apt（先 update 再装，顺序不能反）
             sudo apt-get update -qq || { sleep 3; sudo apt-get update -qq; }

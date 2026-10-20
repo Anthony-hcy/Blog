@@ -1194,8 +1194,10 @@
     var path = POSTS_DIR + '/' + slug + '.md';
     var msg = (editingSlug ? 'Update post: ' : 'New post: ') + slug;
     var stagedImages = images || [];
-    var files = stagedImages.map(function (img) {
-      return { path: img.repoPath || (IMG_DIR + '/' + img.dir + '/' + img.name), dataUrl: img.dataUrl };
+    var files = [];
+    stagedImages.forEach(function (img) {
+      if (!img.repoPath) { img = { repoPath: IMG_DIR + '/' + img.dir + '/' + img.name, dataUrl: img.dataUrl }; }
+      files.push.apply(files, entryCommitFiles(img));
     });
     files.push({ path: path, content: md });
     commitRepoFiles(files, msg).then(function (commit) {
@@ -1514,7 +1516,9 @@
       var ext = ((prepared.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
       // buildEntry 是异步的：必须等它 resolve 再包成数组，否则 entries 里装的是 Promise，
       // p.url / p.name 全是 undefined，说说正文就会写成 ![image](undefined)，图片也不会被提交。
-      return buildEntry(prepared, datedName(ext), dir).then(function (entry) { return [entry]; });
+      return buildEntry(prepared, datedName(ext), dir)
+        .then(attachThumb)
+        .then(function (entry) { return [entry]; });
     });
   }
 
@@ -1524,10 +1528,56 @@
       var imgName = datedName('jpg');
       var vidName = imgName.replace(/\.jpg$/i, '.mp4');
       return Promise.all([
-        buildEntry(prepared, imgName, dir),
+        buildEntry(prepared, imgName, dir).then(attachThumb),
         buildEntry({ blob: videoLike }, vidName, dir),
       ]);
     });
+  }
+
+  // gallery 的图片必须带同名 .thumb.jpg，否则 CI 会判定「缺缩略图」去装 80MB 的 ffmpeg（要几分钟）。
+  // 浏览器里直接用 canvas 生成 480px 缩略图，和 media-prep.mjs 的 scale='min(480,iw)':-2 对齐。
+  function makeThumbDataUrl(dataUrl, maxW, quality) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+          var w = Math.max(1, Math.round((img.naturalWidth || maxW) * scale));
+          var h = Math.max(1, Math.round((img.naturalHeight || maxW) * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          var ctx = cv.getContext('2d');
+          if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'high';
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(cv.toDataURL('image/jpeg', quality || 0.8));
+        } catch (_) { resolve(''); }
+      };
+      img.onerror = function () { resolve(''); };
+      img.src = dataUrl;
+    });
+  }
+
+  // 给 gallery 里的图片条目补上缩略图（视频不需要；文章配图目录不在 CI 判定范围内，也就不生成）
+  function attachThumb(entry) {
+    if (!entry || entry.isVideo || entry.dir !== 'gallery') return entry;
+    return makeThumbDataUrl(entry.dataUrl, 480, 0.8).then(function (thumb) {
+      if (thumb) {
+        entry.thumbDataUrl = thumb;
+        entry.thumbRepoPath = entry.repoPath.replace(/\.[a-z0-9]+$/i, '') + '.thumb.jpg';
+      }
+      return entry;
+    });
+  }
+
+  // 条目 → 提交文件列表（图片带上伴生缩略图）
+  function entryCommitFiles(entry) {
+    var files = [{ path: entry.repoPath, dataUrl: entry.dataUrl }];
+    if (entry.thumbDataUrl && entry.thumbRepoPath) {
+      files.push({ path: entry.thumbRepoPath, dataUrl: entry.thumbDataUrl });
+    }
+    return files;
   }
 
   // 按「实况」开关拆分/配对，产出上传条目列表
@@ -1589,9 +1639,8 @@
       return prepareLiveAware(items, dir, progressEl).then(function (entries) {
         if (mode === 'images') {
           if (progressEl) progressEl.textContent = '提交中…';
-          var commitFiles = entries.map(function (entry) {
-            return { path: entry.repoPath, dataUrl: entry.dataUrl };
-          });
+          var commitFiles = [];
+          entries.forEach(function (entry) { commitFiles.push.apply(commitFiles, entryCommitFiles(entry)); });
           return commitRepoFiles(commitFiles, 'Upload ' + entries.length + ' file' + (entries.length > 1 ? 's' : '')).then(function (commit) {
             entries.forEach(function (e) { e.commitSha = commit.sha; });
             entries.filter(function (e) { return !e.isVideo; }).forEach(function (r) { allImages.unshift(r); }); // 视频不占图片格子
