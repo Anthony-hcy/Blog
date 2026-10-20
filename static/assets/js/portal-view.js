@@ -9,7 +9,6 @@
     email: 'portal_auth_email',
     repo: 'portal_repo',
     author: 'portal_author',
-    last_loc: 'portal_last_loc',
     post_cache: 'portal_posts_cache_v1',
   };
   var API = 'https://api.github.com';
@@ -995,8 +994,8 @@
     memoPhotos = [];
     renderMemoPhotos();
     portalRoot.querySelector('#memo-text').value = '';
-    // 自动填上次使用的位置（个人发布绝大多数在同一地点，免去重复手打）
-    portalRoot.querySelector('#memo-loc').value = readLS(LS.last_loc);
+    // 位置默认留空：以前会回填上次用的位置，手机端容易被误当成「定位」自动填写
+    portalRoot.querySelector('#memo-loc').value = '';
     switchTab('edit');
   }
 
@@ -1169,7 +1168,6 @@
         ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
     }
     var locVal = portalRoot.querySelector('#memo-loc').value.trim();
-    if (locVal) writeLS(LS.last_loc, locVal);
     var md = buildPostMarkdown({
       title: text.slice(0, 40) || 'memo',
       date: dateStr,
