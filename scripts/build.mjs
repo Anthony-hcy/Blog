@@ -80,6 +80,11 @@ function imgFingerprint(distPath) {
 
 // 双链图片解析错误收集：全部页面写完后统一报错并中止构建（防止 ![[...]] 原样上线）
 const buildErrors = [];
+// 非致命告警：单张图解析不了只提示、不中断整站构建（历史上一条坏说说曾让整站发不出去）
+const buildWarnings = [];
+
+// 客户端 bug 会写出 ![image](undefined) 这种「字面量 undefined」引用，直接丢弃这张图并提示
+const DEGENERATE_IMG_REFS = new Set(['undefined', 'null', 'none', 'nan', 'false', 'true']);
 
 // ---------- 旧地址跳转（改 slug 后保持旧链接可用） ----------
 // key = 旧 slug，value = 新 slug；构建会为旧地址生成一个自动跳转页
@@ -612,13 +617,17 @@ function resolveBareImages(body, slug) {
   let files = null;    // 惰性读取：只有真遇到裸文件名引用才读目录
   let dirMissing = false;
   return body.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (whole, alt, ref) {
+    if (DEGENERATE_IMG_REFS.has(ref.toLowerCase())) {
+      buildWarnings.push(`${slug}：正文里有坏图片引用 ![${alt}](${ref})，已丢弃这张图`);
+      return '';
+    }
     if (ref.indexOf('/') >= 0 || ref.indexOf('http') === 0 || ref.indexOf('data:') === 0) return whole; // 已是路径/外链
     if (files === null && !dirMissing) {
       try {
         files = new Set(readdirSync(join(ASSETS_SRC, 'assets', 'img', slug)));
       } catch (_) {
         dirMissing = true;
-        buildErrors.push(`裸文件名图片目录不存在：static/assets/img/${slug}/（正文里的裸文件名图片无法补全路径）`);
+        buildWarnings.push(`裸文件名图片目录不存在：static/assets/img/${slug}/（正文里的裸文件名图片无法补全路径，原样保留）`);
       }
     }
     if (files === null) return whole; // 目录不可用，保持原样（错误已记录）
@@ -634,7 +643,7 @@ function resolveBareImages(body, slug) {
         return `![${alt}](<${href}>)`;
       }
     }
-    buildErrors.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}`);
+    buildWarnings.push(`裸文件名图片未找到：static/assets/img/${slug}/${ref}（原样保留，页面会显示裂图）`);
     return whole; // 目录里没有就保持原样
   });
 }
@@ -1560,6 +1569,12 @@ if (buildErrors.length) {
   console.error('\n构建中止：正文引用的双链/裸文件名图片无法解析，会把 ![[...]] 原样输出到页面。');
   buildErrors.forEach(e => console.error('  ✗ ' + e));
   process.exit(1);
+}
+
+// 非致命告警：不影响构建结果
+if (buildWarnings.length) {
+  console.warn(`\n⚠ 有 ${buildWarnings.length} 条图片告警（不影响构建）：`);
+  buildWarnings.forEach(w => console.warn('  · ' + w));
 }
 
 console.log(`Build complete: ${_posts.length} posts, ${totalPages} pages -> dist/`);

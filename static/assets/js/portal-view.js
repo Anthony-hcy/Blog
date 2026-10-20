@@ -1150,8 +1150,11 @@
   function saveMemoMode() {
     var text = portalRoot.querySelector('#memo-text').value.trim();
     if (!text && !memoPhotos.length) { toast('写点什么或传张图吧', true); return; }
-    var staged = memoPhotos.filter(function (p) { return p.staged && !p.uploaded; });
-    var photoMd = memoPhotos.filter(function (p) { return !p.isVideo; }).map(function (p) {
+    // 兜底：只认有 url 的图片。历史上出现过 entry 没 url 时写出 ![image](undefined) 的故障
+    var validPhotos = memoPhotos.filter(function (p) { return p && p.url; });
+    if (memoPhotos.length && !validPhotos.length) { toast('图片还没准备好，请重新添加', true); return; }
+    var staged = validPhotos.filter(function (p) { return p.staged && !p.uploaded; });
+    var photoMd = validPhotos.filter(function (p) { return !p.isVideo; }).map(function (p) {
       return '![' + (p.name || 'image').replace(/\.[^.]+$/, '') + '](' + p.url + ')';
     }).join('\n');
     var body = text + (text && photoMd ? '\n\n' : '') + photoMd;
@@ -1509,7 +1512,9 @@
   function makePlainJob(file, dir) {
     return compressImageFile(file).then(function (prepared) {
       var ext = ((prepared.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
-      return [buildEntry(prepared, datedName(ext), dir)];
+      // buildEntry 是异步的：必须等它 resolve 再包成数组，否则 entries 里装的是 Promise，
+      // p.url / p.name 全是 undefined，说说正文就会写成 ![image](undefined)，图片也不会被提交。
+      return buildEntry(prepared, datedName(ext), dir).then(function (entry) { return [entry]; });
     });
   }
 
@@ -1731,6 +1736,8 @@
   }
 
   function useImage(siteUrl, rawUrl, name, dataUrl) {
+    // 兜底：没有文件名/地址的条目直接拒绝，避免写出 ![[image]] / ![](undefined) 这种坏引用
+    if (!name && !siteUrl) { toast('这张图还没准备好，请重新添加', true); return; }
     if (editMode === 'post') {
       // Markdown 光标处插入图片语法；若当前在预览则切回编辑
       // 统一采用 Obsidian 双链形式 ![[文件名]]，与手写博客一致（构建端会解析成图片）
