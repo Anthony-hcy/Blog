@@ -1,3 +1,80 @@
+/* --- Obsidian 高亮 ==文字== 转 mark ---
+   与 ((小字注释)) 走同一条行内标记流程（见 scripts/build.mjs 的 resolveInlineMarks），
+   支持和加粗叠用：**==重点==**；代码块里的 == 不会被替换。 */
+.entry-memo .memo-content mark,
+.memo-page .memo-content mark,
+.article-body mark {
+  background: #ffec9e;
+  color: inherit;
+  padding: 0.05em 0.16em;
+  border-radius: 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@media (prefers-color-scheme: dark) {
+  .entry-memo .memo-content mark,
+  .memo-page .memo-content mark,
+  .article-body mark {
+    background: rgba(243, 193, 63, 0.3);
+  }
+}
+
+/* --- 侧栏「本页目录」（仅 post 页） --- */
+/* 目录挂在右侧栏 tags 下面，点击跳到对应标题，滚动时高亮当前小节（见 post.js）。
+   标题 id 由 scripts/build.mjs 的 withHeadingAnchors() 生成。 */
+.side-toc .toc-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+}
+
+.side-toc .toc-link {
+  position: relative;
+  display: block;
+  padding: 4px 0 4px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+  transition: color 0.2s;
+}
+
+.side-toc .toc-link::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--rule);
+  transition: background 0.2s;
+}
+
+.side-toc .toc-link.toc-level-3 {
+  padding-left: 22px;
+  font-size: 11.5px;
+}
+
+.side-toc .toc-link:hover {
+  color: var(--text-2);
+}
+
+.side-toc .toc-link.is-active {
+  color: var(--accent);
+}
+
+.side-toc .toc-link.is-active::before {
+  width: 2px;
+  background: var(--accent);
+}
+
+/* 点目录跳转时，标题不要正好贴住顶部 */
+.article-body h2,
+.article-body h3,
+.article-body h4 {
+  scroll-margin-top: 18px;
+}
+
 /* ==========================================================================
    AtWill — Main Stylesheet
    ========================================================================== */
@@ -19,6 +96,8 @@
   --accent: #e07850;
   --rule: #302c28;
   --rule-light: #282520;
+  /* 提示块标题压在框线上时用来「切断」边框的底色，必须与页面底色一致 */
+  --callout-mask: #000;
   --memo-square-cap: 320px;
   --max-w: 620px;
   --serif: 'Chiron GoRound TC', system-ui, sans-serif;
@@ -512,6 +591,12 @@ figure.pswp-item figcaption {
 }
 
 .photoset { margin: 24px 0; }
+/* 正文里隔一行写另一组图片时会变成两个 .photoset；
+   紧挨着的时候收成和组内一样的 4px 缝，看起来才是同一片图。
+   注意 margin 会折叠（取两者最大值），所以上下两边都要压到 4px，
+   只改一边仍会留下 24px 的空隙。 */
+.photoset + .photoset { margin-top: 4px; }
+.photoset:has(+ .photoset) { margin-bottom: 4px; }
 .photoset .photos {
   display: flex;
   gap: 4px;
@@ -688,6 +773,157 @@ figure.pswp-item figcaption {
 .memo-page .memo-content blockquote > *:first-child,
 .article-body blockquote > *:first-child {
   margin-top: 0;
+}
+
+/* --- Obsidian 提示块 / 折叠块（> [!note] 标题） ---
+   样式参照 Obsidian 主题里常见的「只有一圈细边框 + 标题压在上框线」的画法：
+   · 整块没有填充底色，只有 1px 同色边框 + 圆角
+   · 标题是小号、字距加宽的大写字母，压在上边框的缺口上（靠垫一块页面同色底把边框断开）
+   · 颜色由构建端写在 style="--callout-color:…" 上，这里只读变量 */
+.article-body .callout,
+.memo-page .memo-content .callout,
+.entry-memo .memo-content .callout {
+  --callout-color: #4f7cff;
+  position: relative;
+  margin: 2.1em 0 1.2em;
+  padding: 1.05em 1.05em 0.95em;
+  border: 1px solid color-mix(in srgb, var(--callout-color) 34%, transparent);
+  border-radius: 7px;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+.article-body .callout:hover,
+.memo-page .memo-content .callout:hover,
+.entry-memo .memo-content .callout:hover {
+  border-color: color-mix(in srgb, var(--callout-color) 58%, transparent);
+}
+/* 标题压在框线上：绝对定位到上边框所在高度，靠背景色把边框「切断」 */
+.article-body .callout-title,
+.memo-page .memo-content .callout-title,
+.entry-memo .memo-content .callout-title {
+  position: absolute;
+  top: -0.78em;
+  left: 0.95em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+  padding: 0 0.55em;
+  background: var(--callout-mask);
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.55;
+  color: var(--callout-color);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  white-space: nowrap;
+  max-width: calc(100% - 1.9em);
+}
+/* 类型名兜底时转大写（NOTE / TODO…），作者自己写的标题保留原样 */
+.article-body .callout-title:not(.is-custom),
+.memo-page .memo-content .callout-title:not(.is-custom),
+.entry-memo .memo-content .callout-title:not(.is-custom) {
+  text-transform: uppercase;
+}
+.article-body .callout-title-text,
+.memo-page .memo-content .callout-title-text,
+.entry-memo .memo-content .callout-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 去掉浏览器自带的三角，用自绘箭头（收起时朝右） */
+.article-body .callout-title::-webkit-details-marker,
+.memo-page .memo-content .callout-title::-webkit-details-marker,
+.entry-memo .memo-content .callout-title::-webkit-details-marker {
+  display: none;
+}
+.article-body .callout-title::after,
+.memo-page .memo-content .callout-title::after,
+.entry-memo .memo-content .callout-title::after {
+  content: '';
+  width: 0.32em;
+  height: 0.32em;
+  margin-left: 0.05em;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg) translate(-0.08em, -0.08em);
+  transition: transform 0.2s ease;
+  opacity: 0.45;
+  flex: 0 0 auto;
+}
+.article-body .callout:not([open]) .callout-title::after,
+.memo-page .memo-content .callout:not([open]) .callout-title::after,
+.entry-memo .memo-content .callout:not([open]) .callout-title::after {
+  transform: rotate(-45deg) translate(-0.08em, 0.08em);
+}
+.article-body .callout-title i,
+.memo-page .memo-content .callout-title i,
+.entry-memo .memo-content .callout-title i {
+  font-size: 0.95em;
+  width: 1.05em;
+  text-align: center;
+  flex: 0 0 auto;
+}
+/* 收起时也要留出标题跨越框线的高度，不然会顶到上一段 */
+.article-body .callout:not([open]),
+.memo-page .memo-content .callout:not([open]),
+.entry-memo .memo-content .callout:not([open]) {
+  padding-top: 0.62em;
+  padding-bottom: 0.62em;
+}
+.article-body .callout-content,
+.memo-page .memo-content .callout-content,
+.entry-memo .memo-content .callout-content {
+  margin-top: 0.1em;
+  color: var(--text-2);
+  font-size: 0.94em;
+  line-height: 1.72;
+  /* 块里常放网易云那种超长链接，手机上必须允许断行，否则会顶出框外 */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.article-body .callout-content > *:first-child,
+.memo-page .memo-content .callout-content > *:first-child,
+.entry-memo .memo-content .callout-content > *:first-child {
+  margin-top: 0;
+}
+.article-body .callout-content > *:last-child,
+.memo-page .memo-content .callout-content > *:last-child,
+.entry-memo .memo-content .callout-content > *:last-child {
+  margin-bottom: 0;
+}
+/* 嵌套引用（Obsidian 里写 >> 的内容）：在块里只留一根浅色竖线，不要暖色底 */
+.article-body .callout-content blockquote,
+.memo-page .memo-content .callout-content blockquote,
+.entry-memo .memo-content .callout-content blockquote {
+  margin: 0.5em 0;
+  background: transparent;
+  border-left-color: color-mix(in srgb, var(--callout-color) 40%, transparent);
+  font-style: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+/* 网易云播放器固定 330px 宽，手机上会溢出 */
+.article-body .callout-content iframe,
+.memo-page .memo-content .callout-content iframe,
+.entry-memo .memo-content .callout-content iframe {
+  max-width: 100%;
+}
+/* 不支持 color-mix 的老浏览器：退化成灰色细边框，仍然能看出是提示块 */
+@supports not (border-color: color-mix(in srgb, red 34%, transparent)) {
+  .article-body .callout,
+  .memo-page .memo-content .callout,
+  .entry-memo .memo-content .callout {
+    border-color: var(--rule);
+  }
+  .article-body .callout-title,
+  .memo-page .memo-content .callout-title,
+  .entry-memo .memo-content .callout-title {
+    color: var(--text-2);
+  }
 }
 
 .entry-memo .memo-content blockquote p,
@@ -2212,6 +2448,7 @@ svg.in-site-link-icon {
     --accent: #c25f3d;
     --rule: #d8d8df;
     --rule-light: #e8e8ee;
+    --callout-mask: #fdfdfd;
     --surface-2: #fdfdfe;
     --surface-3: #e4e4e9;
     --accent-2: #6f92a5;

@@ -9,7 +9,10 @@
 - 说说头像自动分配：不与前两条重复，历史头像不因新发而改变（可用 frontmatter `avatar:` 手填；见 [docs/使用指南.md](docs/使用指南.md) 第十四节）
 - 亮/暗双主题（跟随系统自动切换）
 - 文章页支持 KaTeX 公式、图片画廊（PhotoSwipe）
+- 文章页右侧「本页目录」：自动列出 `##` / `###` 标题，点击跳转、滚动时高亮当前小节
 - 正文行内小字注释：`((补充说明))` → 灰色小字（语法迁自 Eyu.at，post / memo 通用；见 [docs/使用指南.md](docs/使用指南.md) 第十二节）
+- 正文行内高亮：`==重点==` → 黄色底，可与加粗/斜体叠用（语法同 Obsidian；见 docs 第十二节 12.1）
+- 支持 Obsidian 提示块 `> [!note]`（可折叠、分类型配色；见 [docs/使用指南.md](docs/使用指南.md) 第十五节）
 - 全站搜索（ExSearch，本地 JSON 索引）
 - 归档、分类、标签、关于页
 - 手机端管理面板 Blog Portal（Posts / Edit / Images / Status）

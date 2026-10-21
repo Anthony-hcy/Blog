@@ -164,7 +164,7 @@ renderer.image = (token) => {
 const INLINE_MARK_L = '\uE000';
 const INLINE_MARK_R = '\uE001';
 function resolveInlineMarks(html) {
-  if (!html.includes('((')) return html; // 没写这个语法就原样返回，零开销
+  if (!html.includes('((') && !html.includes('==')) return html; // 没写这些语法就原样返回，零开销
   // 先整体保护 <pre>/<code>：教程/代码块里演示的 ((…)) 必须原样显示，不能被替换
   const blocks = [];
   let out = html.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>|<code\b[^>]*>[\s\S]*?<\/code>/g, (blk) => {
@@ -175,13 +175,102 @@ function resolveInlineMarks(html) {
   // 注释要贴住前文才像注释：连同两侧的半角空格一起吃掉（Eyu.at 的正文也是直接紧贴写的）。
   // 只吃空格/制表符，不吃换行，避免把段落之间、<br> 前后的结构改掉。
   out = out.replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, (whole, inner) => `<small>(${inner.trim()})</small>`);
+  // Obsidian 的高亮 ==文字== → <mark>，可以和加粗/斜体/小字注释叠用：**==重点==**
+  // 规则同 Obsidian：开标记后不能紧跟空白、闭标记前不能是空白、内容不跨行也不含 =，
+  // 这样「这里只有一个 == 开头」和「a == b」都不会被误当成高亮。
+  out = out.replace(/==(?=\S)([^=\n]*?\S)==/g, (whole, inner) => `<mark>${inner}</mark>`);
   // 还原被保护的代码区间（用 split/join，避免替换串里的 $ 被当成特殊符号）
   for (let i = 0; i < blocks.length; i++) out = out.split(INLINE_MARK_L + i + INLINE_MARK_R).join(blocks[i]);
   return out;
 }
 
-function renderMarkdown(md) {
-  let html = marked.parse(md, { renderer });
+// ---------- Obsidian 提示块 / 折叠块：> [!note] 标题 ----------
+// Obsidian 的 callout 语法，marked 不认识，会渲染成普通引用块 + 字面量「[!note]」。
+// 这里在交给 marked 之前就换成 <details>：
+//   · 默认展开；`> [!note]- 标题` 默认收起（与 Obsidian 一致），`+` 明确展开
+//   · 标题省略时用类型名兜底（note → 笔记）；未知类型按 note 处理，绝不吞内容
+//   · 内部内容仍走同一套 Markdown 渲染，所以里面可以放引用、图片、iframe、代码块
+const CALLOUT_TYPES = {
+  note:      { label: '笔记', icon: 'fa-solid fa-pencil',               color: 'var(--accent)' },
+  info:      { label: '信息', icon: 'fa-solid fa-circle-info',          color: 'var(--accent)' },
+  tip:       { label: '提示', icon: 'fa-solid fa-lightbulb',            color: '#12a594' },
+  hint:      { label: '提示', icon: 'fa-solid fa-lightbulb',            color: '#12a594' },
+  success:   { label: '成功', icon: 'fa-solid fa-circle-check',         color: '#1a9e5c' },
+  check:     { label: '完成', icon: 'fa-solid fa-circle-check',         color: '#1a9e5c' },
+  done:      { label: '完成', icon: 'fa-solid fa-circle-check',         color: '#1a9e5c' },
+  question:  { label: '疑问', icon: 'fa-solid fa-circle-question',      color: '#8b6cff' },
+  help:      { label: '疑问', icon: 'fa-solid fa-circle-question',      color: '#8b6cff' },
+  faq:       { label: '疑问', icon: 'fa-solid fa-circle-question',      color: '#8b6cff' },
+  warning:   { label: '注意', icon: 'fa-solid fa-triangle-exclamation', color: '#d99400' },
+  caution:   { label: '注意', icon: 'fa-solid fa-triangle-exclamation', color: '#d99400' },
+  attention: { label: '注意', icon: 'fa-solid fa-triangle-exclamation', color: '#d99400' },
+  important: { label: '重点', icon: 'fa-solid fa-circle-exclamation',   color: '#d99400' },
+  danger:    { label: '危险', icon: 'fa-solid fa-fire',                 color: '#dc3f3f' },
+  error:     { label: '错误', icon: 'fa-solid fa-circle-xmark',         color: '#dc3f3f' },
+  failure:   { label: '失败', icon: 'fa-solid fa-xmark',                color: '#dc3f3f' },
+  fail:      { label: '失败', icon: 'fa-solid fa-xmark',                color: '#dc3f3f' },
+  missing:   { label: '缺失', icon: 'fa-solid fa-xmark',                color: '#dc3f3f' },
+  bug:       { label: 'Bug',  icon: 'fa-solid fa-bug',                  color: '#dc3f3f' },
+  todo:      { label: '待办', icon: 'fa-solid fa-list-check',           color: 'var(--accent)' },
+  quote:     { label: '引用', icon: 'fa-solid fa-quote-left',           color: '#7a7570' },
+  cite:      { label: '引用', icon: 'fa-solid fa-quote-left',           color: '#7a7570' },
+  abstract:  { label: '摘要', icon: 'fa-solid fa-clipboard-list',       color: 'var(--accent)' },
+  summary:   { label: '摘要', icon: 'fa-solid fa-clipboard-list',       color: 'var(--accent)' },
+  tldr:      { label: '摘要', icon: 'fa-solid fa-clipboard-list',       color: 'var(--accent)' },
+  example:   { label: '示例', icon: 'fa-solid fa-list-ul',              color: '#8b6cff' },
+};
+
+function convertCallouts(md, depth) {
+  if (!md.includes('[!')) return md; // 没写这个语法就原样返回，零开销
+  const lines = md.split('\n');
+  const out = [];
+  let fence = null; // 记录当前是否在 ``` / ~~~ 代码块里，代码块里不转换
+  for (let i = 0; i < lines.length; i++) {
+    const fenceMark = /^\s*(`{3,}|~{3,})/.exec(lines[i]);
+    if (fence) {
+      if (fenceMark && fenceMark[1][0] === fence.ch && fenceMark[1].length >= fence.len) fence = null;
+      out.push(lines[i]);
+      continue;
+    }
+    if (fenceMark) {
+      fence = { ch: fenceMark[1][0], len: fenceMark[1].length };
+      out.push(lines[i]);
+      continue;
+    }
+    const m = /^\s*>\s*\[!([A-Za-z]+)\]([+-]?)[ \t]*(.*)$/.exec(lines[i]);
+    if (!m) { out.push(lines[i]); continue; }
+    const type = m[1].toLowerCase();
+    const fold = m[2];
+    const titleRaw = m[3].trim();
+    // 收集后续引用行作为正文（与 Obsidian 一致：遇到非 `>` 开头的行就结束）
+    const body = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      if (!/^\s*>/.test(lines[j])) break;
+      body.push(lines[j].replace(/^\s*>\s?/, ''));
+    }
+    const info = CALLOUT_TYPES[type] || CALLOUT_TYPES.note;
+    const title = titleRaw || info.label;
+    const inner = body.join('\n').trim();
+    const innerHtml = inner ? renderMarkdown(inner, depth + 1) : '';
+    out.push('');
+    out.push(
+      `<details class="callout callout-${type}" style="--callout-color:${info.color}"${fold === '-' ? '' : ' open'}>` +
+      // is-custom：标题是作者自己写的（保留原大小写）；否则是类型名兜底（样式里转成大写，跟主题一致）
+      `<summary class="callout-title${titleRaw ? ' is-custom' : ''}"><i class="${info.icon}" aria-hidden="true"></i>` +
+      `<span class="callout-title-text">${escapeHtml(title)}</span></summary>` +
+      `<div class="callout-content">${innerHtml}</div></details>`
+    );
+    out.push('');
+    i = j - 1;
+  }
+  return out.join('\n');
+}
+
+function renderMarkdown(md, depth = 0) {
+  // 先把 Obsidian 的 > [!note] 折叠块换成 <details>，否则 marked 会输出字面量引用块
+  const source = depth < 4 ? convertCallouts(md, depth) : md;
+  let html = marked.parse(source, { renderer });
   // 音乐卡片：{{music <链接>}} → 官方外链播放器 iframe
   // 先处理独立成段（<p>{{music …}}</p>），再处理行内残余
   html = html.replace(/<p>\{\{\s*music\s+([^}]+?)\s*\}\}<\/p>/gi, (m, url) => musicCardHtml(url.trim()) || m);
@@ -227,10 +316,19 @@ function musicCardHtml(link) {
   return `<div class="music-player"><div class="music-player__embed"><iframe src="${escapeHtml(src)}" title="音乐播放器" loading="lazy" frameborder="0" allow="autoplay"></iframe></div>${jump}</div>`;
 }
 
+// 摘要 / meta description 里把行内标记还原成纯文字：((注释)) 去一层括号、==高亮== 去标记
+function cleanInlineMarkers(text) {
+  return String(text)
+    .replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, '($1)')
+    .replace(/==(?=\S)([^=\n]*?\S)==/g, '$1')
+;
+}
+
 function excerptFrom(text, len = 120) {
   const plain = text
     // 摘要里的 ((补充说明)) 去掉一层括号、收掉两侧空格，和正文渲染后的样子一致
     .replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, '($1)')
+    .replace(/==(?=\S)([^=\n]*?\S)==/g, '$1')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/<[^>]+>/g, '')
@@ -678,7 +776,7 @@ function loadPosts() {
       tags,
       // 手写摘要同样把小字注释还原成单层括号，并收掉两侧空格（与正文观感一致）
       excerpt: data.excerpt
-        ? String(data.excerpt).replace(/[ \t]*\(\(([^()\n]*?)\)\)[ \t]*/g, '($1)')
+        ? cleanInlineMarkers(String(data.excerpt))
         : excerptFrom(resolvedBody),
       banner: data.banner || '',
       body: resolvedBody,
@@ -714,7 +812,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe7">
   <meta name="keywords" content="${keywords}">
   ${remoteAssets}
-  <link rel="stylesheet" href="${withBase(`/assets/main.css`)}">
+  <link rel="stylesheet" href="${withBase(`/assets/main.css?v=${hashAssetFile('assets/main.css')}`)}">
   <link rel="stylesheet" href="${withBase(`/assets/custom.css?v=${hashAssetFile('assets/custom.css')}`)}">
   <link rel="stylesheet" href="${withBase(`/assets/fontawesome/all.min.css`)}">
   <script>
@@ -825,7 +923,63 @@ function sideTags() {
   </section>`;
 }
 
-function shellEnd(extraScripts = '', includeSearch = true) {
+// ---------- 文章页右侧「本页目录」 ----------
+// 只给 post 页用：把正文里的 <h2>/<h3> 补上 id，再生成侧栏目录。
+// 目录挂在侧栏最后（tags 下面），点击跳到对应标题，滚动时高亮当前小节（post.js）。
+function headingSlug(html) {
+  const plain = html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&[a-z#0-9]+;/gi, ' ')
+    .trim()
+    .toLowerCase();
+  const slug = plain
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug || 'section';
+}
+
+function withHeadingAnchors(html) {
+  const toc = [];
+  const used = new Map();
+  const out = html.replace(/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g, function (whole, level, attrs, inner) {
+    if (/\sid=/.test(attrs)) return whole;
+    let id = headingSlug(inner);
+    const seen = (used.get(id) || 0) + 1;
+    used.set(id, seen);
+    if (seen > 1) id = id + '-' + seen;
+    const text = inner
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+    toc.push({ level: Number(level), id: id, text: text });
+    return '<h' + level + attrs + ' id="' + id + '">' + inner + '</h' + level + '>';
+  });
+  return { html: out, toc: toc };
+}
+
+function sideToc(toc) {
+  if (!toc || !toc.length) return '';
+  const items = toc
+    .map(function (h) {
+      return `<a class="toc-link toc-level-${h.level}" href="#${h.id}" data-toc-target="${h.id}">${escapeHtml(h.text)}</a>`;
+    })
+    .join('');
+  return `<section class="side-panel side-toc">
+    <h2><i class="fa-solid fa-list-ul panel-icon" aria-hidden="true"></i>On This Page</h2>
+    <nav class="toc-list" aria-label="Table of contents">
+          ${items}
+    </nav>
+  </section>`;
+}
+
+function shellEnd(extraScripts = '', includeSearch = true, extraSide = '') {
   // 搜索（jQuery + ExSearch）改为按需懒加载：首次点击搜索按钮/按 / 时才注入，
   // 见 layout.js 的 initSearchLazyLoad —— 不再在每个页面预载 87KB 的 jQuery。
   // 备案信息：site.config.json 里填了 icp / police 才会渲染（未备案时保持原样）。
@@ -855,6 +1009,7 @@ function shellEnd(extraScripts = '', includeSearch = true) {
           ${sideInSite()}
           ${sideCategories()}
           ${sideTags()}
+          ${extraSide}
         </div>
       </aside>
     </div>
@@ -1002,7 +1157,8 @@ function buildPostPage(post, prev, next) {
     ? `<div class="tag"><a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a></div>`
     : '';
   // 同一段落里连着的多张图片 → 并排相框（Obsidian 里 ![[a]]![[b]]![[c]] 的语义）
-  const bodyHtml = wrapFigureRuns(renderMarkdown(post.body));
+  const withToc = withHeadingAnchors(wrapFigureRuns(renderMarkdown(post.body)));
+  const bodyHtml = withToc.html;
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>`;
@@ -1027,7 +1183,7 @@ function buildPostPage(post, prev, next) {
 ${bodyHtml}
 </article>
 ${postNav(prev, next)}
-` + shellEnd(scripts);
+` + shellEnd(scripts, true, sideToc(withToc.toc));
   return html;
 }
 
