@@ -785,7 +785,8 @@ figure.pswp-item figcaption {
 .entry-memo .memo-content .callout {
   --callout-color: #4f7cff;
   position: relative;
-  margin: 2.1em 0 1.2em;
+  /* 上下留白按正文段落节奏收紧：标题压在框线上，往上留 1.5em 刚好等于段落间距 */
+  margin: 1.5em 0 0.75em;
   padding: 1.05em 1.05em 0.95em;
   border: 1px solid color-mix(in srgb, var(--callout-color) 34%, transparent);
   border-radius: 7px;
