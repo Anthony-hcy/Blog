@@ -1230,7 +1230,7 @@ ${postNav(prev, next)}
 const ARCHIVE_INTRO = '只要天上还有云，风还在吹，树叶还在风中沙沙作响...';
 const ARCHIVE_MOONS = '🌑🌒🌓🌔🌕🌖🌗🌘🌑';
 const ARCHIVE_SUMMARY_CSS = '<style>' +
-  '.archive-title { margin-bottom: 16px; }' +
+  '.archive-title { margin-bottom: 8px; line-height: 1.25; }' +
   '.archive-summary { padding-bottom: 14px; }' +
   '.archive-summary-line { margin: 0 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.8; }' +
   '.archive-summary-moons { margin-right: 8px; font-size: 15px; }' +
@@ -1239,8 +1239,21 @@ const ARCHIVE_SUMMARY_CSS = '<style>' +
   '</style>';
 const ARCHIVE_SUMMARY_SCRIPT = '<script>(function(){var el=document.querySelector(".js-archive-days");if(!el||!el.dataset.since)return;var s=new Date(el.dataset.since.replace(/-/g,"/")+" 00:00:00");if(isNaN(s.getTime()))return;el.textContent=Math.max(0,Math.floor((Date.now()-s.getTime())/86400000));})();</script>';
 
+// 全站正文字数（算法同归档页：纯文字字符，不含图片、链接地址、Markdown 标记与空白）
+function siteTextLength() {
+  return _posts.reduce((sum, p) => sum + memoTextLength(p.body), 0);
+}
+
+// 关于页 Words 卡片用：「1.55 万字」拆成数值 + 单位，小于一万时显示「1234 字」
+function aboutWordsParts() {
+  const total = siteTextLength();
+  return total >= 10000
+    ? { value: (total / 10000).toFixed(2), unit: '万字' }
+    : { value: String(total), unit: '字' };
+}
+
 function archiveWordText() {
-  const total = _posts.reduce((sum, p) => sum + memoTextLength(p.body), 0);
+  const total = siteTextLength();
   return total >= 10000 ? (total / 10000).toFixed(2) + ' 万字' : total + ' 字';
 }
 
@@ -1442,6 +1455,11 @@ function buildAboutPage() {
       <p class="about-stat-label">Memos</p>
       <p class="about-stat-value">${_posts.filter(p => p.type === 'memo').length}</p>
       <p class="about-stat-meta">Short updates</p>
+    </article>
+    <article class="about-stat-card">
+      <p class="about-stat-label">Words</p>
+      <p class="about-stat-value">${aboutWordsParts().value}<small>${aboutWordsParts().unit}</small></p>
+      <p class="about-stat-meta">Posts &amp; memos</p>
     </article>
     <article class="about-stat-card">
       <p class="about-stat-label">Views</p>
