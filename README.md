@@ -15,6 +15,7 @@
 - 支持 Obsidian 提示块 `> [!note]`（可折叠、分类型配色；见 [docs/使用指南.md](docs/使用指南.md) 第十五节）
 - 全站搜索（ExSearch，本地 JSON 索引）
 - 归档、分类、标签、关于页
+- 归档页导语（借自 Eyu.at 形式）：月相一行 + 一句话 + 字数 × 篇数 × 地球日，数字构建时自动算（见 [docs/使用指南.md](docs/使用指南.md) 第十七节）
 - 手机端管理面板 Blog Portal（Posts / Edit / Images / Status）
 
 ## 快速开始

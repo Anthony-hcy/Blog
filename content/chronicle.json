@@ -1,139 +1,109 @@
 {
   "title": "Chronicle",
-  "intro": "建站以来的重要节点、踩过的坑和修复记录。date 留空就只显示内容，不显示时间。",
+  "intro": "建站以来的重要节点、踩过的坑和修好的事。",
   "order": "desc",
   "entries": [
     {
       "date": "2026-09-04",
       "tag": "建立",
-      "title": "建站：AtWill 风格静态博客上线",
-      "desc": "选定 GitHub Pages 托管，用自写构建脚本生成首页 feed、文章页、归档、分类、标签、关于与搜索索引；站点部署在 /Blog 子路径下。"
+      "title": "建站上线",
+      "desc": "选 GitHub Pages 托管，自写构建脚本生成首页、文章页、归档、分类、关于与搜索索引。"
     },
     {
       "date": "2026-09-04",
       "tag": "修复",
-      "title": "子路径部署带来的资源错位",
-      "desc": "base=/Blog 下出现资源 404 和 /Blog/Blog/ 双前缀；统一用 withBase() 处理路径（幂等），并修正 memo 页结构、KaTeX 样式、XML 转义与 ExSearch 索引格式。"
-    },
-    {
-      "date": "2026-09-04",
-      "tag": "修复",
-      "title": "FontAwesome 图标不显示",
-      "desc": "用 JS 注入的方式不稳定，改成 CSS webfonts，字体文件移进 assets/webfonts。"
-    },
-    {
-      "date": "2026-09-04",
-      "tag": "优化",
-      "title": "构建不再依赖 npm ci",
-      "desc": "把 marked 收进 vendor/，CI 不必安装依赖，构建更快也更稳。"
+      "title": "子路径资源错位与构建提速",
+      "desc": "统一用 withBase() 处理路径，修好 404 与 /Blog/Blog/ 双前缀；marked 收进 vendor/，CI 从此免装依赖。"
     },
     {
       "date": "2026-09-05",
       "tag": "功能",
-      "title": "后台 Portal 上线",
-      "desc": "memo 编辑器支持本地暂存照片（压缩 + 即时预览）、成批上传后发布，文章与图片都能在后台管理。"
-    },
-    {
-      "date": "2026-09-06",
-      "tag": "功能",
-      "title": "Portal 体验补齐",
-      "desc": "新增构建状态提示（发布后轮询）与更完整的 Status 页，并去掉移动端蓝色点击高亮、补上按压反馈与图片选择动画。"
+      "title": "手机后台 Portal",
+      "desc": "发说说、传图、管文章都能在手机上完成；发布后轮询构建状态，移动端补上按压反馈。"
     },
     {
       "date": "",
       "tag": "日常",
-      "title": "九月：memo 日常更新期",
-      "desc": "这段时间以内容更新为主（碎碎念、长文和图片），站点代码没有大改动，就不标具体日期了。"
+      "title": "九月：内容更新期",
+      "desc": "以碎碎念、长文和图片为主，站点代码没有大改。"
     },
     {
       "date": "2026-10-01",
       "tag": "功能",
       "title": "实况照片与双链图片",
-      "desc": "一加动态照片自动拆分，每张图可勾选实况、长按或点 ▶ 播放；同时修好双链图片并排渲染与 emoji 字体缺口。"
+      "desc": "一加动态照片自动拆分、点开可播；双链图片并排渲染。"
     },
     {
       "date": "2026-10-02",
       "tag": "优化",
-      "title": "部署提速：ffmpeg 改静态包直连",
-      "desc": "apt 装 ffmpeg 要 3 分钟左右，改成静态包直连下载约 30 秒，并给下载加重试；只有存在实况视频时才安装。"
-    },
-    {
-      "date": "2026-10-03",
-      "tag": "修复",
-      "title": "移除高德定位与 Cloudflare Worker",
-      "desc": "定位改为手动输入，worker/ 目录删除，部署链路少一个外部依赖；同时清理删除图片时遗留的伴生文件（.thumb.jpg / .mp4）。"
+      "title": "部署提速：ffmpeg 改静态包",
+      "desc": "apt 装 ffmpeg 约 3 分钟，改静态包直连约 30 秒，且只在有实况视频时才装。"
     },
     {
       "date": "2026-10-04",
       "tag": "修复",
-      "title": "部署了新内容却仍看到旧页面",
-      "desc": "sw.js 的 navigate 分支误用了 staleWhileRevalidate（先返回旧缓存），改回注释里承诺的 network-first；SW 注册时机也从 window.load 提前到 DOMContentLoaded——全站图片 loading=lazy 会把 load 事件推迟到约 120 秒。"
+      "title": "部署了新内容，仍看到旧页面",
+      "desc": "sw.js 误用 staleWhileRevalidate，改回 network-first；注册提前到 DOMContentLoaded——懒加载图片会把 load 拖到约 120 秒。"
     },
     {
       "date": "2026-10-05",
       "tag": "功能",
       "title": "朋友圈页面上线",
-      "desc": "用 FriendCircle 采集友链文章并按 memo 风格渲染；随后改成手动友链清单模式，统一按最近发布排序。"
-    },
-    {
-      "date": "2026-10-06",
-      "tag": "功能",
-      "title": "朋友圈迭代：分页 · 定时 · 失联提示",
-      "desc": "改为不清理历史 + 前端分页（「且看下文」→「春和景明，终有尽时」）、连续同一作者合并成块、接入 29 个友链、采集定时改为每天北京时间 04:00，并加上「未获取到」提示框。"
-    },
-    {
-      "date": "2026-10-06",
-      "tag": "修复",
-      "title": "机器人提交不会触发部署",
-      "desc": "定时采集用的是 GITHUB_TOKEN，而 GitHub 规定机器人 token 的提交不触发其它 workflow；部署改为 workflow_run 触发，并且只在采集成功时执行。"
-    },
-    {
-      "date": "2026-10-06",
-      "tag": "修复",
-      "title": "反爬站点收不进来",
-      "desc": "zhangjet.com 是 TLS 指纹级反爬（带任何 UA 都返回 404），l3on.site 校验 UA；不硬碰，改为单独脚本抓取后合并进朋友圈数据，抓取失败时保留旧条目。"
-    },
-    {
-      "date": "2026-10-07",
-      "tag": "功能",
-      "title": "侧边栏朋友圈入口",
-      "desc": "换成手绘线条双圆环（微信朋友圈样式）配 FCIRCLE 文案，并修掉它与其它导航项的基线和间距差异。"
+      "desc": "采集友链文章按说说风格展示，随后加分页、同作者合并、29 个友链与每天 04:00 定时采集。"
     },
     {
       "date": "2026-10-08",
       "tag": "优化",
-      "title": "双站部署：先试了「阿里云服务器 + 备案」这条路",
-      "desc": "在 GitHub Pages 之外又买阿里云轻量服务器做国内直连，脚本、nginx 配置和一键切站流程都写好了；最终因为备案与维护成本太高而放弃、服务器退款，转向海外托管。"
+      "title": "双站部署：试过阿里云服务器",
+      "desc": "服务器、nginx、一键切站脚本都写好，最终因备案与维护成本太高放弃、退款。"
     },
     {
       "date": "2026-10-11",
       "tag": "建立",
-      "title": "haelcy.cn 上线：Vercel 主站 + GitHub Pages 镜像",
-      "desc": "同一份源码走两条构建线：Vercel 监听仓库自动构建根路径版并绑定 haelcy.cn（www.haelcy.cn 308 跳回主域），Actions 继续构建 /Blog 前缀版喂 GitHub Pages。实测广州首页 TTFB 0.2–0.6 秒。"
+      "title": "haelcy.cn 上线",
+      "desc": "Vercel 主站 + GitHub Pages 镜像，同一份源码两种前缀；广州首页 TTFB 0.2–0.6 秒。"
     },
     {
       "date": "2026-10-11",
       "tag": "优化",
       "title": "解析弃用 Cloudflare，改阿里云云解析",
-      "desc": "Cloudflare 橙云代理把广州流量绕到洛杉矶（2–14 秒且时常超时），先改灰云 CNAME 直连 Vercel；随后把权威解析整体迁到阿里云云解析（NS 换成 dns13/dns14.hichina.com）。apex 用两条 A 记录，因为云解析不支持根域 CNAME。"
+      "desc": "橙云代理把广州流量绕到洛杉矶（2–14 秒），改灰云直连后把 NS 迁到阿里云云解析。"
     },
     {
-      "date": "2026-10-11",
+      "date": "2026-10-12",
       "tag": "修复",
-      "title": "Portal 标题字体和站内不一致",
-      "desc": "三层原因：构建时字体引入被 localOnly 和统计脚本一起剥掉了、portal.css 把系统字体栈写死在 .portal-body、portal-view.js 运行时给 #portal-root 注入内联 font-family 压过一切（还重复插一份不带版本号的 CSS 被浏览器缓存）。三处都改掉后标题跟上主题字体。"
+      "title": "Portal 字体与手机端错位",
+      "desc": "工具页写死的系统字体栈压过主题字体；New post 等元素位置偏移一并修好。"
     },
     {
-      "date": "2026-10-11",
-      "tag": "修复",
-      "title": "/portal 打不开，只有 /portal.html 能开",
-      "desc": "Vercel 默认不做 clean URL（GitHub Pages 会 308 到 /portal），补 vercel.json 把 /portal 与 /portal/ 永久重定向到 /portal.html。"
+      "date": "2026-10-18",
+      "tag": "优化",
+      "title": "项目结构整理",
+      "desc": "仓库根上提，文档归入 docs/，临时文件收进 _tmp/，README 补上目录树。"
     },
     {
-      "date": "2026-10-11",
+      "date": "2026-10-19",
+      "tag": "功能",
+      "title": "行内小字注释与首页折叠",
+      "desc": "((补充说明)) 变灰色小字；正文超过 150 字的说说默认收起 6 行，可展开。"
+    },
+    {
+      "date": "2026-10-20",
+      "tag": "功能",
+      "title": "Portal 传图更省事",
+      "desc": "上传自动生成 480px 缩略图，ffmpeg 走缓存，CI 只在真缺文件时才装。"
+    },
+    {
+      "date": "2026-10-20",
       "tag": "修复",
-      "title": "Live 图缺 H.264 兼容版",
-      "desc": "两处实况图的 .avc.mp4 与缩略图只存在于 CI 产物里、没有提交回仓库，缺文件时构建脚本会静默降级；补齐进仓库后实况播放恢复正常。"
+      "title": "传图后正文写成 undefined",
+      "desc": "异步函数没等结果就打包，图片没提交还让整站构建失败；补上兜底，坏引用只告警不掉站。"
+    },
+    {
+      "date": "2026-10-21",
+      "tag": "功能",
+      "title": "提示块 · 高亮 · 本页目录",
+      "desc": "支持 Obsidian 的 > [!note] 提示块与 ==高亮==，文章页右侧加自动高亮的本页目录。"
     }
   ]
 }

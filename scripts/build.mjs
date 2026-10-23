@@ -1219,6 +1219,46 @@ ${postNav(prev, next)}
   return html;
 }
 
+// ---------- 归档页导语：月相 + 一句话 + 统计 ----------
+// 形式借自 Eyu.at 的日记归档页（「🌑…🌘 听说距今太过久远的日记会被魔女藏入密室喔。」），
+// 文案与配色按本站改过；数字全部用真实数据在构建时算，不手填：
+//   字数：所有文章正文的纯文字字符数（算法同 memoTextLength——图片、链接地址、HTML 标签、
+//         Markdown 标记符和空白都不算），满一万按「X.XX 万字」显示；
+//   篇数：参与构建的文章总数；
+//   地球日：从建站日 site.since 到今天的天数。构建时先写一个值，页面加载后由内联脚本按
+//           当天日期校准——静态站很久不部署时这个数字也不会停在旧的一天。
+const ARCHIVE_INTRO = '听说距今太过久远的日记会被魔女藏入密室喔。';
+const ARCHIVE_MOONS = '🌑🌒🌓🌔🌕🌖🌗🌘🌑';
+const ARCHIVE_SUMMARY_CSS = '<style>' +
+  '.archive-title { margin-bottom: 16px; }' +
+  '.archive-summary { padding-bottom: 14px; }' +
+  '.archive-summary-line { margin: 0 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.8; }' +
+  '.archive-summary-moons { margin-right: 8px; font-size: 15px; }' +
+  '.archive-summary-stats { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.8; color: var(--text-3); }' +
+  '@media (max-width: 640px) { .archive-summary-line { font-size: 13px; } .archive-summary-stats { font-size: 12px; } }' +
+  '</style>';
+const ARCHIVE_SUMMARY_SCRIPT = '<script>(function(){var el=document.querySelector(".js-archive-days");if(!el||!el.dataset.since)return;var s=new Date(el.dataset.since.replace(/-/g,"/")+" 00:00:00");if(isNaN(s.getTime()))return;el.textContent=Math.max(0,Math.floor((Date.now()-s.getTime())/86400000));})();</script>';
+
+function archiveWordText() {
+  const total = _posts.reduce((sum, p) => sum + memoTextLength(p.body), 0);
+  return total >= 10000 ? (total / 10000).toFixed(2) + ' 万字' : total + ' 字';
+}
+
+function archiveDaysSince() {
+  const since = String(site.since || '').slice(0, 10).replace(/-/g, '/');
+  const start = new Date(since + ' 00:00:00');
+  if (Number.isNaN(start.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
+}
+
+function buildArchiveSummary() {
+  const since = String(site.since || '').slice(0, 10);
+  return '  <div class="archive-summary">\n' +
+    '    <p class="archive-summary-line"><span class="archive-summary-moons" aria-hidden="true">' + ARCHIVE_MOONS + '</span>' + ARCHIVE_INTRO + '</p>\n' +
+    '    <p class="archive-summary-stats">共糊弄了 ' + archiveWordText() + ' × ' + _posts.length + ' 篇日记 × <span class="js-archive-days" data-since="' + escapeHtml(since) + '">' + archiveDaysSince() + '</span> 个地球日</p>\n' +
+    '  </div>\n';
+}
+
 function buildArchivesPage() {
   const items = _posts.map(p => {
     const title = p.type === 'memo'
@@ -1230,11 +1270,11 @@ function buildArchivesPage() {
     <span class="time">${p.dateText}</span>
   </a>`;
   }).join('');
-  const html = headHtml(`Archives - ${site.name}`, { pagePath: '/archives/' }) + shellStart() + `
+  const html = headHtml(`Archives - ${site.name}`, { pagePath: '/archives/', extraHead: ARCHIVE_SUMMARY_CSS }) + shellStart() + `
 <div class="archive-title">Archives</div>
-<div class="archives-container">${items}
+${buildArchiveSummary()}<div class="archives-container">${items}
 </div>
-` + shellEnd();
+` + shellEnd(ARCHIVE_SUMMARY_SCRIPT);
   return html;
 }
 
