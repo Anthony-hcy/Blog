@@ -1140,8 +1140,8 @@ figure.pswp-item figcaption {
 
 .about-flower {
   position: absolute;
-  top: 136px;
-  right: -32px;
+  top: 10px;
+  right: 16px;
   width: 48px;
   height: 80px;
   pointer-events: none;
