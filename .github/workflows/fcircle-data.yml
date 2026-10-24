@@ -52,8 +52,8 @@ jobs:
       - name: Extract error friends
         run: python scripts/extract_errors.py collect.log site-root/fcircle-errors.json
 
-      # 反爬站（l3on.site 拒非浏览器 UA；zhangjet.com TLS 指纹反爬 curl 也拒）用
-      # python urllib（带浏览器 UA）抓 feed 后合并进 data.json
+      # 核心采集被拒或超时的站用 Python（urllib + curl 备用通道）直接抓 feed；
+      # 成功恢复的站会同步从 fcircle-errors.json 移除，并重算活跃/失联统计。
       - name: Merge anti-bot sites
         run: python scripts/fetch_antibot.py site-root/fcircle-data.json
 
