@@ -1786,6 +1786,8 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* 左右内容留白对称：scrollbar-gutter 在两侧各预留同宽，避免滚动条把正文整体挤向左 */
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
