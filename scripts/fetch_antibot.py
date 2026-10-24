@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
@@ -24,6 +25,13 @@ SITES = [
     ('鹅玉', 'https://eyu.at/index.xml', 'https://eyu.at/favicon.png', 'rss'),
 ]
 
+# 部分海外 DNS 会把站点黑洞到 127.0.0.1；curl 备用通道固定到已验证的源站 IP。
+# 正常 urllib 直连优先，IP 失效时仍保留原错误，不会清空旧文章。
+RESOLVE = {
+    'pwsz.com': '61.241.15.149',
+    'iyyz.org': '70.39.206.215',
+}
+
 
 def fetch(url):
     last = None
@@ -37,9 +45,13 @@ def fetch(url):
             import time
             time.sleep(2)
     try:
+        host = urllib.parse.urlsplit(url).hostname
+        command = ['curl', '-fsSL', '--max-time', '30', '-A', UA]
+        if host in RESOLVE:
+            command += ['--resolve', f'{host}:443:{RESOLVE[host]}']
+        command.append(url)
         result = subprocess.run(
-            ['curl', '-fsSL', '--max-time', '30', '-A', UA, url],
-            capture_output=True, check=True, timeout=40,
+            command, capture_output=True, check=True, timeout=40,
         )
         return result.stdout.decode('utf-8', 'replace')
     except Exception as curl_error:
