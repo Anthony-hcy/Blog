@@ -64,6 +64,35 @@
       .catch(function () {});
   }
 
+  var shanghaiDayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+
+  // 采集数据里的日期按北京时间理解；以日历日而非“过去 24 小时”判断今天/昨天/前天。
+  function shanghaiDayNumber(date) {
+    var values = {};
+    shanghaiDayFormatter.formatToParts(date).forEach(function (part) {
+      if (part.type !== 'literal') values[part.type] = Number(part.value);
+    });
+    return Date.UTC(values.year, values.month - 1, values.day) / 86400000;
+  }
+
+  function createdDayNumber(created) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(created || ''));
+    if (!match) return null;
+    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000;
+  }
+
+  function formatArticleDate(created, now) {
+    var createdDay = createdDayNumber(created);
+    if (createdDay === null) return created;
+    var difference = shanghaiDayNumber(now || new Date()) - createdDay;
+    if (difference === 0) return '今天';
+    if (difference === 1) return '昨天';
+    if (difference === 2) return '前天';
+    return created;
+  }
+
   var articles = [];
   // 分页：初始展示 PAGE_SIZE 条，点击「且看下文」每次再加载 PAGE_SIZE 条，到底显示「春和景明，终有尽时」
   var PAGE_SIZE = 20;
@@ -105,7 +134,7 @@
         '<div class="fcircle-block-items">' +
           b.items.map(function (a) {
             return '<div class="fcircle-item">' +
-              '<time class="fcircle-item-date">' + esc(a.created || '') + '</time>' +
+              '<time class="fcircle-item-date" datetime="' + esc(a.created || '') + '" title="' + esc(a.created || '') + '">' + esc(formatArticleDate(a.created || '')) + '</time>' +
               '<a class="fcircle-item-title" href="' + esc(a.link) + '" target="_blank" rel="noopener nofollow">' + esc(a.title) + '</a>' +
             '</div>';
           }).join('') +

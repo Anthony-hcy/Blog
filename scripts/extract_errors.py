@@ -28,6 +28,7 @@ for e in errors:
         'name': e.get('name', ''),
         'link': e.get('link', ''),
         'avatar': e.get('avatar', ''),
+        'error': e.get('error', ''),
         'createdAt': e.get('createdAt', ''),
     })
     out['last_updated_time'] = e.get('createdAt')

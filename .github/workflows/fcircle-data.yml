@@ -34,6 +34,15 @@ jobs:
         env:
           TZ: Asia/Shanghai
 
+      # 保留原始采集日志：失联原因只存在于 collect.log，7 天后自动清理。
+      - name: Upload collector diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcircle-collect-log-${{ github.run_id }}
+          path: collect.log
+          retention-days: 7
+
       - name: Publish data.json into site-root
         run: |
           mkdir -p site-root

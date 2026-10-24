@@ -1237,6 +1237,58 @@ const ARCHIVE_SUMMARY_CSS = '<style>' +
   '.archive-summary-stats { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.8; color: var(--text-3); }' +
   '@media (max-width: 640px) { .archive-summary-line { font-size: 13px; } .archive-summary-stats { font-size: 12px; } }' +
   '</style>';
+const ARCHIVE_CONFETTI_CSS = `
+<style>
+  .archive-confetti {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: .72;
+  }
+  .archive-confetti-piece {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 20px;
+    opacity: 0;
+    animation-name: archiveConfettiFall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .archive-confetti-piece:nth-child(3n) {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+  }
+  .archive-confetti-piece:nth-child(5n) {
+    width: 20px;
+    height: 8px;
+    border-radius: 4px;
+  }
+  @keyframes archiveConfettiFall {
+    from {
+      transform: translate3d(0, -10vh, 0) rotate(0deg);
+      opacity: 1;
+    }
+    to {
+      transform: translate3d(var(--archive-confetti-x), 110vh, 0) rotate(var(--archive-confetti-rotation));
+      opacity: 0;
+    }
+  }
+  @media (max-width: 640px) {
+    .archive-confetti { opacity: .5; }
+    .archive-confetti-piece:nth-child(even) { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .archive-confetti-piece { animation: none; opacity: .38; }
+    .archive-confetti-piece:nth-child(3n + 1) { top: 24vh; }
+    .archive-confetti-piece:nth-child(3n + 2) { top: 52vh; }
+    .archive-confetti-piece:nth-child(3n) { top: 78vh; }
+  }
+</style>`;
+
 const ARCHIVE_SUMMARY_SCRIPT = '<script>(function(){var el=document.querySelector(".js-archive-days");if(!el||!el.dataset.since)return;var s=new Date(el.dataset.since.replace(/-/g,"/")+" 00:00:00");if(isNaN(s.getTime()))return;el.textContent=Math.max(0,Math.floor((Date.now()-s.getTime())/86400000));})();</script>';
 
 // 全站正文字数（算法同归档页：纯文字字符，不含图片、链接地址、Markdown 标记与空白）
@@ -1244,11 +1296,11 @@ function siteTextLength() {
   return _posts.reduce((sum, p) => sum + memoTextLength(p.body), 0);
 }
 
-// 关于页 Words 卡片用：「1.55 万字」拆成数值 + 单位，小于一万时显示「1234 字」
+// 关于页 Words 卡片用：满一万显示「1.55w」，小于一万显示「1234 字」。
 function aboutWordsParts() {
   const total = siteTextLength();
   return total >= 10000
-    ? { value: (total / 10000).toFixed(2), unit: '万字' }
+    ? { value: `${(total / 10000).toFixed(2)}w`, unit: '' }
     : { value: String(total), unit: '字' };
 }
 
@@ -1272,6 +1324,19 @@ function buildArchiveSummary() {
     '  </div>\n';
 }
 
+function buildArchiveConfetti() {
+  const colors = ['#FFC0CB', '#FFD700', '#87CEEB', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF69B4', '#00CED1', '#BA55D3', '#7FFFD4', '#FF6347', '#40E0D0', '#EE82EE'];
+  const positions = [10, 25, 40, 55, 70, 85, 15, 30, 45, 60, 75, 90, 5, 50, 80];
+  const drifts = [100, -50, 50, -100, 75, -75, 25, -25, 125, -125, 60, -60, 40, -40, 0];
+  const pieces = colors.map((color, index) => {
+    const duration = 10 + (index % 5) * 3;
+    const delay = -Number((index * 1.35).toFixed(2));
+    const rotation = 360 + (index % 4) * 180;
+    return `<div class="archive-confetti-piece" style="left:${positions[index]}%;background-color:${color};animation-duration:${duration}s;animation-delay:${delay}s;--archive-confetti-x:${drifts[index]}px;--archive-confetti-rotation:${rotation}deg"></div>`;
+  }).join('');
+  return `<div class="archive-confetti" aria-hidden="true">${pieces}</div>`;
+}
+
 function buildArchivesPage() {
   const items = _posts.map(p => {
     const title = p.type === 'memo'
@@ -1283,7 +1348,7 @@ function buildArchivesPage() {
     <span class="time">${p.dateText}</span>
   </a>`;
   }).join('');
-  const html = headHtml(`Archives - ${site.name}`, { pagePath: '/archives/', extraHead: ARCHIVE_SUMMARY_CSS }) + shellStart() + `
+  const html = headHtml(`Archives - ${site.name}`, { pagePath: '/archives/', extraHead: ARCHIVE_SUMMARY_CSS + ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
 <div class="archive-title">Archives</div>
 ${buildArchiveSummary()}<div class="archives-container">${items}
 </div>
@@ -1428,6 +1493,12 @@ function buildAboutPage() {
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/about.js?v=${hashAssetFile('assets/js/about.js')}`)}"></script>`;
   const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS : '') }) + shellStart() + `
+<div class="about-page">
+<div class="about-flower" aria-hidden="true">
+  <span class="about-flower-text">日安!</span>
+  <span class="about-flower-text">晚安~</span>
+  <div class="about-flower-image"></div>
+</div>
 <section class="about-section">
   <div class="about-section-head">
     <h2>About Me</h2>
@@ -1468,7 +1539,8 @@ function buildAboutPage() {
     </article>
   </div>
 </section>
-${chronicleSection}` + shellEnd(scripts);
+${chronicleSection}
+</div>` + shellEnd(scripts);
   return html;
 }
 

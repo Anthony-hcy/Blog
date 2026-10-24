@@ -698,6 +698,14 @@ figure.pswp-item figcaption {
   opacity: .85;
 }
 
+/* 点状下划线：与鹅玉正文一致，保留较大的点径和轻微下移。 */
+.article-body u {
+  text-underline-offset: 0.2em;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 0.15em;
+}
+
 .entry-memo .memo-content > *:first-child,
 .memo-page .memo-content > *:first-child,
 .article-body > *:first-child {
@@ -1123,6 +1131,81 @@ figure.pswp-item figcaption {
   border: 1px solid var(--rule-light);
   border-radius: 999px;
   padding: 4px 10px;
+}
+
+/* About 左侧的浮动问候与旋转小花；窄屏收起，避免挤压正文。 */
+.about-page {
+  position: relative;
+}
+
+.about-flower {
+  position: absolute;
+  top: 136px;
+  left: -32px;
+  width: 48px;
+  height: 80px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.about-flower-text {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  width: 100%;
+  padding: 8px 0;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0;
+}
+
+.about-flower-text:nth-child(1) {
+  animation: aboutFlowerFloat 4s ease-in-out infinite;
+}
+
+.about-flower-text:nth-child(2) {
+  animation: aboutFlowerFloat 4s ease-in-out infinite 2s;
+}
+
+.about-flower-image {
+  position: absolute;
+  bottom: 0;
+  width: 48px;
+  height: 48px;
+  background: url("./theme/flower.webp") center / contain no-repeat;
+  animation: aboutFlowerSpin 3s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes aboutFlowerSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes aboutFlowerFloat {
+  0% { transform: translateY(0); opacity: 0; }
+  20%, 70% { opacity: 1; }
+  100% { transform: translateY(-2em); opacity: 0; }
+}
+
+@media (max-width: 960px) {
+  .about-flower { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-flower-image,
+  .about-flower-text {
+    animation: none;
+  }
+
+  .about-flower-text:first-child {
+    opacity: 1;
+  }
+
+  .about-flower-text:nth-child(2) {
+    display: none;
+  }
 }
 
 .about-section {
