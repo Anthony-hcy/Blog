@@ -1245,7 +1245,7 @@ const ARCHIVE_CONFETTI_CSS = `
     z-index: 10;
     overflow: hidden;
     pointer-events: none;
-    opacity: .72;
+    opacity: .8;
   }
   .archive-confetti-piece {
     position: absolute;
@@ -1281,12 +1281,7 @@ const ARCHIVE_CONFETTI_CSS = `
     .archive-confetti { opacity: .5; }
     .archive-confetti-piece:nth-child(even) { display: none; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .archive-confetti-piece { animation: none; opacity: .38; }
-    .archive-confetti-piece:nth-child(3n + 1) { top: 24vh; }
-    .archive-confetti-piece:nth-child(3n + 2) { top: 52vh; }
-    .archive-confetti-piece:nth-child(3n) { top: 78vh; }
-  }
+
 </style>`;
 
 const ARCHIVE_SUMMARY_SCRIPT = '<script>(function(){var el=document.querySelector(".js-archive-days");if(!el||!el.dataset.since)return;var s=new Date(el.dataset.since.replace(/-/g,"/")+" 00:00:00");if(isNaN(s.getTime()))return;el.textContent=Math.max(0,Math.floor((Date.now()-s.getTime())/86400000));})();</script>';
@@ -1300,7 +1295,7 @@ function siteTextLength() {
 function aboutWordsParts() {
   const total = siteTextLength();
   return total >= 10000
-    ? { value: `${(total / 10000).toFixed(2)}w`, unit: '' }
+    ? { value: `${(total / 10000).toFixed(2)}`, unit: 'w' }
     : { value: String(total), unit: '字' };
 }
 

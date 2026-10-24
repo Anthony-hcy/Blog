@@ -68,7 +68,7 @@
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
   });
 
-  // 采集数据里的日期按北京时间理解；以日历日而非“过去 24 小时”判断今天/昨天/前天。
+  // 采集数据里的日期按北京时间理解；以日历日而非“过去 24 小时”判断 Today/Yesterday/2 days ago。
   function shanghaiDayNumber(date) {
     var values = {};
     shanghaiDayFormatter.formatToParts(date).forEach(function (part) {
@@ -87,9 +87,9 @@
     var createdDay = createdDayNumber(created);
     if (createdDay === null) return created;
     var difference = shanghaiDayNumber(now || new Date()) - createdDay;
-    if (difference === 0) return '今天';
-    if (difference === 1) return '昨天';
-    if (difference === 2) return '前天';
+    if (difference === 0) return 'Today';
+    if (difference === 1) return 'Yesterday';
+    if (difference === 2) return '2 days ago';
     return created;
   }
 

@@ -1141,7 +1141,7 @@ figure.pswp-item figcaption {
 .about-flower {
   position: absolute;
   top: 136px;
-  left: -32px;
+  right: -32px;
   width: 48px;
   height: 80px;
   pointer-events: none;
@@ -1193,20 +1193,7 @@ figure.pswp-item figcaption {
   .about-flower { display: none; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .about-flower-image,
-  .about-flower-text {
-    animation: none;
-  }
 
-  .about-flower-text:first-child {
-    opacity: 1;
-  }
-
-  .about-flower-text:nth-child(2) {
-    display: none;
-  }
-}
 
 .about-section {
   border: 1px solid var(--rule-light);
