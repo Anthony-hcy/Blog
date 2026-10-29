@@ -66,9 +66,9 @@ SETTINGS_FRIENDS_LINKS: {
         # 微信没有公开的文章列表 API，这里用第三方镜像的专栏 RSS：
         #   订阅地址 = 前缀 + 令牌（令牌是 Base32 编码的「专栏ID|签名」，永久有效、不随文章变化）
         # 免费版每个专栏只返回最近 5 篇，但含永久链接（带 sn），可直接抓原文。
-        # 头像留空：前端会自动降级成作者首字母占位。
-        ["数字生命卡兹克", "http://rss.jintiankansha.me/rss/", "", "GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A===="],
-        ["3号厅检票员工", "http://rss.jintiankansha.me/rss/", "", "GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA===="],
+        # 头像用微信 CDN 原图（前端 <img> 已带 referrerpolicy=no-referrer，可绕过防盗链）。
+        ["数字生命卡兹克", "http://rss.jintiankansha.me/rss/", "https://mmbiz.qpic.cn/mmbiz_png/OjgKEXmLURraibxGuHz6cfRAR74OFy6ib8iavRtmYufwwkQiczWlX1HRaicDTfBkQnZDdjM9PQibS2kh6gNt4gq20Vzw/0?wx_fmt=png", "GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A===="],
+        ["3号厅检票员工", "http://rss.jintiankansha.me/rss/", "https://mmbiz.qpic.cn/mmbiz_png/76VlEREHvOz9kA8yuDjE0wvKPzQ1MmSZXQRzFibwwDOSibnQQFEGGFxheU8Z1WAicrC605ibepwDSLYbVV6eibPSMzg/0?wx_fmt=png", "GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA===="],
     ]
 }
 

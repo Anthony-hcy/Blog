@@ -25,8 +25,8 @@ SITES = [
     ('鹅玉', 'https://eyu.at/index.xml', 'https://eyu.at/favicon.png', 'rss'),
     # 微信公众号：fcircle_core 对 rss.jintiankansha.me 的拼接结果不一定稳，这里用完整 URL 直连兜底。
     # 作者名必须与 fc_settings.yaml 里的名字一致，成功后会按名字把失联记录清掉。
-    ('数字生命卡兹克', 'http://rss.jintiankansha.me/rss/GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A====', '', 'rss'),
-    ('3号厅检票员工', 'http://rss.jintiankansha.me/rss/GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA====', '', 'rss'),
+    ('数字生命卡兹克', 'http://rss.jintiankansha.me/rss/GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A====', 'https://mmbiz.qpic.cn/mmbiz_png/OjgKEXmLURraibxGuHz6cfRAR74OFy6ib8iavRtmYufwwkQiczWlX1HRaicDTfBkQnZDdjM9PQibS2kh6gNt4gq20Vzw/0?wx_fmt=png', 'rss'),
+    ('3号厅检票员工', 'http://rss.jintiankansha.me/rss/GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA====', 'https://mmbiz.qpic.cn/mmbiz_png/76VlEREHvOz9kA8yuDjE0wvKPzQ1MmSZXQRzFibwwDOSibnQQFEGGFxheU8Z1WAicrC605ibepwDSLYbVV6eibPSMzg/0?wx_fmt=png', 'rss'),
 ]
 
 # 部分海外 DNS 会把站点黑洞到 127.0.0.1；curl 备用通道固定到已验证的源站 IP。
