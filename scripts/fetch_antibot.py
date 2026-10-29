@@ -23,6 +23,10 @@ SITES = [
     ('扶苏', 'https://pwsz.com/feed', 'https://weavatar.com/avatar/8e5566d153dba1c372c54eae02401d96?s=96&d=404', 'rss'),
     ('一叶竹', 'https://iyyz.org/feed/', 'https://iyyz.org/tx.png', 'rss'),
     ('鹅玉', 'https://eyu.at/index.xml', 'https://eyu.at/favicon.png', 'rss'),
+    # 微信公众号：fcircle_core 对 rss.jintiankansha.me 的拼接结果不一定稳，这里用完整 URL 直连兜底。
+    # 作者名必须与 fc_settings.yaml 里的名字一致，成功后会按名字把失联记录清掉。
+    ('数字生命卡兹克', 'http://rss.jintiankansha.me/rss/GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A====', '', 'rss'),
+    ('3号厅检票员工', 'http://rss.jintiankansha.me/rss/GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA====', '', 'rss'),
 ]
 
 # 部分海外 DNS 会把站点黑洞到 127.0.0.1；curl 备用通道固定到已验证的源站 IP。
@@ -81,6 +85,14 @@ def parse_rss(xml_text):
     items = []
     for e in root.iter('item'):
         title = (e.findtext('title') or '').strip()
+        # 微信镜像偶尔把「分享摘要」塞进 title（含字面量 \n、动辄几百字），取第一段当标题；
+        # 正常英文长标题不含换行，不会被误伤。
+        if '\\n' in title:
+            title = title.split('\\n')[0].strip()
+        if '\n' in title or '\r' in title:
+            title = re.split(r'[\r\n]', title)[0].strip()
+        if len(title) > 120:
+            title = title[:120].rstrip() + '…'
         link = (e.findtext('link') or e.findtext('guid') or '').strip()
         pub = e.findtext('pubDate') or e.findtext('dc:date')
         created, updated = '', ''
@@ -97,6 +109,19 @@ def parse_rss(xml_text):
         if title and link and created:
             items.append({'title': title, 'link': link, 'created': created, 'updated': updated})
     return items
+
+
+def count_settings_links(path='fc_settings.yaml'):
+    """读取 fc_settings.yaml 里 SETTINGS_FRIENDS_LINKS.list 的条目数（= 订阅数）。
+    fcircle_core 只统计这份清单，本脚本兜底合并的站不参与它的计数。"""
+    try:
+        text = Path(path).read_text(encoding='utf-8')
+        m = re.search(r'SETTINGS_FRIENDS_LINKS:.*?list:\s*\[(.*?)\n\s*\]', text, re.S)
+        if not m:
+            return None
+        return len(re.findall(r'^\s*\["', m.group(1), re.M))
+    except Exception:
+        return None
 
 
 def main():
@@ -152,6 +177,11 @@ def main():
         error_payload['errors'] = remaining
         stats = data['statistical_data']
         stats['error_num'] = len(remaining)
+        # 订阅数以 fc_settings.yaml 的清单为准：fcircle_core 只数这份清单，
+        # 本脚本兜底合并的站（含新加的微信 RSS）不进它的统计，直接用清单长度最稳。
+        configured = count_settings_links()
+        if configured:
+            stats['friends_num'] = configured
         stats['active_num'] = max(int(stats.get('friends_num', 0)) - len(remaining), 0)
     data['statistical_data']['article_num'] = len(data['article_data'])
     with open(DATA_PATH, 'w', encoding='utf-8') as f:

@@ -62,6 +62,13 @@ SETTINGS_FRIENDS_LINKS: {
         ["银河铁道之夜", "https://nostalgia.bearblog.dev/", "https://nostalgia.bearblog.dev/favicon.ico"],
         ["荧光", "https://onelastme.bearblog.dev/", "https://onelastme.bearblog.dev/favicon.ico"],
         ["召田最帅boy", "https://www.hqxiaozou.top/", "https://www.hqxiaozou.top/favicon.ico"],
+        # ---- 微信公众号（经「今天看啥」RSS 接入）----
+        # 微信没有公开的文章列表 API，这里用第三方镜像的专栏 RSS：
+        #   订阅地址 = 前缀 + 令牌（令牌是 Base32 编码的「专栏ID|签名」，永久有效、不随文章变化）
+        # 免费版每个专栏只返回最近 5 篇，但含永久链接（带 sn），可直接抓原文。
+        # 头像留空：前端会自动降级成作者首字母占位。
+        ["数字生命卡兹克", "http://rss.jintiankansha.me/rss/", "", "GM2DAOJSGV6GGZRWGY2DEODDMU2GCY3CGBSWEZTFGQ3TINZRGQYGGMJWHA2GMN3BGFTDGZBWME3A===="],
+        ["3号厅检票员工", "http://rss.jintiankansha.me/rss/", "", "GI4TENJVGZ6DKYZQMFRDSODEGNRDEM3FHEZWMM3GGM3WEMZWMEYGKMDDG4YDKMBQMQ4TEZTDGFRA===="],
     ]
 }
 
