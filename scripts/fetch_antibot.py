@@ -21,7 +21,6 @@ SITES = [
     ('l3on', 'https://l3on.site/feed/', 'https://bear-images.sfo2.cdn.digitaloceanspaces.com/lok/favicon.ico', 'atom'),
     ('绵绵小屋', 'https://zhangjet.com/feed', 'https://zhangjet.com/logo.gif', 'rss'),
     ('扶苏', 'https://pwsz.com/feed', 'https://weavatar.com/avatar/8e5566d153dba1c372c54eae02401d96?s=96&d=404', 'rss'),
-    ('一叶竹', 'https://iyyz.org/feed/', 'https://iyyz.org/tx.png', 'rss'),
     ('鹅玉', 'https://eyu.at/index.xml', 'https://eyu.at/favicon.png', 'rss'),
     # 微信公众号：fcircle_core 对 rss.jintiankansha.me 的拼接结果不一定稳，这里用完整 URL 直连兜底。
     # 作者名必须与 fc_settings.yaml 里的名字一致，成功后会按名字把失联记录清掉。
@@ -33,7 +32,6 @@ SITES = [
 # 正常 urllib 直连优先，IP 失效时仍保留原错误，不会清空旧文章。
 RESOLVE = {
     'pwsz.com': '61.241.15.149',
-    'iyyz.org': '70.39.206.215',
 }
 
 
