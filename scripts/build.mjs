@@ -44,6 +44,15 @@ const withBase = (path) => {
   if (BASE && path.startsWith(BASE + '/')) return path;
   return BASE + path;
 };
+// 站点固定按北京时间（Asia/Shanghai）展示日期。
+// 构建机可能是 UTC：直接 getFullYear()/getHours() 会整体差 8 小时，
+// 出现「创建 2026-10-21 04:00」（应为 12:00）这类偏差，凌晨发布还会把日期算到前一天。
+const BJ_TZ = 'Asia/Shanghai';
+const bjDayFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: BJ_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const bjFullFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: BJ_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+const bjDay = (d) => (d && !isNaN(d.getTime()) ? bjDayFmt.format(d) : '');
+const bjFull = (d) => (d && !isNaN(d.getTime()) ? bjFullFmt.format(d) : '');
+
 // 搜索索引文件名带内容哈希：内容一变文件名就变，Service Worker / 浏览器缓存都拿不到旧索引
 let EXSEARCH_HASH = 'search-index';
 // 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新。
@@ -1369,13 +1378,11 @@ function buildPostPage(post, prev, next) {
     ? `${(Math.round(charCount / 100) / 10).toFixed(1).replace(/\.0$/, '')}k 字`
     : `${Math.max(10, Math.round(charCount / 10) * 10)} 字`;
   // 更新时间与创建时间同一天就不显示，避免「2026-10-21 · 2026-10-21」这种废话
-  const ymd = d => d && !isNaN(d.getTime())
-    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    : '';
+  const ymd = bjDay;   // 一律按北京时间格式化，见文件顶部 BJ_TZ 注释
   const createdText = ymd(post.date);
   const updatedText = ymd(post.updated);
   const showUpdated = updatedText && createdText && updatedText !== createdText;
-  const hhmm = (d) => (d ? `${ymd(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '');
+  const hhmm = bjFull;
   const createdFull = post.date ? hhmm(post.date) : '';
   const updatedFull = post.updated ? hhmm(post.updated) : '';
   const postUrl = encodeURI(SITE_URL + `/archives/${post.slug}/`);
@@ -1574,10 +1581,11 @@ function archiveDaysSince() {
 }
 
 function monthlyData() {
-  const now = new Date();
+  // 以「北京时间的今天」为基准倒推 12 个月，避免 UTC 构建机在月初/月末算错月份
+  const [bjY, bjM] = bjDay(new Date()).split('-').map(Number);
   const months = [];
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(bjY, bjM - 1 - i, 1);
     months.push({
       key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
       label: `${d.getMonth() + 1}月`,
@@ -1587,7 +1595,7 @@ function monthlyData() {
   const slotOf = new Map(months.map((m, i) => [m.key, i]));
   for (const p of _posts) {
     if (!p.date || Number.isNaN(p.date.getTime())) continue;
-    const key = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}`;
+    const key = bjDay(p.date).slice(0, 7);
     const i = slotOf.get(key);
     if (i !== undefined) months[i].count++;
   }
@@ -1651,7 +1659,7 @@ function buildArchivesPage() {
   // 按年分组：56 条里 memo 占大多数，平铺列表很难定位；同时给正式文章加分类徽标，和 memo 区分开
   const byYear = new Map();
   for (const p of _posts) {
-    const year = p.date ? String(p.date.getFullYear()) : '更早';
+    const year = p.date && !isNaN(p.date.getTime()) ? bjDay(p.date).slice(0, 4) : '更早';
     if (!byYear.has(year)) byYear.set(year, []);
     byYear.get(year).push(p);
   }
