@@ -822,10 +822,28 @@ function gitUpdatedDates() {
   return map;
 }
 
+// 「最后更新于」第三兜底：content/updated.json 快照。
+//   部署环境是浅克隆（历史只有 1 条），gitUpdatedDates() 会主动返回空表，
+//   于是全站文章都退化成只显示创建时间。把时间提前算好落成 JSON 一起提交，
+//   没有 git 历史的构建环境也能显示真实的最后修改时间。
+//   重新生成：node scripts/gen-updated.mjs（改过文章后跑一次并一起提交）
+function readUpdatedSnapshot() {
+  const file = join(ROOT, 'content', 'updated.json');
+  if (!existsSync(file)) return {};
+  try {
+    const raw = JSON.parse(readFileSync(file, 'utf-8'));
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch (e) {
+    if (typeof buildWarnings !== 'undefined') buildWarnings.push(`读取 content/updated.json 失败：${e.message}`);
+    return {};
+  }
+}
+
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
   const updatedMap = gitUpdatedDates();
+  const updatedSnap = readUpdatedSnapshot();
   // 删光所有文章后 GitHub 会把空的 content/posts/ 目录一并删除，此时按无文章构建
   if (!existsSync(POSTS_DIR)) return posts;
   for (const file of readdirSync(POSTS_DIR)) {
@@ -842,9 +860,11 @@ function loadPosts() {
     const tags = Array.isArray(data.tags) ? data.tags : String(data.tags || '').split(',').filter(Boolean);
     const type = data.type === 'memo' ? 'memo' : 'post';
     const updatedRaw = String(data.updated || '').trim();
+    const updatedKey = 'content/posts/' + file;
+    const updatedRawValue = updatedMap.has(updatedKey) ? updatedMap.get(updatedKey) : (updatedSnap[updatedKey] || '');
     const updated = updatedRaw
       ? new Date(updatedRaw.replace(' ', 'T'))
-      : (updatedMap.has('content/posts/' + file) ? new Date(updatedMap.get('content/posts/' + file)) : null);
+      : (updatedRawValue ? new Date(String(updatedRawValue).replace(' ', 'T')) : null);
     const resolvedBody = resolveBareImages(resolveObsidianEmbeds(body, slug), slug);
     posts.push({
       slug,

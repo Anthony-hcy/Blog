@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "serve": "python -m http.server 8080 --directory dist"
+    "serve": "python -m http.server 8080 --directory dist",
+    "gen:updated": "node scripts/gen-updated.mjs"
   }
 }
