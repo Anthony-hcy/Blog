@@ -5,8 +5,8 @@
  * 无 API 后端：点赞/浏览量显示 0，评论相关 UI 不生成。
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, existsSync, statSync, rmSync } from 'node:fs';
-import { join, dirname, relative, resolve, normalize } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { join, dirname, relative, resolve, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { marked } from '../vendor/marked.esm.js';
@@ -2353,7 +2353,27 @@ function versionAssetImports(dir) {
   }
 }
 
+// 构建前置：把浅克隆补成完整历史。
+// 「修改时间」由 git 提交历史算出（gitUpdatedDates()），而 Vercel / GitHub Actions 默认浅克隆，
+// 历史不全时脚本会整站跳过 → 线上只剩创建时间。这一步自动 `git fetch --unshallow`，
+// 所以「改完直接 push」「手机 Portal 改文章」都不需要任何手工操作。
+// 失败也不阻断：build.mjs 会退回 content/updated.json 快照。
+function ensureFullGitHistory() {
+  if (process.env.SKIP_UNSHALLOW === '1') return;
+  if (!existsSync('.git')) {
+    console.log('[git] 无 .git（源码包构建），修改时间改用 content/updated.json 快照');
+    return;
+  }
+  const q = spawnSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf8', timeout: 30000 });
+  if (q.status !== 0 || String(q.stdout).trim() !== 'true') return;
+  console.log('[git] 检测到浅克隆，补全历史中（git fetch --unshallow）…');
+  const f = spawnSync('git', ['fetch', '--unshallow', '--tags', '--quiet'], { encoding: 'utf8', timeout: 240000 });
+  if (f.status === 0) console.log('[git] 历史补全完成，修改时间按 git 历史精确计算');
+  else console.log('[git] 补全失败，改用 updated.json 快照兜底：' + String(f.stderr || '').trim().split('\n').slice(-1)[0]);
+}
+
 // ---------- 主流程 ----------
+ensureFullGitHistory();
 // 实况视频 H.264 兼容版（桌面端播放）：在页面渲染前转码，页面据此输出 data-avc-src
 tryTranscodeLiveVideos();
 // 480px 缩略图（手机小屏加载不卡）：渲染前生成，页面据此输出 srcset
