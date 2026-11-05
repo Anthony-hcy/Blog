@@ -3693,9 +3693,11 @@ html[data-theme="light"] .now-row .now-kind.is-watching { background: rgba(50, 1
 .memo-metrics { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 12px; }
 /* memo 头部的点赞/浏览量：与作者+日期同一行右对齐，不额外占一行 */
 .memo-metrics--head {
-  margin: 2px 0 0 auto;
+  align-self: flex-end;
+  margin: 0 0 7px auto;
   gap: 12px;
   font-size: 12px;
+  line-height: 1;
 }
 .memo-metrics--head .index-metric-like i,
 .memo-metrics--head .card-views i { font-size: 12px; }
