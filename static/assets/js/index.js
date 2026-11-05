@@ -25,6 +25,8 @@ function initIndexStream() {
 
   const indexRoot = feed.dataset.indexRoot || '/';
   const totalPages = parsePositiveInt(feed.dataset.totalPages || '1', 1);
+  // 首页的滚动容器是 .container（不是 window），补位与还原都要对它操作
+  const container = document.querySelector('.container');
 
   function directEntries() {
     return Array.from(feed.children).filter(function(node) {
@@ -56,11 +58,15 @@ function initIndexStream() {
     loadedPages: new Set([currentPage]),
     loadingTop: false,
     loadingBottom: false,
+    bottomError: false,
   };
 
   function refreshBoundaryStatus() {
     if (stream.loadingBottom) {
       setStatus(bottomStatus, 'loading', 'Loading...');
+    } else if (stream.bottomError) {
+      // 原来 catch 里刚写完错误就被 finally 的这次刷新覆盖，读者永远看不到失败提示
+      setStatus(bottomStatus, 'error', 'Loading failed');
     } else if (stream.maxLoadedPage >= totalPages) {
       setStatus(bottomStatus, 'end', 'That is all');
     } else {
@@ -121,7 +127,14 @@ function initIndexStream() {
 
       if (anchor) {
         const afterTop = anchor.getBoundingClientRect().top;
-        window.scrollBy(0, afterTop - beforeTop);
+        // 原来写的是 window.scrollBy：本站滚动的是 .container，window 不滚，等于没补位，
+        // 加载「更新的一页」时正文会整体往下窜一段。这里改成对真实滚动容器补位。
+        const delta = afterTop - beforeTop;
+        if (container) {
+          container.scrollBy(0, delta);
+        } else {
+          window.scrollBy(0, delta);
+        }
       }
 
       stream.loadedPages.add(targetPage);
@@ -160,8 +173,9 @@ function initIndexStream() {
 
       stream.loadedPages.add(targetPage);
       stream.maxLoadedPage = Math.max(stream.maxLoadedPage, targetPage);
+      stream.bottomError = false;
     } catch (_) {
-      setStatus(bottomStatus, 'error', 'Loading failed');
+      stream.bottomError = true;
     } finally {
       stream.loadingBottom = false;
       refreshBoundaryStatus();
@@ -198,6 +212,65 @@ function initIndexStream() {
 
   observer.observe(topSentinel);
   observer.observe(bottomSentinel);
+
+  // --- 从文章返回列表时恢复阅读位置 ---
+  // 浏览器自带的返回还原在「内容是异步追加」的首页上会失效（回来时只渲染了第 1 页，
+  // 目标位置超出文档高度就被夹到最底部），所以自己记一份，回来时边加载边滚到目标位置。
+  const scrollKey = 'feedScroll:' + window.location.pathname;
+
+  function saveScrollPosition() {
+    if (!container) return;
+    try {
+      // 用户主动点站名 / Home 回首页时不记位置（那是「重新开始浏览」，不是「返回」）
+      if (window.sessionStorage.getItem('feedScrollReset') === '1') return;
+      window.sessionStorage.setItem(scrollKey, String(Math.round(container.scrollTop)));
+    } catch (_) {}
+  }
+
+  if (container) {
+    // 捕获阶段先存位置：点开任意文章链接前，把当前滚动位置记下来
+    feed.addEventListener('click', function(event) {
+      const link = event.target.closest ? event.target.closest('a[href]') : null;
+      if (!link) return;
+      if (link.hasAttribute('data-home-link')) return; // 回首页=回到顶部，不记忆位置
+      saveScrollPosition();
+    }, true);
+    window.addEventListener('pagehide', saveScrollPosition);
+  }
+
+  function restoreScrollPosition() {
+    if (!container) return;
+    // 上一次是「点站名 / Home」回首页的：清掉标记，这次从顶部开始，不恢复位置
+    try {
+      if (window.sessionStorage.getItem('feedScrollReset') === '1') {
+        window.sessionStorage.removeItem('feedScrollReset');
+        return;
+      }
+    } catch (_) {}
+    let saved = 0;
+    try {
+      saved = parseInt(window.sessionStorage.getItem(scrollKey) || '0', 10) || 0;
+    } catch (_) { saved = 0; }
+    if (saved < 200) return;
+
+    // 只在「从文章页返回」时还原，正常从导航进首页不该跳位置
+    const ref = document.referrer || '';
+    const sameOrigin = ref.indexOf(window.location.origin) === 0;
+    if (!sameOrigin || ref.indexOf('/archives/') < 0) return;
+
+    let tries = 0;
+    const timer = window.setInterval(function() {
+      tries += 1;
+      container.scrollTop = saved;
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      // 目标位置已可达（或明显不可能再长、或超时）就停
+      if (Math.abs(container.scrollTop - saved) <= 2 || maxScroll >= saved || tries > 20) {
+        window.clearInterval(timer);
+      }
+    }, 200);
+  }
+
+  restoreScrollPosition();
 }
 
 

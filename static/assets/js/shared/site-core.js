@@ -29,6 +29,11 @@ export function normalizeExternalLinks(root) {
     }
     if (link.hostname && link.hostname !== host) {
       link.setAttribute('target', '_blank');
+      const rel = (link.getAttribute('rel') || '').split(/\s+/).filter(Boolean);
+      if (rel.indexOf('noopener') === -1) rel.push('noopener');
+      if (rel.indexOf('noreferrer') === -1) rel.push('noreferrer');
+      link.setAttribute('rel', rel.join(' '));
+      link.classList.add('ext-link');
     }
   });
 }

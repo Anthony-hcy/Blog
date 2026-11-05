@@ -1,0 +1,32 @@
+{
+  "query": "上海堡垒",
+  "at": 1793862133948,
+  "items": [
+    {
+      "kind": "book",
+      "id": "3268399",
+      "title": "上海堡垒",
+      "year": "2009",
+      "cover": "https://img2.doubanio.com/view/subject/l/public/s3510011.jpg",
+      "url": "https://book.douban.com/subject/3268399/",
+      "rating": 8.3,
+      "votes": 21813,
+      "sub": "江南 · 2009 · 255 页",
+      "label": "在读",
+      "source": "豆瓣读书"
+    },
+    {
+      "kind": "movie",
+      "id": "26581837",
+      "title": "上海堡垒",
+      "year": "2019",
+      "sub": "滕华涛 · 2019 · 107分钟",
+      "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2564170314.jpg",
+      "url": "https://movie.douban.com/subject/26581837/",
+      "rating": 2.9,
+      "votes": 269500,
+      "label": "在看",
+      "source": "豆瓣电影"
+    }
+  ]
+}

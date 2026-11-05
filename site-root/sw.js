@@ -8,7 +8,7 @@
    跨域请求（npmmirror 字体、不蒜子、GitHub API）不拦截，交给浏览器 */
 // v5：资源 URL 全部改为内容哈希指纹（build.mjs），本次部署后缓存版本号不再需要频繁升级，
 // 内容没变的资源 URL 不变、缓存直达；内容变了的资源 URL 变化、自动换新缓存。
-var CACHE = 'haelcy-v5';
+var CACHE = 'haelcy-v6';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
@@ -36,6 +36,14 @@ self.addEventListener('fetch', function (event) {
   // 版本指纹永远直连（页面用它判断是否有新部署，走缓存会失效）
   if (url.pathname.endsWith('/version.json')) {
     event.respondWith(fetch(req));
+    return;
+  }
+
+  // 搜索索引 / 友链数据：跟页面一样 network-first。
+  // 原来走 stale-while-revalidate，部署新文章后「搜不到刚发的内容」会一直持续到
+  // 下一次打开站点（缓存先返回旧的 search-index.json）；断网时仍回退缓存。
+  if (url.pathname.endsWith('/search-index.json') || url.pathname.endsWith('/fcircle-data.json')) {
+    event.respondWith(networkFirst(req));
     return;
   }
 

@@ -136,9 +136,41 @@ function initInContainerScrollNavigation() {
     backToTopButton.tabIndex = visible ? 0 : -1;
   }
 
+  var backToTopTicking = false;
+  var backToTopIdleTimer = 0;
+  var backToTopHovering = false;
+  var BACK_TO_TOP_IDLE_MS = 2600;
+
+  // 闲置几秒就自动淡出，鼠标靠近/键盘聚焦时保持可见
+  function scheduleBackToTopIdle() {
+    if (!backToTopButton) return;
+    if (backToTopIdleTimer) window.clearTimeout(backToTopIdleTimer);
+    backToTopIdleTimer = window.setTimeout(function () {
+      if (backToTopHovering || document.activeElement === backToTopButton) return;
+      if (container.scrollTop > backToTopOffset) setBackToTopVisible(false);
+    }, BACK_TO_TOP_IDLE_MS);
+  }
+
   function syncBackToTopButton() {
     if (!backToTopButton) return;
     setBackToTopVisible(container.scrollTop > backToTopOffset);
+    scheduleBackToTopIdle();
+  }
+
+  // 滚动事件合并到一帧里做，避免长文滚动时每来一个 scroll 就改一次 class
+  function onScrollSyncBackToTop() {
+    if (backToTopTicking) return;
+    backToTopTicking = true;
+    window.requestAnimationFrame(function () {
+      backToTopTicking = false;
+      syncBackToTopButton();
+    });
+  }
+
+  // 瞬时回顶：不做缓动、不逐帧写 scrollTop，点完立刻到位。
+  function scrollToTopNow() {
+    container.scrollTop = 0;
+    if (container.scrollTop !== 0) container.scrollTo(0, 0);
   }
 
   function decodeScrollTarget(value) {
@@ -202,12 +234,47 @@ function initInContainerScrollNavigation() {
     history.replaceState(null, '', url.pathname + url.search);
   }
 
+  // 回顶按钮已从头部挪到正文栏右下角：固定定位，left/top 按正文列右缘实时算
+  // （桌面贴住内容列右侧，移动端内容列铺满，自然贴到屏幕右下）
+  function positionBackToTopButton() {
+    if (!backToTopButton) return;
+    const rect = container.getBoundingClientRect();
+    const size = backToTopButton.offsetWidth || 42;
+    const left = Math.min(rect.right, window.innerWidth) - size - 18;
+    const top = window.innerHeight - size - 26;
+    backToTopButton.style.left = Math.round(Math.max(12, left)) + 'px';
+    backToTopButton.style.top = Math.round(Math.max(12, top)) + 'px';
+    backToTopButton.style.right = 'auto';
+    backToTopButton.style.bottom = 'auto';
+  }
+
   if (backToTopButton) {
+    backToTopButton.addEventListener('pointerenter', function() {
+      backToTopHovering = true;
+      if (backToTopIdleTimer) window.clearTimeout(backToTopIdleTimer);
+      setBackToTopVisible(true);
+    });
+    backToTopButton.addEventListener('pointerleave', function() {
+      backToTopHovering = false;
+      scheduleBackToTopIdle();
+    });
+    backToTopButton.addEventListener('focus', function() {
+      setBackToTopVisible(true);
+    });
+    backToTopButton.addEventListener('blur', scheduleBackToTopIdle);
+
     backToTopButton.addEventListener('click', function() {
-      container.scrollTo({ top: 0, behavior: 'smooth' });
+      setBackToTopVisible(false);
+      scrollToTopNow();
     });
 
-    container.addEventListener('scroll', syncBackToTopButton, { passive: true });
+    container.addEventListener('scroll', onScrollSyncBackToTop, { passive: true });
+    window.addEventListener('resize', positionBackToTopButton, { passive: true });
+    // 侧边菜单展开/收起会改变正文列宽度，跟着重算位置
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(positionBackToTopButton).observe(container);
+    }
+    positionBackToTopButton();
     syncBackToTopButton();
   }
 
@@ -241,6 +308,76 @@ function initInContainerScrollNavigation() {
   }
 
   stripHashFromUrl();
+}
+
+// 头部「随便看看」：从搜索索引里随机抽一篇（索引按内容哈希命名并缓存，
+// 失败时退回归档页，保证任何情况下都有去处）
+function initRandomPost() {
+  const btn = document.querySelector('.js-random-post');
+  if (!btn) return;
+  let cache = null;
+
+  function load() {
+    if (cache) return Promise.resolve(cache);
+    const api = document.documentElement.getAttribute('data-exsearch-api');
+    if (!api) return Promise.reject(new Error('no-api'));
+    return fetch(api, { credentials: 'same-origin' }).then(function(res) {
+      if (!res.ok) throw new Error('bad-index');
+      return res.json();
+    }).then(function(data) {
+      cache = (data && data.posts) || [];
+      return cache;
+    });
+  }
+
+  btn.addEventListener('click', function() {
+    if (btn.dataset.busy === '1') return;
+    btn.dataset.busy = '1';
+    const fallback = btn.getAttribute('data-archives-url') || '/archives/';
+    load().then(function(posts) {
+      const here = window.location.pathname;
+      const pool = posts.filter(function(post) {
+        return post && post.path && post.path !== here;
+      });
+      if (!pool.length) throw new Error('empty');
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      window.location.href = pick.path;
+    }).catch(function() {
+      window.location.href = fallback;
+    }).then(function() {
+      btn.dataset.busy = '';
+    });
+  });
+}
+
+// 归档页年份折叠：默认只展开今年，其余年份收起；手动切换过就记住
+function initArchiveYearCollapse() {
+  const sections = document.querySelectorAll('.archive-year');
+  if (!sections.length) return;
+  const KEY = 'archiveCollapsedYears';
+  let stored = {};
+  try { stored = JSON.parse(window.localStorage.getItem(KEY) || '{}') || {}; } catch (_) { stored = {}; }
+  const currentYear = String(new Date().getFullYear());
+
+  function apply(section, toggle, collapsed) {
+    section.classList.toggle('is-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+  }
+
+  Array.prototype.forEach.call(sections, function(section) {
+    const toggle = section.querySelector('.archive-year-toggle');
+    const nameEl = section.querySelector('.archive-year-name');
+    if (!toggle || !nameEl) return;
+    const year = nameEl.textContent.trim();
+    const collapsed = Object.prototype.hasOwnProperty.call(stored, year) ? !!stored[year] : (year !== currentYear);
+    apply(section, toggle, collapsed);
+    toggle.addEventListener('click', function() {
+      // 瞬时开合：不加高度动画、不做滚动补偿，点完立刻到位，页面不会抖
+      apply(section, toggle, !section.classList.contains('is-collapsed'));
+      stored[year] = section.classList.contains('is-collapsed');
+      try { window.localStorage.setItem(KEY, JSON.stringify(stored)); } catch (_) {}
+    });
+  });
 }
 
 function initMobileMenu() {
@@ -328,6 +465,7 @@ function initSearchLazyLoad() {
 
     injectScript(base + 'assets/ExSearch/jquery.min.js', function() {
       injectScript(base + 'assets/ExSearch/ExSearch.js', function() {
+        initSearchEmptyState();
         var input = document.querySelector('.search-form-input');
         if (input) input.focus(); // ExSearch 监听 .search-form-input 的 focus → 打开搜索遮罩
       });
@@ -353,13 +491,211 @@ function initSearchLazyLoad() {
   });
 }
 
+// ---------- 主题切换（auto → light → dark 循环，localStorage 持久化） ----------
+// 首帧由 <head> 内联脚本解析，这里只负责交互与跨标签页/系统偏好变化时的同步。
+function initThemeToggle() {
+  var root = document.documentElement;
+  var btn = document.querySelector('.js-theme-toggle');
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+  var ORDER = ['auto', 'light', 'dark'];
+  var LABEL = { auto: '跟随系统', light: '亮色', dark: '暗色' };
+  var THEME_COLOR = { dark: '#000000', light: '#f7f7f9' };
+
+  function currentPref() {
+    var p = root.getAttribute('data-theme-pref');
+    return ORDER.indexOf(p) >= 0 ? p : 'auto';
+  }
+
+  function apply(pref, persist) {
+    var effective = pref === 'auto' ? (mq && mq.matches ? 'light' : 'dark') : pref;
+    root.setAttribute('data-theme-pref', pref);
+    root.setAttribute('data-theme', effective);
+    if (persist) {
+      try { localStorage.setItem('theme', pref); } catch (e) { /* 隐私模式下忽略 */ }
+    }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', THEME_COLOR[effective] || THEME_COLOR.dark);
+    if (btn) {
+      var text = '主题：' + LABEL[pref] + '（点击切换）';
+      btn.setAttribute('aria-label', text);
+      btn.setAttribute('title', text);
+    }
+  }
+
+  // 首屏把 <head> 里算出的结果再同步一次（补上 theme-color 与按钮文案）
+  apply(currentPref(), false);
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var next = ORDER[(ORDER.indexOf(currentPref()) + 1) % ORDER.length];
+      apply(next, true);
+    });
+  }
+
+  // 跟随系统时，系统亮暗变化要实时生效
+  if (mq) {
+    var onChange = function () { if (currentPref() === 'auto') apply('auto', false); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+
+  // 其它标签页改了主题，这里同步
+  window.addEventListener('storage', function (event) {
+    if (event.key !== 'theme') return;
+    var pref = event.newValue;
+    apply(ORDER.indexOf(pref) >= 0 ? pref : 'auto', false);
+  });
+}
+
+// ---------- 阅读进度条（只在文章页，由 body[data-reading-progress] 控制） ----------
+function initReadingProgress() {
+  if (!document.body.hasAttribute('data-reading-progress')) return;
+  var bar = document.querySelector('.js-reading-progress > span');
+  if (!bar) return;
+  var scroller = document.querySelector('.container');
+  var doc = document.scrollingElement || document.documentElement;
+  var ticking = false;
+
+  function measure() {
+    ticking = false;
+    var top, height, view;
+    if (scroller && scroller.scrollHeight > scroller.clientHeight + 4) {
+      top = scroller.scrollTop; height = scroller.scrollHeight; view = scroller.clientHeight;
+    } else {
+      top = window.pageYOffset || doc.scrollTop; height = doc.scrollHeight; view = window.innerHeight;
+    }
+    var max = height - view;
+    var ratio = max > 0 ? top / max : 0;
+    ratio = Math.min(1, Math.max(0, ratio));
+    bar.style.width = (ratio * 100).toFixed(2) + '%';
+  }
+
+  function schedule() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(measure);
+  }
+
+  (scroller || window).addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule, { passive: true });
+  measure();
+}
+
+// ---------- 搜索无结果提示（ExSearch 自己什么都不显示，遮罩里会一片空白） ----------
+function initSearchEmptyState() {
+  var overlay = document.querySelector('.ins-search');
+  if (!overlay) return;
+  var input = overlay.querySelector('.ins-search-input');
+  var container = overlay.querySelector('.ins-section-container');
+  var host = overlay.querySelector('.ins-search-container');
+  if (!input || !container || !host) return;
+  if (host.querySelector('.ins-search-empty')) return;
+
+  var empty = document.createElement('div');
+  empty.className = 'ins-search-empty';
+  empty.innerHTML = '<p>没有找到相关内容</p><p><strong>换个关键词试试</strong>，或按 Esc 关闭</p>';
+  host.appendChild(empty);
+
+  // 结果区对读屏软件可播报
+  container.setAttribute('aria-live', 'polite');
+  input.setAttribute('aria-label', '站内搜索');
+
+  function update() {
+    var q = (input.value || '').trim();
+    var hasResult = !!container.querySelector('.ins-selectable');
+    empty.classList.toggle('show', !!q && !hasResult);
+  }
+
+  input.addEventListener('input', update);
+  if (window.MutationObserver) {
+    new MutationObserver(update).observe(container, { childList: true });
+  }
+  update();
+}
+
+// 图片渐显：慢网时先看到占位底色，加载完再淡入，避免「黑块突然跳出一张图」
+function initImageFade() {
+  var imgs = document.querySelectorAll('.pswp-item img, .article-body img, .memo-content img');
+  if (!imgs.length) return;
+  Array.prototype.forEach.call(imgs, function (img) {
+    if (img.complete && img.naturalWidth) return; // 秒开（缓存命中）就别加过渡，省一次重绘
+    img.classList.add('img-fade');
+    function done() {
+      img.classList.add('is-loaded');
+      img.removeEventListener('load', done);
+      img.removeEventListener('error', done);
+    }
+    img.addEventListener('load', done);
+    img.addEventListener('error', done);
+    window.setTimeout(done, 4000); // 兜底：事件丢了也不能让图一直是透明的
+  });
+}
+
+// 点左上角站名 / 侧栏 Home 回首页 = 回默认首页（从顶部开始），不恢复上次阅读位置；
+// 只有浏览器「后退」才恢复。两者优先级：主动点首页 > 记忆位置。
+function initHomeLinkReset() {
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest && event.target.closest('a[data-home-link]');
+    if (!link) return;
+    try {
+      var drop = [];
+      for (var i = 0; i < window.sessionStorage.length; i++) {
+        var k = window.sessionStorage.key(i);
+        if (k && k.indexOf('feedScroll:') === 0) drop.push(k);
+      }
+      drop.forEach(function (k) { window.sessionStorage.removeItem(k); });
+      window.sessionStorage.setItem('feedScrollReset', '1');
+    } catch (_) {}
+  }, true);
+}
+
+// 不蒜子把数字直接塞进 span，这里统一转成 1.2k / 3.4万 这种缩写
+function formatMetricCount(n) {
+  if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(n);
+}
+
+function initMetricFormat() {
+  var ids = ['busuanzi_value_page_pv', 'busuanzi_value_site_pv', 'busuanzi_value_site_uv'];
+  function format(el) {
+    if (!el || el.dataset.fmtDone === '1') return;
+    var raw = (el.textContent || '').trim();
+    if (!/^\d+$/.test(raw)) return;
+    var n = parseInt(raw, 10);
+    var text = formatMetricCount(n);
+    if (text !== raw) { el.textContent = text; el.title = raw; }
+    el.dataset.fmtDone = '1';
+  }
+  ids.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    format(el);
+    var observer = new MutationObserver(function () { format(el); });
+    observer.observe(el, { childList: true, characterData: true, subtree: true });
+    var tries = 0;
+    var timer = setInterval(function () {
+      format(el);
+      if (++tries > 24) clearInterval(timer);
+    }, 500);
+  });
+}
+
 function initLayout() {
   normalizeExternalLinks(document);
   initPortalNavVisibility();
+  initThemeToggle();
+  initReadingProgress();
   initSearchLazyLoad();
   initInContainerScrollNavigation();
   initRouteNavActiveState();
   initMobileMenu();
+  initRandomPost();
+  initArchiveYearCollapse();
+  initImageFade();
+  initHomeLinkReset();
+  initMetricFormat();
 }
 
 initLayout();

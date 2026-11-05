@@ -44,9 +44,37 @@ const withBase = (path) => {
   if (BASE && path.startsWith(BASE + '/')) return path;
   return BASE + path;
 };
-const EXSEARCH_HASH = 'search-index';
-// 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新
-const BUILD_VERSION = new Date().toISOString();
+// 搜索索引文件名带内容哈希：内容一变文件名就变，Service Worker / 浏览器缓存都拿不到旧索引
+let EXSEARCH_HASH = 'search-index';
+// 构建版本指纹：写入每个页面 meta 和 version.json，PWA 用它检测"有新部署"后自动刷新。
+// 用「内容哈希」而不是时间戳：同一份内容重复构建得到同一个版本号，
+// 只有正文/配置/脚本真的改了才会变 —— 否则每次部署都会让正在阅读的标签页自动刷新并跳回顶部。
+function computeBuildVersion() {
+  const hash = createHash('sha1');
+  const files = [];
+  const collect = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, entry.name);
+      if (entry.isDirectory()) collect(p);
+      else if (/\.(md|json|css|js|mjs)$/i.test(entry.name)) files.push(p);
+    }
+  };
+  collect(CONTENT_DIR);
+  collect(join(ASSETS_SRC, 'assets', 'js'));
+  for (const extra of ['site.config.json', 'scripts/build.mjs', 'static/assets/main.css', 'static/assets/custom.css']) {
+    const p = join(ROOT, extra);
+    if (existsSync(p)) files.push(p);
+  }
+  for (const file of [...new Set(files)].sort()) {
+    hash.update(relative(ROOT, file).split('\\').join('/'));
+    hash.update('\0');
+    hash.update(readFileSync(file));
+    hash.update('\0');
+  }
+  return hash.digest('hex').slice(0, 12);
+}
+const BUILD_VERSION = computeBuildVersion();
 
 // ---------- 资源版本指纹（内容哈希） ----------
 // 加在页面 JS/CSS 的 URL 后面（?v=...）。按"文件内容"计算哈希：
@@ -137,6 +165,9 @@ renderer.image = (token) => {
   // photoset 并排时行高由图片比例撑开，横图完整显示、不被 cover 裁剪。
   // 不放 figure 上，避免 flex stretch 与百分比高度的循环解析（浏览器对 sizes=auto 图片的行高怪癖）。
   const imgRatioAttr = dim ? ` style="aspect-ratio: ${dim.width} / ${dim.height}"` : '';
+  // 同时补 width/height 属性：浏览器在图片下载前即可按属性算出占位高度，
+  // 慢网下不再出现「先塌成 0 高、图到了再撑开」的整页跳动（CLS）。
+  const dimAttrs = dim ? ` width="${dim.width}" height="${dim.height}"` : '';
   // 实况图：图片旁有同名视频 → 标记 live-photo 并内嵌 <video> 盖层（单次播放，不循环）
   const live = liveVideoFor(href);
   const liveClass = live ? ' live-photo' : '';
@@ -151,7 +182,7 @@ renderer.image = (token) => {
   const srcsetAttr = thumb
     ? ` srcset="${withBase(thumb)} 480w, ${fullSrc} ${dim ? dim.width : 1024}w" sizes="auto"`
     : '';
-  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${imgRatioAttr}${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${dimAttrs}${imgRatioAttr}${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 // ---------- 自定义行内标记：((补充说明)) → 灰色小字 ----------
@@ -746,14 +777,62 @@ function resolveBareImages(body, slug) {
   });
 }
 
+// 「最后更新于」：优先 frontmatter 的 updated，其次 git 里该文件最后一次提交时间。
+//   CI 浅克隆（fetch-depth:1）时 git 时间就等于部署时刻，会把所有文章都标成「今天更新」，
+//   所以检测到浅克隆就直接跳过，只认 frontmatter。
+function gitUpdatedDates() {
+  const map = new Map();
+  try {
+    const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: ROOT, encoding: 'utf-8' });
+    if (top.status !== 0) return map;
+    const repo = top.stdout.trim();
+    const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: repo, encoding: 'utf-8' });
+    if (shallow.status === 0 && shallow.stdout.trim() === 'true') return map;
+    // --numstat：只有真正增删了行（正文 diff 非空）的提交才算「更新」；
+    // 纯重命名/挪文件在 numstat 里是 0 0，正好排除掉，不会把改名时间当成最后更新时间。
+    const log = spawnSync('git', ['log', '--format=@@%cI', '--numstat', '--', 'content/posts'], {
+      cwd: repo, encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024,
+    });
+    if (log.status !== 0) return map;
+    // 先按提交分组：批量导入/搬家那种一次改几十个文件的提交不算「更新」
+    const commits = [];
+    let cur = null;
+    for (const line of String(log.stdout).split('\n')) {
+      const t = line.trim();
+      if (t.startsWith('@@')) { cur = { date: t.slice(2), files: [] }; commits.push(cur); continue; }
+      if (!t || !cur) continue;
+      const parts = t.split('\t');
+      if (parts.length < 3) continue;
+      const added = parts[0], deleted = parts[1], file = parts[2];
+      if (file.indexOf(' => ') !== -1) continue;      // 重命名
+      if (added === '-' || deleted === '-') continue; // 二进制
+      if (Number(added) + Number(deleted) <= 0) continue;
+      cur.files.push(file);
+    }
+    for (const commit of commits) {
+      if (commit.files.length > 20) continue; // 批量提交，跳过
+      for (const file of commit.files) {
+        // git log 默认新→旧，第一次遇到的有效提交就是最后「真正改过」的时间
+        if (!map.has(file)) map.set(file, commit.date);
+      }
+    }
+  } catch (e) {
+    if (typeof buildWarnings !== 'undefined') buildWarnings.push(`读取 git 更新时间失败：${e.message}`);
+  }
+  return map;
+}
+
 // ---------- 读取文章 ----------
 function loadPosts() {
   const posts = [];
+  const updatedMap = gitUpdatedDates();
   // 删光所有文章后 GitHub 会把空的 content/posts/ 目录一并删除，此时按无文章构建
   if (!existsSync(POSTS_DIR)) return posts;
   for (const file of readdirSync(POSTS_DIR)) {
     if (!file.endsWith('.md')) continue;
-    const md = readFileSync(join(POSTS_DIR, file), 'utf-8');
+    // Windows 编辑器存成 CRLF 时，行首正则（如 Obsidian callout 的 > [!note]）会因行尾 \r 匹配失败，
+    // 结果原样吐出「[!note]」字面量。读入即归一化成 LF，后续所有行级处理都安全。
+    const md = readFileSync(join(POSTS_DIR, file), 'utf-8').replace(/\r\n?/g, '\n');
     const { data, body } = parseFrontmatter(md);
     const draft = String(data.draft ?? '').trim().toLowerCase();
     if (draft === 'true' || draft === '1' || draft === 'yes') continue;
@@ -762,6 +841,10 @@ function loadPosts() {
     const date = new Date(rawDate.replace(' ', 'T'));
     const tags = Array.isArray(data.tags) ? data.tags : String(data.tags || '').split(',').filter(Boolean);
     const type = data.type === 'memo' ? 'memo' : 'post';
+    const updatedRaw = String(data.updated || '').trim();
+    const updated = updatedRaw
+      ? new Date(updatedRaw.replace(' ', 'T'))
+      : (updatedMap.has('content/posts/' + file) ? new Date(updatedMap.get('content/posts/' + file)) : null);
     const resolvedBody = resolveBareImages(resolveObsidianEmbeds(body, slug), slug);
     posts.push({
       slug,
@@ -770,6 +853,7 @@ function loadPosts() {
       // 显示用日期（按原文+08:00 截取，避免 toISOString 的 UTC 偏移）：文章到日，说说带时分
       dateText: rawDate ? rawDate.replace('T', ' ').slice(0, type === 'memo' ? 16 : 10) : '',
       type,
+      updated,
       avatar: data.avatar || '',
       location: data.location || '',
       category: data.category || '未分类',
@@ -787,10 +871,13 @@ function loadPosts() {
 }
 
 // ---------- 页面骨架 ----------
-function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false } = {}) {
+function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePath = '', pageDescription = '', localOnly = false, ogImage = '', jsonLd = '' } = {}) {
   const keywords = site.keywords || `${site.name},${site.author}`;
   const absPath = pagePath || '/';
-  const fullUrl = SITE_URL + absPath;
+  // 分享链接含空格与中文，必须编码：未编码时 Twitter/Facebook 抓取 og:url 会失败
+  const fullUrl = encodeURI(SITE_URL + absPath);
+  // 文章页优先用 banner 作 og:image，没有才退回站点 logo
+  const shareImage = ogImage ? encodeURI(SITE_URL + ogImage) : `${SITE_URL}/logo.png`;
   const description = pageDescription || site.description;
   const ogType = pageType === 'post' ? 'article' : 'website';
   // 字体与统计分开：字体是排版的一部分（portal 页也要，否则标题字体会和其他页不一致），
@@ -808,8 +895,19 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe7">
+  <meta name="theme-color" content="#000000">
+  <!-- 主题：首帧前解析 localStorage/系统偏好并写 data-theme，避免亮暗切换时闪白 -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var pref = 'auto';
+      try { pref = localStorage.getItem('theme') || 'auto'; } catch (e) {}
+      if (pref !== 'light' && pref !== 'dark') pref = 'auto';
+      var light = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+      root.setAttribute('data-theme-pref', pref);
+      root.setAttribute('data-theme', pref === 'auto' ? (light ? 'light' : 'dark') : pref);
+    })();
+  </script>
   <meta name="keywords" content="${keywords}">
   ${remoteAssets}
   <link rel="stylesheet" href="${withBase(`/assets/main.css?v=${hashAssetFile('assets/main.css')}`)}">
@@ -836,7 +934,7 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta name="application-name" content="${site.name}">
   <meta name="build-version" content="${BUILD_VERSION}">
   <meta name="apple-mobile-web-app-title" content="${site.name}">
-  <meta name="theme-color" content="#000000">
+  <link rel="alternate" type="application/rss+xml" title="${site.name} - ${site.subtitle}" href="${withBase('/rss.xml')}">
   ${extraHead}
   <title>${title}</title>
   <meta name="author" content="${site.author}">
@@ -846,51 +944,61 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
   <meta property="og:site_name" content="${site.name}">
   <meta property="og:type" content="${ogType}">
   <meta property="og:url" content="${fullUrl}">
-  <meta property="og:image" content="${SITE_URL}/logo.png">
+  <meta property="og:image" content="${shareImage}">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${description}">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}">
+  <meta name="twitter:image" content="${shareImage}">
+  ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 </head>
 <body data-about-url="${withBase(`/about/`)}"${bodyData}>`;
 }
 
 function shellStart() {
   return `
+<a class="skip-link" href="#main-content">跳到正文</a>
 <div class="app-shell js-app-shell">
   <div class="app-layout">
     <section class="app-main-column">
       <header class="mobile-header">
-        <a class="mobile-brand" href="${SITE_URL}/" target="_self">
-          <img class="avatar" src="${withBase(`/logo.png`)}" alt="${site.name}">
+        <a class="mobile-brand" href="${withBase('/')}" target="_self" data-home-link>
+          <img class="avatar" src="${withBase(`/logo.png`)}" alt="${site.name}" width="40" height="40" decoding="async">
           <span class="mobile-brand-copy">
             <strong>${site.name}</strong>
             <em>${site.subtitle}</em>
           </span>
         </a>
         <div class="mobile-header-actions">
-          <button class="site-nav-link mobile-back-to-top js-back-to-top is-hidden" type="button" aria-label="Back to top" title="Back to top" aria-hidden="true" tabindex="-1">
-            <i class="fa-solid fa-arrow-up-long" aria-hidden="true"></i>
-            <span class="sr-only">back to top</span>
+          <button class="site-nav-link js-random-post" type="button" aria-label="随便看看" title="随便看看 · 随机读一篇" data-archives-url="${withBase('/archives/')}">
+            <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+            <span class="sr-only">随便看看</span>
           </button>
-          <a href="#" target="_self" class="site-nav-link search-form-input ga-highlight" aria-label="search" title="search">
+          <button class="site-nav-link js-theme-toggle" type="button" aria-label="主题：跟随系统（点击切换）" title="主题：跟随系统（点击切换）">
+            <i class="fa-solid fa-circle-half-stroke theme-icon theme-icon-auto" aria-hidden="true"></i>
+            <i class="fa-solid fa-sun theme-icon theme-icon-light" aria-hidden="true"></i>
+            <i class="fa-solid fa-moon theme-icon theme-icon-dark" aria-hidden="true"></i>
+            <span class="sr-only">theme</span>
+          </button>
+          <a href="#" target="_self" class="site-nav-link search-form-input ga-highlight" aria-label="搜索" title="搜索">
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <span class="sr-only">search</span>
+            <span class="sr-only">搜索</span>
           </a>
-          <button class="mobile-menu-toggle js-menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu-panel" aria-label="Open side menu">
+          <button class="mobile-menu-toggle js-menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu-panel" aria-label="打开侧边菜单">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
-            <span class="sr-only">menu</span>
+            <span class="sr-only">菜单</span>
           </button>
         </div>
+        <div class="reading-progress js-reading-progress" aria-hidden="true"><span></span></div>
       </header>
       <div class="container">
-        <main class="layout-main">`;
+        <main class="layout-main" id="main-content" tabindex="-1">`;
 }
 
 function sideInSite() {
   return `<section class="side-panel side-in-site">
     <h2><i class="fa-solid fa-compass panel-icon" aria-hidden="true"></i>In Site</h2>
     <nav class="in-site-links" aria-label="In site navigation">
-      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${SITE_URL}/" target="_self"><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
+      <a class="in-site-link js-route-nav-link" data-nav-kind="index" href="${withBase('/')}" target="_self" data-home-link><i class="fa-solid fa-house in-site-link-icon" aria-hidden="true"></i><span>Home</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="archives" href="${withBase(`/archives/`)}" target="_self"><i class="fa-solid fa-box-archive in-site-link-icon" aria-hidden="true"></i><span>Archives</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="about" href="${withBase(`/about/`)}" target="_self"><i class="fa-solid fa-circle-info in-site-link-icon" aria-hidden="true"></i><span>About</span></a>
       <a class="in-site-link js-route-nav-link" data-nav-kind="fcircle" href="${withBase(`/fcircle/`)}" target="_self"><svg class="in-site-link-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="15.1" cy="8.9" r="6.1"/><circle cx="8.9" cy="15.1" r="6.1"/></svg><span>FCIRCLE</span></a>
@@ -973,6 +1081,11 @@ function sideToc(toc) {
     .join('');
   return `<section class="side-panel side-toc">
     <h2><i class="fa-solid fa-list-ul panel-icon" aria-hidden="true"></i>On This Page</h2>
+    <div class="toc-meta">
+      <span class="toc-current" id="toc-current" title="当前章节">正文</span>
+      <span class="toc-percent" id="toc-percent">0%</span>
+    </div>
+    <div class="toc-progress" id="toc-progress" role="progressbar" aria-label="阅读进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="toc-progress-bar" id="toc-progress-bar"></span></div>
     <nav class="toc-list" aria-label="Table of contents">
           ${items}
     </nav>
@@ -991,9 +1104,12 @@ function shellEnd(extraScripts = '', includeSearch = true, extraSide = '') {
     : '';
   return `</main>
         <footer class="site-footer">
-          <span><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">CC BY-NC-ND 4.0</a></span>${icp}${police}
+          <span class="site-footer-left"><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noreferrer">CC BY-NC-ND 4.0</a><a class="site-footer-rss" href="${withBase(`/rss.xml`)}" type="application/rss+xml" aria-label="RSS 订阅"><i class="fa-solid fa-rss" aria-hidden="true"></i>RSS</a>${icp}${police}</span>
         </footer>
         </div>
+        <button class="back-to-top-float js-back-to-top is-hidden" type="button" aria-label="回到顶部" title="回到顶部" aria-hidden="true" tabindex="-1">
+          <i class="fa-solid fa-arrow-up-long" aria-hidden="true"></i>
+        </button>
     </section>
 
     <div class="app-side-column">
@@ -1027,7 +1143,7 @@ ${extraScripts}
 function entryArticle(post) {
   const banner = post.banner
     ? `<a class="article-banner" href="${withBase(`/archives/${post.slug}/`)}">
-      <img src="${withBase(post.banner)}" alt="${post.title}" loading="lazy" decoding="async">
+      <img src="${withBase(post.banner)}" alt="${post.title}" loading="eager" fetchpriority="high" decoding="async">
       <span class="article-banner-shade" aria-hidden="true"></span>
       <h2 class="article-title article-title-overlay">${post.title}</h2>
     </a>`
@@ -1041,6 +1157,7 @@ function entryArticle(post) {
     <div class="article-meta">
       <span>${post.dateText}</span>
       <span class="article-meta-spacer"></span>
+      ${likeButton(post.slug)}${viewsBadge(post.slug)}
     </div>
   </div>`;
 }
@@ -1079,6 +1196,7 @@ function entryMemo(post) {
     ${contentBlock}
     ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
     ${photosHtml}
+    ${(likeButton(post.slug) || viewsBadge(post.slug)) ? `<div class="memo-metrics">${likeButton(post.slug)}${viewsBadge(post.slug)}</div>` : ''}
   </div>`;
 }
 
@@ -1105,30 +1223,43 @@ function tagsWithCount() {
 
 // ---------- 页面生成 ----------
 function buildIndexPage(posts, pageIndex, totalPages) {
-  const entries = posts.map(p => p.type === 'memo' ? entryMemo(p) : entryArticle(p)).join('');
+  const entries = posts.map(p => (p.type === 'memo' ? entryMemo(p) : entryArticle(p))).join('');
   const statusText = pageIndex >= totalPages ? 'That is all' : 'Scroll down for older';
   // 原站所有分页页的 index-root 都是 '/'（index.js 按 '/page/N/' 拼接），保持 '/'
+  const siteJsonLd = pageIndex === 1 ? JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: `${site.name} - ${site.subtitle}`,
+    description: site.description,
+    url: `${SITE_URL}/`,
+    inLanguage: site.lang,
+    author: { '@type': 'Person', name: site.author },
+    publisher: { '@type': 'Organization', name: site.name, logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` } },
+  }).replace(/</g, '\\u003c') : '';
   const html = headHtml(`${site.name} - ${site.subtitle}`, {
     pagePath: pageIndex === 1 ? '/' : `/page/${pageIndex}/`,
+    jsonLd: siteJsonLd,
   }) + shellStart() + `
 <main class="feed" data-index-root="${withBase(`/`)}" data-total-pages="${totalPages}">
+  <h1 class="sr-only">${escapeHtml(site.name)} · ${escapeHtml(site.subtitle)}</h1>
   ${entries}
 </main>
 <div class="stream-status stream-status-bottom" id="stream-status-bottom" data-state="${pageIndex >= totalPages ? 'end' : 'idle'}" aria-live="polite">${statusText}</div>
-` + shellEnd(`<script type="module" src="${withBase(`/assets/js/index.js?v=${hashAssetFile('assets/js/index.js')}`)}"></script>`);
+` + shellEnd(`<script defer src="${withBase(`/assets/js/like.js?v=${hashAssetFile('assets/js/like.js')}`)}"></script>
+<script type="module" src="${withBase(`/assets/js/index.js?v=${hashAssetFile('assets/js/index.js')}`)}"></script>`);
   return html;
 }
 
 function katexHead() {
+  // 只留 preload + noscript 兜底：原来第三行又直接引了一次，同一张 CSS 被请求两遍
   return `<link rel="preload" as="style" href="${withBase(`/assets/katex/katex.min.css`)}" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}"></noscript>
-<link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}">`;
+<noscript><link rel="stylesheet" href="${withBase(`/assets/katex/katex.min.css`)}"></noscript>`;
 }
 
 function navTitle(post) {
   // memo 与原站一致：显示「作者: 摘要」而非标题
   if (post.type === 'memo') {
-    return `${site.author}: ${excerptFrom(post.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`;
+    return `${site.author}: ${memoDisplayTitle(post)}`;
   }
   return post.title;
 }
@@ -1152,6 +1283,57 @@ function postNav(prev, next) {
 </nav>`;
 }
 
+// 相关阅读：同标签 +2、同分类 +1，取分数最高的 3 篇正式文章（memo 不参与）
+function relatedPosts(post, limit = 3) {
+  const tagSet = new Set(post.tags || []);
+  return _posts
+    .filter(p => p !== post && p.type === 'post' && p.title)
+    .map(p => {
+      let score = 0;
+      for (const t of p.tags || []) if (tagSet.has(t)) score += 2;
+      if (post.category && p.category === post.category) score += 1;
+      return { p, score };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || (b.p.date && a.p.date ? b.p.date - a.p.date : 0))
+    .slice(0, limit)
+    .map(x => x.p);
+}
+
+function relatedHtml(post) {
+  const list = relatedPosts(post);
+  if (!list.length) return '';
+  const items = list.map(p => `      <li><a href="${withBase(`/archives/${p.slug}/`)}"><span class="related-title">${escapeHtml(p.title)}</span><time>${p.dateText}</time></a></li>`).join('\n');
+  return `<section class="related-posts" aria-labelledby="related-heading">
+  <h2 id="related-heading">芳时拾页</h2>
+  <ul>
+${items}
+  </ul>
+</section>`;
+}
+
+// 点赞按钮：iine 的「いいね」思路，但自己写 50 行（同一个公开 Supabase RPC），
+// 不引第三方脚本、不依赖 CDN（jsdelivr 在国内经常打不开）。
+// 点赞快照：content/likes.json 由 scripts/fetch-likes.mjs 生成（一次请求拿到全部文章的点赞数）。
+// 数字直接写进静态 HTML，读者不用等海外 Supabase 返回就能看到点赞量。
+let _likes = null;
+function likesMap() {
+  if (_likes) return _likes;
+  const file = join(CONTENT_DIR, 'likes.json');
+  try {
+    _likes = existsSync(file) ? JSON.parse(readFileSync(file, 'utf-8')).likes || {} : {};
+  } catch {
+    _likes = {};
+  }
+  return _likes;
+}
+
+function likeButton(slug) {
+  const pageSlug = '/archives/' + slug + '/';
+  const n = Number(likesMap()[pageSlug]) || 0;
+  return `<button class="index-metric-btn index-metric-like js-like" type="button" data-slug="${escapeHtml(pageSlug)}" aria-pressed="false" aria-label="喜欢这篇文章"><i class="fa-regular fa-heart" aria-hidden="true"></i><span class="like-count">${n}</span></button>`;
+}
+
 function buildPostPage(post, prev, next) {
   const categoryTag = post.category
     ? `<div class="tag"><a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a></div>`
@@ -1159,23 +1341,70 @@ function buildPostPage(post, prev, next) {
   // 同一段落里连着的多张图片 → 并排相框（Obsidian 里 ![[a]]![[b]]![[c]] 的语义）
   const withToc = withHeadingAnchors(wrapFigureRuns(renderMarkdown(post.body)));
   const bodyHtml = withToc.html;
+  // 阅读时长：中文约 400 字/分钟，至少 1 分钟
+  const charCount = memoTextLength(post.body);
+  const readMinutes = Math.max(1, Math.round(charCount / 400));
+  // 字数按百位取整，避免「约 2417 字」这种假精确
+  const charCountText = charCount >= 1000
+    ? `${(Math.round(charCount / 100) / 10).toFixed(1).replace(/\.0$/, '')}k 字`
+    : `${Math.max(10, Math.round(charCount / 10) * 10)} 字`;
+  // 更新时间与创建时间同一天就不显示，避免「2026-10-21 · 2026-10-21」这种废话
+  const ymd = d => d && !isNaN(d.getTime())
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    : '';
+  const createdText = ymd(post.date);
+  const updatedText = ymd(post.updated);
+  const showUpdated = updatedText && createdText && updatedText !== createdText;
+  const hhmm = (d) => (d ? `${ymd(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '');
+  const createdFull = post.date ? hhmm(post.date) : '';
+  const updatedFull = post.updated ? hhmm(post.updated) : '';
+  const postUrl = encodeURI(SITE_URL + `/archives/${post.slug}/`);
+  const jsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    inLanguage: site.lang,
+    url: postUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
+    ...(post.date ? { datePublished: post.date.toISOString(), dateModified: post.date.toISOString() } : {}),
+    author: { '@type': 'Person', name: site.author },
+    publisher: {
+      '@type': 'Organization',
+      name: site.name,
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
+    },
+    image: [post.banner ? encodeURI(SITE_URL + post.banner) : `${SITE_URL}/logo.png`],
+  }).replace(/</g, '\\u003c');
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
-<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>`;
+<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>
+<script defer src="${withBase(`/assets/js/like.js?v=${hashAssetFile('assets/js/like.js')}`)}"></script>`;
   const html = headHtml(`${post.title} - ${site.name}`, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
     pageDescription: post.excerpt,
+    ogImage: post.banner || '',
+    jsonLd,
+    bodyData: ' data-reading-progress="1"',
     extraHead: katexHead() + (post.date ? `<meta property="article:published_time" content="${post.date.toISOString()}">` : ''),
   }) + shellStart() + `
 <header class="article-header">
   ${categoryTag}
   <h1>${escapeHtml(post.title)}</h1>
   <div class="meta">
-    <span>${post.dateText}</span>
+    <span class="article-dates" tabindex="0" aria-label="发布时间">
+      <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+      <time datetime="${post.date ? post.date.toISOString() : ''}">${createdText || post.dateText}</time>
+      <span class="date-tip" role="tooltip">
+        ${createdFull ? `<span class="date-tip-row"><span>创建</span><b>${createdFull}</b></span>` : ''}
+        ${showUpdated && updatedFull ? `<span class="date-tip-row"><span>修改</span><b>${updatedFull}</b></span>` : ''}
+      </span>
+    </span>
     <span class="author">${escapeHtml(site.author)}</span>
+    <span class="reading-time"><span class="char-count">${charCountText}</span><span class="meta-dot" aria-hidden="true">·</span>${readMinutes} 分钟</span>
     <span class="article-meta-spacer"></span>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
+    ${likeButton(post.slug)}<span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </header>
@@ -1183,6 +1412,7 @@ function buildPostPage(post, prev, next) {
 ${bodyHtml}
 </article>
 ${postNav(prev, next)}
+${relatedHtml(post)}
 ` + shellEnd(scripts, true, sideToc(withToc.toc));
   return html;
 }
@@ -1196,25 +1426,37 @@ function buildMemoPage(post, prev, next) {
     .replace(/<p>(?:\s|<br\s*\/?>)*<\/p>/gi, '')
     .trim();
   const photosHtml = figures.length ? photosetHtml(figures) : '';
-  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>`;
-  const html = headHtml(`${post.title} - ${site.name}`, {
+  const scripts = `<script type="module" src="${withBase(`/assets/js/post.js?v=${hashAssetFile('assets/js/post.js')}`)}"></script>
+<script defer src="${withBase(`/assets/js/like.js?v=${hashAssetFile('assets/js/like.js')}`)}"></script>`;
+  // 标题：memo 的 post.title 常是占位符（如 "memo"），直接拼会出现「memo - Haelcy」这种标签页标题
+  const pageTitle = post.title && post.title !== 'memo'
+    ? `${post.title} - ${site.name}`
+    : `${site.author} 的碎念 · ${post.dateText} - ${site.name}`;
+  const html = headHtml(pageTitle, {
     pageType: 'post',
     pagePath: `/archives/${post.slug}/`,
     pageDescription: post.excerpt,
     extraHead: katexHead() + (post.date ? `<meta property="article:published_time" content="${post.date.toISOString()}">` : ''),
   }) + shellStart() + `
+<h1 class="sr-only">${escapeHtml(`${site.author} 的碎念 · ${post.dateText}`)}</h1>
 <div class="memo-page pswp-gallery">
+  <div class="memo-byline">
+    <img class="memo-byline-avatar" src="${withBase('/logo.png')}" alt="" width="28" height="28" loading="lazy" decoding="async">
+    <span class="memo-byline-author">${escapeHtml(site.author)}</span>
+    ${post.category ? `<a class="memo-byline-cat" href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a>` : ''}
+  </div>
   <div class="memo-content">${contentHtml}</div>
   ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
   ${photosHtml}
   <div class="memo-meta">
     <span>${post.dateText}</span>
     <span class="memo-meta-spacer"></span>
-    <span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
+    ${likeButton(post.slug)}<span class="index-metric-btn index-metric-static pageview" aria-label="View count"><i class="fa-regular fa-eye" aria-hidden="true"></i><span id="busuanzi_value_page_pv">…</span></span>
     <a class="index-metric-btn js-auth-edit" href="${withBase(`/portal.html?tab=edit&slug=${post.slug}`)}" target="_self" style="display:none"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></a>
   </div>
 </div>
 ${postNav(prev, next)}
+${post.category ? `<a class="memo-more" href="${withBase(`/category/${post.category}/`)}">查看全部${escapeHtml(post.category)}<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>` : ''}
 ` + shellEnd(scripts);
   return html;
 }
@@ -1311,11 +1553,33 @@ function archiveDaysSince() {
   return Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
 }
 
+function monthlyData() {
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${d.getMonth() + 1}月`,
+      count: 0,
+    });
+  }
+  const slotOf = new Map(months.map((m, i) => [m.key, i]));
+  for (const p of _posts) {
+    if (!p.date || Number.isNaN(p.date.getTime())) continue;
+    const key = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}`;
+    const i = slotOf.get(key);
+    if (i !== undefined) months[i].count++;
+  }
+  return { months, total: months.reduce((s, m) => s + m.count, 0) };
+}
+
 function buildArchiveSummary() {
   const since = String(site.since || '').slice(0, 10);
+  const { total } = monthlyData();
   return '  <div class="archive-summary">\n' +
     '    <p class="archive-summary-line"><span class="archive-summary-moons" aria-hidden="true">' + ARCHIVE_MOONS + '</span>' + ARCHIVE_INTRO + '</p>\n' +
-    '    <p class="archive-summary-stats">共糊弄了 ' + archiveWordText() + ' × ' + _posts.length + ' 篇日记 × <span class="js-archive-days" data-since="' + escapeHtml(since) + '">' + archiveDaysSince() + '</span> 个地球日</p>\n' +
+    '    <p class="archive-summary-stats">共糊弄了 ' + archiveWordText() + ' × ' + _posts.length + ' 篇日记 × <span class="js-archive-days" data-since="' + escapeHtml(since) + '">' + archiveDaysSince() + '</span> 个地球日<span class="archive-summary-recent"> · 近 12 个月写了 ' + total + ' 篇</span></p>\n' +
     '  </div>\n';
 }
 
@@ -1332,20 +1596,72 @@ function buildArchiveConfetti() {
   return `<div class="archive-confetti" aria-hidden="true">${pieces}</div>`;
 }
 
+function memoDisplayTitle(post, limit = 60) {
+  const text = excerptFrom(post.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), limit);
+  return text || `图片动态 · ${post.dateText}`;
+}
+
+// 近 12 个月发文柱状图：构建时算好、输出纯 SVG，不带任何 JS 依赖
+function buildMonthlyChart() {
+  const { months } = monthlyData();
+  const max = Math.max(1, ...months.map(m => m.count));
+  const VBW = 640;
+  const VBH = 132;
+  const chartH = 84;
+  const baseY = VBH - 26;
+  const slot = VBW / months.length;
+  const barW = Math.min(30, slot * 0.5);
+  const bars = months.map((m, i) => {
+    const h = m.count ? Math.max(4, Math.round((m.count / max) * chartH)) : 0;
+    const x = (slot * i + (slot - barW) / 2).toFixed(1);
+    const cx = (Number(x) + barW / 2).toFixed(1);
+    const y = (baseY - h).toFixed(1);
+    const rect = h
+      ? `<rect class="arch-bar" x="${x}" y="${y}" width="${barW.toFixed(1)}" height="${h}" rx="3"><title>${m.key}：${m.count} 篇</title></rect>`
+      : `<rect class="arch-bar is-empty" x="${x}" y="${baseY - 2}" width="${barW.toFixed(1)}" height="2" rx="1"><title>${m.key}：0 篇</title></rect>`;
+    const num = m.count ? `<text class="arch-bar-num" x="${cx}" y="${(baseY - h - 6).toFixed(1)}" text-anchor="middle">${m.count}</text>` : '';
+    return rect + num + `<text class="arch-bar-label" x="${cx}" y="${VBH - 8}" text-anchor="middle">${m.label}</text>`;
+  }).join('');
+  return `<figure class="arch-chart">
+  <svg viewBox="0 0 ${VBW} ${VBH}" role="img" aria-label="近 12 个月（${months[0].key} 至 ${months[months.length - 1].key}）每月发文数量柱状图">${bars}</svg>
+</figure>`;
+}
+
 function buildArchivesPage() {
-  const items = _posts.map(p => {
-    const title = p.type === 'memo'
-      ? `${site.author}: ${excerptFrom(p.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`
-      : p.title;
-    return `
-  <a href="${withBase(`/archives/${p.slug}/`)}" class="archive-item">
+  // 按年分组：56 条里 memo 占大多数，平铺列表很难定位；同时给正式文章加分类徽标，和 memo 区分开
+  const byYear = new Map();
+  for (const p of _posts) {
+    const year = p.date ? String(p.date.getFullYear()) : '更早';
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year).push(p);
+  }
+  const groups = [...byYear.entries()].map(([year, list]) => {
+    const items = list.map(p => {
+      const isMemo = p.type === 'memo';
+      const title = isMemo ? `${site.author}: ${memoDisplayTitle(p)}` : p.title;
+      const kind = isMemo || !p.category ? '' : `<span class="archive-kind">${escapeHtml(p.category)}</span>`;
+      return `
+  <a href="${withBase(`/archives/${p.slug}/`)}" class="archive-item${isMemo ? ' is-memo' : ''}">${kind}
     <span class="post-title">${escapeHtml(title)}</span>
     <span class="time">${p.dateText}</span>
   </a>`;
+    }).join('');
+    return `
+<section class="archive-year" aria-labelledby="year-${year}">
+  <h2 class="archive-year-label" id="year-${year}">
+    <button class="archive-year-toggle" type="button" aria-expanded="true" aria-controls="year-${year}-list">
+      <span class="archive-year-name">${year}</span><span>${list.length} 篇</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+    </button>
+  </h2>
+  <div class="archive-year-collapse">
+    <div class="archive-year-list" id="year-${year}-list">${items}
+    </div>
+  </div>
+</section>`;
   }).join('');
   const html = headHtml(`Archives - ${site.name}`, { pagePath: '/archives/', extraHead: ARCHIVE_SUMMARY_CSS + ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
-<div class="archive-title">Archives</div>
-${buildArchiveSummary()}<div class="archives-container">${items}
+<h1 class="archive-title">Archives</h1>
+${buildArchiveSummary()}${buildMonthlyChart()}<div class="archives-container">${groups}
 </div>
 ` + shellEnd(ARCHIVE_SUMMARY_SCRIPT);
   return html;
@@ -1354,7 +1670,7 @@ ${buildArchiveSummary()}<div class="archives-container">${items}
 function buildTaxonomyPage(kind, name, posts) {
   const items = posts.map(p => `
   <a href="${withBase(`/archives/${p.slug}/`)}" class="archive-item">
-    <span class="post-title">${escapeHtml(p.type === 'memo' ? `${site.author}: ${excerptFrom(p.body, 60)}` : p.title)}</span>
+    <span class="post-title">${escapeHtml(p.type === 'memo' ? `${site.author}: ${memoDisplayTitle(p, 60)}` : p.title)}</span>
     <span class="time">${p.dateText}</span>
   </a>`).join('');
   const label = kind === 'category' ? `Category: ${name}` : `Tag: ${name}`;
@@ -1362,7 +1678,7 @@ function buildTaxonomyPage(kind, name, posts) {
     ? `/category/${encodeURIComponent(name)}/`
     : `/tag/${encodeURIComponent(name)}/`;
   const html = headHtml(`${label} - ${site.name}`, { pagePath: path }) + shellStart() + `
-<div class="archive-title">${escapeHtml(label)}</div>
+<h1 class="archive-title">${escapeHtml(label)}<span class="archive-count">${posts.length} 篇</span></h1>
 <div class="archives-container">${items}
 </div>
 ` + shellEnd();
@@ -1477,9 +1793,125 @@ ${renderChronicleItems(ordered)}
 `;
 }
 
+// 关于页「Now」：数据来自 content/now.json（手动维护；没有该文件就整块不渲染）
+//   一条 = { kind: 'book'|'movie', label, title, sub, cover, rating, votes, url, source }
+function readNowItems() {
+  const file = join(CONTENT_DIR, 'now.json');
+  if (!existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(file, 'utf-8'));
+    const items = Array.isArray(raw) ? raw : (raw.items || []);
+    return items.filter(it => it && it.title && it.url);
+  } catch (e) {
+    buildWarnings.push(`content/now.json 解析失败：${e.message}`);
+    return [];
+  }
+}
+
+// 豆瓣 10 分制 → 5 颗星，用宽度裁切做半星
+function nowStars(rating) {
+  const pct = Math.max(0, Math.min(100, Math.round((Number(rating) / 10) * 100)));
+  return `<span class="now-stars" aria-hidden="true"><span class="now-stars-base">★★★★★</span><span class="now-stars-fill" style="width:${pct}%">★★★★★</span></span>`;
+}
+
+// 首页卡片 / 文章页的浏览量：不蒜子按页面 URL 分桶，接口没法批量查，
+// 所以用 scripts/fetch-views.mjs 抓一份快照存到 content/views.json，构建时直接读。
+const VIEWS_FILE = join(CONTENT_DIR, 'views.json');
+let _views = null;
+function viewsMap() {
+  if (_views) return _views;
+  try { _views = JSON.parse(readFileSync(VIEWS_FILE, 'utf-8')).views || {}; } catch (e) { _views = {}; }
+  return _views;
+}
+// 1.2k / 3.4万 这类缩写
+function formatCount(n) {
+  n = Number(n) || 0;
+  if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(n);
+}
+// 首页卡片固定显示「浏览量」：没有快照的文章显示 –（整块消失会让两张卡的行内对齐不一致）
+function viewsBadge(slug) {
+  const n = viewsMap()[slug];
+  const text = n ? formatCount(n) : '–';
+  const title = n ? `${n} 次浏览` : '暂无浏览量数据';
+  return `<span class="index-metric-btn index-metric-static card-views" title="${title}" aria-label="浏览量"><i class="fa-regular fa-eye" aria-hidden="true"></i><span class="card-metric-num">${text}</span></span>`;
+}
+
+function buildNowSection() {
+  const items = readNowItems();
+  if (!items.length) return '';
+  const rows = items.map(it => {
+    const isBook = it.kind === 'book';
+    const label = isBook ? 'Reading' : 'Watching';
+    const labelCn = it.label || (isBook ? '在读' : '在看');
+    const rating = Number(it.rating) || 0;
+    const votes = Number(it.votes) || 0;
+    const votesText = votes >= 10000 ? `${(votes / 10000).toFixed(1)} 万` : String(votes);
+    return `
+    <a class="now-row" href="${escapeHtml(it.url)}" target="_blank" rel="noopener noreferrer">
+      <span class="now-cover" data-initial="${escapeHtml(String(it.title || '·').slice(0, 1))}"><img src="${withBase(it.cover || '/logo.png')}" alt="${escapeHtml(labelCn)}${escapeHtml(it.title)}" width="200" height="278" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentElement.classList.add('no-img')"></span>
+      <span class="now-main">
+        <span class="now-line"><span class="now-kind ${isBook ? 'is-reading' : 'is-watching'}">${label}</span><span class="now-title">${escapeHtml(it.title)}</span></span>
+        ${it.sub ? `<span class="now-sub">${escapeHtml(it.sub)}</span>` : ''}
+      </span>
+      ${rating ? `<span class="now-rating">${nowStars(rating)}<b>${rating.toFixed(1)}</b>${votes ? `<span class="now-votes">${votesText} 人评价</span>` : ''}</span>` : '<span></span>'}
+    </a>`;
+  }).join('');
+  return `<section class="about-section about-now-section">
+  <div class="about-section-head">
+    <h2>Now</h2>
+  </div>
+  <div class="now-list">${rows}
+  </div>
+</section>`;
+}
+
+// 写作热力图已按用户要求撤回（保留函数便于以后找回，当前不调用）
+function buildHeatmapUnused() {
+  const counts = Object.create(null);
+  let total = 0;
+  _posts.forEach(p => {
+    if (!p.date) return;
+    const d = new Date(p.date);
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    counts[key] = (counts[key] || 0) + 1;
+    total++;
+  });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - 364);
+  start.setDate(start.getDate() - start.getDay()); // 从周日开始
+  const cells = [];
+  let maxDay = 0;
+  let cur = new Date(start);
+  let guard = 0;
+  while (cur <= today && guard++ < 400) {
+    const key = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+    const n = counts[key] || 0;
+    if (n > maxDay) maxDay = n;
+    const level = n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : n <= 4 ? 3 : 4;
+    cells.push(`<span class="heat-cell" data-level="${level}" data-date="${key}" title="${key} · ${n ? n + ' 篇' : '没有更新'}"></span>`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  // 只在月初的第一格上方标注月份
+  return `<section class="about-section about-heatmap-section">
+  <div class="about-section-head">
+    <h2>Writing Activity</h2>
+    <span class="about-section-sub">过去一年 · ${total} 篇</span>
+  </div>
+  <div class="heatmap">
+    <div class="heat-grid">${cells.join('')}</div>
+    <div class="heat-legend"><span>少</span>${[0, 1, 2, 3, 4].map(l => `<span class="heat-cell" data-level="${l}"></span>`).join('')}<span>多</span></div>
+  </div>
+</section>`;
+}
+
 function buildAboutPage() {
   const mdPath = join(CONTENT_DIR, 'pages', 'about.md');
-  const md = existsSync(mdPath) ? readFileSync(mdPath, 'utf-8') : '# About\n\n（还没有写关于页。）';
+  const md = existsSync(mdPath) ? readFileSync(mdPath, 'utf-8').replace(/\r\n?/g, '\n') : '# About\n\n（还没有写关于页。）';
   const { body } = parseFrontmatter(md);
   const bodyHtml = renderMarkdown(body);
   const trackedUrls = _posts.map(p => `/archives/${p.slug}/`);
@@ -1496,7 +1928,7 @@ function buildAboutPage() {
 </div>
 <section class="about-section">
   <div class="about-section-head">
-    <h2>About Me</h2>
+    <h1>About Me</h1>
   </div>
   <article class="about-intro article-body pswp-gallery">
     ${bodyHtml}
@@ -1534,9 +1966,70 @@ function buildAboutPage() {
     </article>
   </div>
 </section>
+${buildNowSection('b')}
 ${chronicleSection}
 </div>` + shellEnd(scripts);
   return html;
+}
+
+// AI 日报：scripts/fetch-aihot.mjs 抓到的日报落到 content/aihot-daily.json；
+// 构建时把它并进 dist/fcircle-data.json，让它像普通友链一样按日期排在朋友圈里
+// （一天一期，不单独开版块，也不特别标注）。文件不存在就跳过。
+function readAihotDaily() {
+  const file = join(CONTENT_DIR, 'aihot-daily.json');
+  if (!existsSync(file)) return null;
+  try {
+    const raw = JSON.parse(readFileSync(file, 'utf-8'));
+    const items = (Array.isArray(raw.items) ? raw.items : [])
+      .filter(it => it && it.url && it.title && it.date)
+      .slice(0, 10);
+    return items.length ? { updated: raw.updated || '', items } : null;
+  } catch (e) {
+    buildWarnings.push(`content/aihot-daily.json 解析失败：${e.message}`);
+    return null;
+  }
+}
+
+// 并进朋友圈数据：AIHOT 作为一位「订阅」出现在列表里，条目就是每天的日报。
+function mergeAihotIntoFcircle() {
+  const daily = readAihotDaily();
+  if (!daily) return;
+  const file = join(DIST, 'fcircle-data.json');
+  if (!existsSync(file)) {
+    buildWarnings.push('dist/fcircle-data.json 不存在，跳过 AI 日报合并');
+    return;
+  }
+  let data;
+  try {
+    data = JSON.parse(readFileSync(file, 'utf-8'));
+  } catch (e) {
+    buildWarnings.push(`dist/fcircle-data.json 解析失败：${e.message}`);
+    return;
+  }
+  const articles = Array.isArray(data.article_data) ? data.article_data : [];
+  const seen = new Set(articles.map(a => String(a.link || '')));
+  let added = 0;
+  for (const it of daily.items) {
+    if (seen.has(it.url)) continue;
+    articles.push({
+      floor: 0,
+      title: it.title,
+      created: it.date,
+      updated: it.date,
+      link: it.url,
+      author: 'AIHOT 日报',
+      avatar: '/assets/images/aihot.png',
+    });
+    added++;
+  }
+  if (!added) return;
+  data.article_data = articles;
+  if (data.statistical_data) {
+    data.statistical_data.article_num = Number(data.statistical_data.article_num || 0) + added;
+    data.statistical_data.friends_num = Number(data.statistical_data.friends_num || 0) + 1;
+    data.statistical_data.active_num = Number(data.statistical_data.active_num || 0) + 1;
+  }
+  writeFileSync(file, JSON.stringify(data, null, 0) + '\n');
 }
 
 // 朋友圈页：memo 风格渲染友链聚合数据（data 由 fcircle-data.yml 采集生成，见 site-root/fcircle-data.json）
@@ -1596,6 +2089,7 @@ function buildFcirclePage() {
   const scripts = `<script type="module" src="${withBase(`/assets/js/fcircle.js?v=${hashAssetFile('assets/js/fcircle.js')}`)}"></script>`;
   const html = headHtml(`Fcircle - ${site.name}`, { pagePath: '/fcircle/', extraHead }) + shellStart() + `
 <section class="fcircle-section">
+  <h1 class="sr-only">Fcircle · 朋友动态</h1>
   <div class="fcircle-head">
     <h2>Fcircle</h2>
   </div>
@@ -1610,13 +2104,16 @@ function buildFcirclePage() {
 // ---------- ExSearch 索引（对齐原站格式：顶层仅 posts/pages，tags/categories 为对象数组） ----------
 function buildSearchIndex() {
   const posts = _posts.map(p => ({
-    // memo 与归档页/分类页/上下篇导航保持一致：显示「作者: 正文摘录」，post 用标题
+    // memo 标题与归档/分类/上下篇一致走 memoDisplayTitle：纯图片碎念不再显示成空白
     title: p.type === 'memo'
-      ? `${site.author}: ${excerptFrom(p.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60)}`
+      ? `${site.author}: ${memoDisplayTitle(p, 60)}`
       : p.title,
     date: p.type === 'memo' ? p.dateText + ':00+08:00' : p.dateText + ' 10:00:00+08:00',
     path: withBase(`/archives/${p.slug}/`),
-    text: excerptFrom(p.body, 4000),
+    // 索引正文去掉图片语法与 HTML 标签，否则结果摘要里会冒出 ![](/assets/…) 和 <span> 噪声
+    text: excerptFrom(p.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').replace(/<[^>]+>/g, ' '), 4000)
+      // 纯图片碎念正文为空，给个兜底摘要，搜索结果下面不至于一片空
+      || (p.type === 'memo' ? memoDisplayTitle(p, 120) : (p.excerpt || '')),
     tags: p.tags.map(t => ({ name: t, slug: t, permalink: withBase(`/tag/${encodeURIComponent(t)}/`) })),
     categories: p.category ? [{ name: p.category, slug: p.category, permalink: withBase(`/category/${encodeURIComponent(p.category)}/`) }] : [],
   }));
@@ -1660,12 +2157,59 @@ function buildRobots() {
   return `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`;
 }
 
+// ---------- RSS 2.0 ----------
+// README/使用指南一直写「RSS 暂未提供」；这里补最小实现：最近 20 条，含 memo。
+function buildFeed() {
+  const items = _posts.slice(0, 20).map(post => {
+    const url = encodeURI(SITE_URL + `/archives/${post.slug}/`);
+    // memo 没有标题：用「作者: 摘要」，纯图片 memo 摘要为空 → 退回日期，避免 RSS 里出现空标题
+    const memoText = post.type === 'memo' ? excerptFrom(post.body.replace(/!\[[^\]]*\]\([^)]*\)/g, ''), 60) : '';
+    const title = post.type === 'memo'
+      ? (memoText ? `${site.author}: ${memoText}` : `${site.author} 的碎念 · ${post.dateText}`)
+      : post.title;
+    const description = post.excerpt || memoText || `图片动态（${post.dateText}）`;
+    const pubDate = post.date ? new Date(post.date).toUTCString() : new Date().toUTCString();
+    return `    <item>
+      <title>${escapeXml(title)}</title>
+      <link>${escapeXml(url)}</link>
+      <guid isPermaLink="true">${escapeXml(url)}</guid>
+      <pubDate>${pubDate}</pubDate>
+      <category>${escapeXml(post.category || '未分类')}</category>
+      <description>${escapeXml(description)}</description>
+    </item>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${escapeXml(site.name + ' - ' + site.subtitle)}</title>
+    <link>${SITE_URL}/</link>
+    <description>${escapeXml(site.description || site.subtitle)}</description>
+    <language>${site.lang}</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml"/>
+${items}
+  </channel>
+</rss>
+`;
+}
+
 // ---------- 404 ----------
 function build404() {
-  const html = headHtml(`404 - ${site.name}`) + shellStart() + `
-<div class="archive-title">404</div>
-<div class="archives-container">
-  <p>页面不存在。<a href="${SITE_URL}/">回到首页</a></p>
+  const recent = _posts.filter(p => p.type === 'post' && p.title).slice(0, 5);
+  const recentList = recent.map(p => `    <li><a href="${withBase(`/archives/${p.slug}/`)}"><span class="not-found-title">${escapeHtml(p.title)}</span><time>${p.dateText}</time></a></li>`).join('\n');
+  const html = headHtml(`页面不存在 - ${site.name}`, { pagePath: '/404.html', pageDescription: '这个地址没有对应的页面。' }) + shellStart() + `
+<h1 class="archive-title">404</h1>
+<div class="not-found">
+  <p class="not-found-lead">这个地址没有对应的页面，可能链接写错了，或者文章已经改名。</p>
+  <p class="not-found-actions">
+    <a class="not-found-btn" href="${withBase('/')}"><i class="fa-solid fa-house" aria-hidden="true"></i>回到首页</a>
+    <a class="not-found-btn" href="${withBase('/archives/')}"><i class="fa-regular fa-folder-open" aria-hidden="true"></i>全部归档</a>
+    <a class="not-found-btn" href="${withBase('/about/')}"><i class="fa-regular fa-circle-user" aria-hidden="true"></i>关于我</a>
+  </p>
+  ${recent.length ? `<h2 class="not-found-sub">最近更新</h2>
+  <ul class="not-found-list">
+${recentList}
+  </ul>` : ''}
 </div>
 ` + shellEnd();
   return html;
@@ -1716,10 +2260,38 @@ function buildPortalPage() {
 }
 
 // ---------- 写文件 ----------
+// 站外链接统一补 rel="noopener noreferrer" + target="_blank" + class="ext-link"（CSS 加 ↗ 图标）
+const EXTERNAL_HOST_RE = /^(?:https?:)?\/\/(?:[\w-]+\.)*(?:haelcy\.cn|anthony-hcy\.github\.io)(?::\d+)?(?:\/|$)/i;
+function enhanceExternalLinks(html) {
+  return html.replace(/<a\b[^>]*>/gi, tag => {
+    const hrefMatch = /href="([^"]*)"/i.exec(tag);
+    if (!hrefMatch) return tag;
+    const href = hrefMatch[1];
+    if (!/^https?:\/\//i.test(href) && !/^\/\//.test(href)) return tag;
+    if (EXTERNAL_HOST_RE.test(href)) return tag;
+    let out = tag;
+    if (/\brel="/i.test(out)) {
+      out = out.replace(/\brel="([^"]*)"/i, (m, v) => {
+        const parts = v.split(/\s+/).filter(Boolean);
+        if (!parts.includes('noopener')) parts.push('noopener');
+        if (!parts.includes('noreferrer')) parts.push('noreferrer');
+        return 'rel="' + parts.join(' ') + '"';
+      });
+    } else {
+      out = out.replace(/>$/, ' rel="noopener noreferrer">');
+    }
+    if (!/\btarget="/i.test(out)) out = out.replace(/>$/, ' target="_blank">');
+    if (/\bclass="/i.test(out)) out = out.replace(/\bclass="([^"]*)"/i, (m, v) => v.split(/\s+/).includes('ext-link') ? m : 'class="' + v + ' ext-link"');
+    else out = out.replace(/>$/, ' class="ext-link">');
+    return out;
+  });
+}
+
 function writePage(relPath, content) {
   const abs = join(DIST, relPath);
   mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, content, 'utf-8');
+  const isHtml = relPath.endsWith('.html');
+  writeFileSync(abs, isHtml ? enhanceExternalLinks(content) : content, 'utf-8');
 }
 
 function copyDir(src, dest) {
@@ -1761,6 +2333,8 @@ tryMakeThumbnails();
 
 _posts = loadPosts();
 assignMemoAvatars(_posts);
+// 搜索索引按内容取哈希文件名，避免任何层级的缓存发出旧索引
+EXSEARCH_HASH = 'search-index-' + createHash('sha1').update(buildSearchIndex()).digest('hex').slice(0, 8);
 const totalPages = Math.max(1, Math.ceil(_posts.length / PAGE_SIZE));
 
 rmSync(DIST, { recursive: true, force: true });
@@ -1818,6 +2392,7 @@ writePage(`${EXSEARCH_HASH}.json`, buildSearchIndex());
 writePage('version.json', JSON.stringify({ v: BUILD_VERSION }));
 writePage('sitemap.xml', buildSitemap());
 writePage('robots.txt', buildRobots());
+writePage('rss.xml', buildFeed());
 
 // 静态资源（static/assets 内容 → dist/assets，site-root 内容 → dist/）
 copyDir(join(ASSETS_SRC, 'assets'), join(DIST, 'assets'));
@@ -1826,6 +2401,8 @@ copyDir(join(ROOT, 'site-root'), DIST);
 // site-root 是逐字节拷贝的，其中的绝对路径必须按当前部署前缀改写，
 // 否则迁到根路径后 PWA manifest 会指向 /Blog/icons/*.png（404）、start_url 也错。
 rewriteSiteRootAbsolutePaths();
+// AI 日报并进朋友圈数据（须在 site-root 拷贝与路径改写之后）
+mergeAihotIntoFcircle();
 
 // 把 site-root 拷进来的文本文件里形如 "/Blog/xxx" 的绝对路径换成当前部署前缀。
 // （.js 不在此列：site-root 下的 JS 只用相对路径，避免误改已做内容哈希的资源）

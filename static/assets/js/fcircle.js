@@ -40,6 +40,8 @@
     src = String(src == null ? '' : src).trim();
     if (!src) return '';
     if (/^https?:\/\//i.test(src)) return src;
+    // 站点自身绝对路径（如 /assets/images/aihot.png）按当前部署前缀解析，别拼到友链来源站
+    if (src.charAt(0) === '/') return pathBase() + src.replace(/^\/+/, '');
     var rel = src.replace(/^\.\.?\//, '').replace(/^\/+/, '');
     return FC_AVATAR_BASE + '/' + rel;
   }
