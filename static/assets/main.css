@@ -3691,6 +3691,14 @@ html[data-theme="light"] .now-row .now-kind.is-watching { background: rgba(50, 1
 .memo-metrics .card-views i { font-size: 12px; opacity: .75; }
 .article-meta .index-metric-like:hover, .article-meta .card-views:hover { color: var(--accent); }
 .memo-metrics { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 12px; }
+/* memo 头部的点赞/浏览量：与作者+日期同一行右对齐，不额外占一行 */
+.memo-metrics--head {
+  margin: 2px 0 0 auto;
+  gap: 12px;
+  font-size: 12px;
+}
+.memo-metrics--head .index-metric-like i,
+.memo-metrics--head .card-views i { font-size: 12px; }
 .memo-metrics .index-metric-like, .memo-metrics .card-views { display: inline-flex; align-items: center; }
 .card-metric-num, .like-count { font-variant-numeric: tabular-nums; }
 .like-count { display: inline-block; min-width: 1ch; }

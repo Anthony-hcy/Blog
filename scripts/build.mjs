@@ -1221,11 +1221,15 @@ function entryMemo(post) {
         <strong>${escapeHtml(site.author)}</strong>
         <span>${post.dateText}</span>
       </div>
+      ${(() => {
+        // 点赞/浏览量放在作者+日期同一行的右侧：不占新行，卡片底部到正文/图片为止
+        const metrics = `${likeButton(post.slug)}${viewsBadge(post.slug)}`;
+        return metrics ? `<div class="memo-metrics memo-metrics--head">${metrics}</div>` : '';
+      })()}
     </div>
     ${contentBlock}
     ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
     ${photosHtml}
-    ${(likeButton(post.slug) || viewsBadge(post.slug)) ? `<div class="memo-metrics">${likeButton(post.slug)}${viewsBadge(post.slug)}</div>` : ''}
   </div>`;
 }
 
