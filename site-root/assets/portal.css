@@ -276,22 +276,38 @@ body.page-portal .container { padding-top: 10px; }
 /* Now 面板（在读 / 在看） */
 .now-results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .now-result { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px;
-  border: 1px solid var(--rule, #2a2a30); border-radius: 10px; background: transparent;
-  color: inherit; text-align: left; cursor: pointer; font: inherit; }
-.now-result:hover { border-color: var(--accent, #e07850); }
+  border: 1px solid var(--p-border); border-radius: 10px; background: var(--p-card);
+  color: var(--p-text); text-align: left; cursor: pointer; font: inherit; }
+.now-result:hover { border-color: var(--p-accent, #e07850); }
 .now-result-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-.now-result-main b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.now-result-main span { font-size: 12px; opacity: .62; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.now-result-side { display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: .8; flex: none; }
-.now-result-kind { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid currentColor; opacity: .7; }
+.now-result-main b { font-size: 14px; font-weight: 600; color: var(--p-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.now-result-main span { font-size: 12px; color: var(--p-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.now-result-side { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--p-text-2); flex: none; }
+.now-result-kind { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--p-border); color: var(--p-text-2); }
 .now-thumb { width: 38px; height: 52px; border-radius: 4px; object-fit: cover; flex: none; background: rgba(128,128,128,.18); display: block; }
-.now-current { display: flex; flex-direction: column; gap: 10px; }
+.now-current { display: flex; flex-direction: column; gap: 10px; color: var(--p-text); }
 .now-current-row { display: flex; align-items: center; gap: 12px; }
 .now-current-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.now-current-main b { font-size: 14px; }
-.now-current-main span { font-size: 12px; opacity: .6; }
-.now-current-meta { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; opacity: .55; }
+.now-current-main b { font-size: 14px; color: var(--p-text); }
+.now-current-main span { font-size: 12px; color: var(--p-text-2); }
+.now-current-meta { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--p-text-3); }
 .now-current-actions { display: flex; gap: 6px; flex: none; }
+/* Now 搜索栏（即时搜索：输入框 + 范围切换） */
+.now-searchbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.now-searchbar .portal-search { flex: 1 1 220px; }
+.now-kinds { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--p-border); border-radius: 999px; flex: none; }
+.now-kind-btn { font: inherit; font-size: 12px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: var(--p-text-2); cursor: pointer; }
+.now-kind-btn.is-active { background: var(--p-accent); color: #fff; }
+.now-rating-pill { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: var(--p-btn-bg); color: var(--p-text); }
+.now-undo { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--p-text-2); }
+.now-undo[hidden] { display: none; }
+.now-manual summary { cursor: pointer; font-size: 14px; color: var(--p-text); }
+.now-manual[open] summary { margin-bottom: 14px; }
+.now-form-row { display: flex; gap: 12px; }
+.now-form-row .portal-field { flex: 1; }
+@media (max-width: 560px) {
+  .now-form-row { flex-direction: column; gap: 0; }
+}
 .portal-row { display: flex; gap: 12px; }
 .portal-row > .portal-field { flex: 1; }
 @media (max-width: 560px) {

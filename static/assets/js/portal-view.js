@@ -515,13 +515,18 @@
   // Shell 渲染
   // =================================================================
   // =================================================================
-  // Now（关于页「在读 / 在看」）：搜索豆瓣 → 选中 → 写入 content/now.json
-  // 浏览器直连豆瓣会被 CORS 挡死，所以搜索走 GitHub Actions（.github/workflows/now-search.yml），
-  // 由 CI 抓豆瓣写到 content/now-search.json，这里轮询读结果。
+  // Now（关于页「在读 / 在看」）：搜豆瓣 → 点一条 → 立刻写 content/now.json
+  // 搜索走 Vercel 同源函数（api/now-search.js 代理豆瓣，浏览器直连豆瓣会被 CORS 挡），
+  // 所以是边打边出的即时结果；点一条就直接提交，Vercel / Pages 各自自动重建上线。
   // =================================================================
   var NOW_PATH = 'content/now.json';
-  var NOW_RESULT_PATH = 'content/now-search.json';
-  var nowState = { items: [], loaded: false, bound: false, pollTimer: null, picked: -1 };
+  var NOW_SEARCH = BASE + 'api/now-search';
+  var NOW_DETAIL = BASE + 'api/now-detail';
+  var nowState = {
+    items: [], loaded: false, bound: false,
+    q: '', kind: 'all', hits: [], detailCache: {},
+    seq: 0, timer: null, ctrl: null, prev: null, busy: false
+  };
 
   function nowEsc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -529,43 +534,53 @@
     });
   }
 
+  function nowFormHtml() {
+    return '<div class="now-form">' +
+      '<label class="portal-field"><span>类型</span><select id="now-kind">' +
+        '<option value="book">书（在读）</option><option value="movie">影视（在看）</option>' +
+      '</select></label>' +
+      '<label class="portal-field"><span>标题</span><input type="text" id="now-title"></label>' +
+      '<label class="portal-field"><span>副标题（作者 · 年份 · 页数 / 导演 · 年份 · 集数）</span><input type="text" id="now-sub"></label>' +
+      '<div class="now-form-row">' +
+        '<label class="portal-field"><span>评分（0-10）</span><input type="text" id="now-rating" placeholder="8.3"></label>' +
+        '<label class="portal-field"><span>评价人数</span><input type="text" id="now-votes" placeholder="21813"></label>' +
+      '</div>' +
+      '<label class="portal-field"><span>豆瓣链接</span><input type="text" id="now-url" placeholder="https://book.douban.com/subject/…/"></label>' +
+      '<label class="portal-field"><span>封面地址（可留空用默认图）</span><input type="text" id="now-cover" placeholder="https://img…doubanio.com/…"></label>' +
+      '<div class="portal-actions">' +
+        '<button class="portal-btn portal-btn-primary" id="now-save" type="button">保存到 Now</button>' +
+        '<button class="portal-btn" id="now-cancel" type="button">收起</button>' +
+      '</div>' +
+      '<div class="portal-hint" id="now-form-hint"></div>' +
+    '</div>';
+  }
+
   function renderNowView() {
     return '<section class="portal-view" id="view-now" hidden>' +
       '<div class="portal-card">' +
         '<h2 class="portal-card-title">Now · 在读 / 在看</h2>' +
-        '<p class="portal-hint">搜索豆瓣 → 点一条 → 保存。封面会在构建时自动下载到站内，不会外链豆瓣。</p>' +
-        '<div class="portal-toolbar">' +
-          '<input type="search" id="now-search" class="portal-search" placeholder="输入书名 / 剧名，回车搜索">' +
-          '<button class="portal-btn portal-btn-primary" id="now-search-btn" type="button">搜索豆瓣</button>' +
+        '<p class="portal-hint">边打边搜，点一条就换上去；提交后约 1 分钟自动上线。</p>' +
+        '<div class="now-searchbar">' +
+          '<input type="search" id="now-q" class="portal-search" placeholder="搜书名 / 剧名…" autocomplete="off" spellcheck="false">' +
+          '<div class="now-kinds" id="now-kinds" role="group" aria-label="搜索范围">' +
+            '<button class="now-kind-btn is-active" data-now-kind="all" type="button">全部</button>' +
+            '<button class="now-kind-btn" data-now-kind="book" type="button">书</button>' +
+            '<button class="now-kind-btn" data-now-kind="movie" type="button">影视</button>' +
+          '</div>' +
         '</div>' +
-        '<div class="portal-hint" id="now-search-status"></div>' +
+        '<div class="portal-hint" id="now-status"></div>' +
         '<div class="now-results" id="now-results"></div>' +
       '</div>' +
       '<div class="portal-card">' +
-        '<h3 class="portal-card-title">当前展示</h3>' +
+        '<h3 class="portal-card-title">当前</h3>' +
         '<div class="now-current" id="now-current"></div>' +
+        '<div class="now-undo" id="now-undo" hidden><span>已更新</span>' +
+          '<button class="portal-btn" id="now-undo-btn" type="button">撤销</button></div>' +
       '</div>' +
-      '<div class="portal-card" id="now-form-card" hidden>' +
-        '<h3 class="portal-card-title" id="now-form-title">确认</h3>' +
-        '<div class="portal-row">' +
-          '<label class="portal-field"><span>类型</span><select id="now-kind">' +
-            '<option value="book">书（Reading）</option><option value="movie">影剧（Watching）</option>' +
-          '</select></label>' +
-          '<label class="portal-field"><span>评分（0-10）</span><input type="text" id="now-rating" placeholder="8.3"></label>' +
-        '</div>' +
-        '<label class="portal-field"><span>标题</span><input type="text" id="now-title"></label>' +
-        '<label class="portal-field"><span>副标题（作者 · 年份 · 页数 / 导演 · 年份 · 集数）</span><input type="text" id="now-sub"></label>' +
-        '<div class="portal-row">' +
-          '<label class="portal-field"><span>评价人数</span><input type="text" id="now-votes" placeholder="21813"></label>' +
-          '<label class="portal-field"><span>豆瓣链接</span><input type="text" id="now-url" placeholder="https://book.douban.com/subject/…/"></label>' +
-        '</div>' +
-        '<label class="portal-field"><span>封面地址（可留空用默认图）</span><input type="text" id="now-cover" placeholder="https://img…doubanio.com/…"></label>' +
-        '<div class="portal-toolbar">' +
-          '<button class="portal-btn portal-btn-primary" id="now-save" type="button">保存到 Now</button>' +
-          '<button class="portal-btn" id="now-cancel" type="button">取消</button>' +
-        '</div>' +
-        '<div class="portal-hint" id="now-form-hint"></div>' +
-      '</div>' +
+      '<details class="portal-card now-manual" id="now-manual">' +
+        '<summary>手动填写 / 改字段</summary>' +
+        nowFormHtml() +
+      '</details>' +
     '</section>';
   }
 
@@ -581,16 +596,16 @@
         '<span class="now-current-meta">' + (it.kind === 'book' ? 'Reading' : 'Watching') +
         (it.rating ? ' · ' + nowEsc(it.rating) + ' 分' : '') + '</span></span>' +
         '<span class="now-current-actions">' +
-        '<button class="portal-btn" data-now-edit="' + i + '" type="button">修改</button>' +
+        '<button class="portal-btn" data-now-edit="' + i + '" type="button">改字段</button>' +
         '<button class="portal-btn portal-btn-danger" data-now-del="' + i + '" type="button">删除</button>' +
         '</span></div>';
     }).join('');
   }
 
   function fillNowForm(item, index) {
+    var card = portalRoot.querySelector('#now-manual');
+    if (card) card.open = true;
     nowState.picked = typeof index === 'number' ? index : -1;
-    portalRoot.querySelector('#now-form-card').hidden = false;
-    portalRoot.querySelector('#now-form-title').textContent = nowState.picked >= 0 ? '修改条目' : '确认条目';
     portalRoot.querySelector('#now-kind').value = item.kind === 'movie' ? 'movie' : 'book';
     portalRoot.querySelector('#now-title').value = item.title || '';
     portalRoot.querySelector('#now-sub').value = item.sub || '';
@@ -599,60 +614,141 @@
     portalRoot.querySelector('#now-url').value = item.url || '';
     portalRoot.querySelector('#now-cover').value = item.cover || '';
     portalRoot.querySelector('#now-form-hint').textContent = '';
-    portalRoot.querySelector('#now-form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  function renderNowResults(items) {
+  function nowRenderHits() {
     var box = portalRoot.querySelector('#now-results');
     if (!box) return;
-    if (!items || !items.length) { box.innerHTML = '<p class="portal-hint">没有搜到结果，换个关键词试试。</p>'; return; }
-    box.innerHTML = items.map(function (it, i) {
-      return '<button class="now-result" type="button" data-now-pick="' + i + '">' +
-        (it.cover ? '<img class="now-thumb" src="' + nowEsc(it.cover) + '" alt="" loading="lazy">' : '<span class="now-thumb"></span>') +
-        '<span class="now-result-main"><b>' + nowEsc(it.title) + '</b>' +
-        '<span>' + nowEsc(it.sub || '') + '</span></span>' +
-        '<span class="now-result-side">' + (it.rating ? nowEsc(it.rating) + ' 分' : '') +
-        '<span class="now-result-kind">' + (it.kind === 'book' ? '书' : '影剧') + '</span></span></button>';
+    var hits = nowState.hits;
+    if (!nowState.q) { box.innerHTML = ''; return; }
+    if (!hits.length) { box.innerHTML = '<p class="portal-hint">没有搜到，换个关键词试试。</p>'; return; }
+    box.innerHTML = hits.map(function (h, i) {
+      var d = nowState.detailCache[h.kind + ':' + h.id];
+      var rating = d && d.rating ? '<span class="now-rating-pill">' + d.rating.toFixed(1) + '</span>' : '';
+      var sub = (d && d.sub) || h.sub || '';
+      var cover = h.cover ? '<img class="now-thumb" src="' + nowEsc(h.cover) + '" alt="" loading="lazy" decoding="async">' : '<span class="now-thumb"></span>';
+      return '<button class="now-result" type="button" data-now-hit="' + i + '">' + cover +
+        '<span class="now-result-main"><b>' + nowEsc(h.title) + '</b><span>' + nowEsc(sub) + '</span></span>' +
+        '<span class="now-result-side">' + rating +
+        '<span class="now-result-kind">' + (h.kind === 'book' ? '书' : '影剧') + '</span></span></button>';
     }).join('');
-    box.__items = items;
   }
 
-  function nowSearch(query) {
-    var status = portalRoot.querySelector('#now-search-status');
-    var q = String(query || '').trim();
-    if (!q) return;
-    if (nowState.pollTimer) { clearInterval(nowState.pollTimer); nowState.pollTimer = null; }
-    status.textContent = '正在让 GitHub Actions 去豆瓣搜索…（大约 20–60 秒）';
-    var sentAt = Date.now();
-    gh('/repos/' + state.repo + '/dispatches', {
-      method: 'POST',
-      body: { event_type: 'now-search', client_payload: { query: q, at: sentAt } }
-    }).then(function () {
-      var tries = 0;
-      nowState.pollTimer = setInterval(function () {
-        tries++;
-        if (tries > 22) {
-          clearInterval(nowState.pollTimer); nowState.pollTimer = null;
-          status.textContent = '没等到结果。确认仓库里有 .github/workflows/now-search.yml，或稍后再试。';
-          return;
-        }
-        gh('/repos/' + state.repo + '/contents/' + NOW_RESULT_PATH + '?ref=main').then(function (file) {
-          var raw = '';
-          try { raw = decodeURIComponent(escape(atob(file.content))); } catch (_) { return; }
-          var data = null;
-          try { data = JSON.parse(raw); } catch (_) { return; }
-          if (!data || !data.at || data.at < sentAt - 5000) return;
-          clearInterval(nowState.pollTimer); nowState.pollTimer = null;
-          status.textContent = '「' + (data.query || q) + '」找到 ' + (data.items || []).length + ' 条，点一条确认。';
-          renderNowResults(data.items || []);
-        }).catch(function () {});
-      }, 4000);
+  function nowSchedule() {
+    if (nowState.timer) clearTimeout(nowState.timer);
+    nowState.timer = setTimeout(nowSearchNow, 260);
+  }
+
+  function nowSearchNow() {
+    var q = String(nowState.q || '').trim();
+    var status = portalRoot.querySelector('#now-status');
+    if (!q) {
+      nowState.hits = [];
+      nowRenderHits();
+      if (status) status.textContent = '';
+      return;
+    }
+    if (nowState.ctrl) { try { nowState.ctrl.abort(); } catch (_) { /* ignore */ } }
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    nowState.ctrl = ctrl;
+    var seq = ++nowState.seq;
+    if (status) status.textContent = '搜索中…';
+    var url = NOW_SEARCH + '?q=' + encodeURIComponent(q) + '&kind=' + nowState.kind;
+    fetch(url, { signal: ctrl ? ctrl.signal : undefined, cache: 'no-store' }).then(function (res) {
+      if (!res.ok) { var e404 = new Error('HTTP ' + res.status); e404.status = res.status; throw e404; }
+      return res.json();
+    }).then(function (data) {
+      if (seq !== nowState.seq) return;
+      nowState.hits = (data && data.items) || [];
+      nowRenderHits();
+      if (status) status.textContent = nowState.hits.length ? '' : '没有搜到，换个关键词试试。';
+      nowEnrich(nowState.hits);
     }).catch(function (err) {
-      status.textContent = '触发搜索失败：' + err.message + '（可先用手动填写）';
+      if (seq !== nowState.seq) return;
+      if (err && err.name === 'AbortError') return;
+      nowState.hits = [];
+      nowRenderHits();
+      var tip = err && err.status === 404
+        ? '当前站点没有搜索接口（GitHub Pages 镜像不支持），请到 haelcy.cn 使用，或手动填写。'
+        : '搜索服务不可用（' + ((err && err.message) || '网络错误') + '），请用手动填写。';
+      if (status) status.textContent = tip;
     });
   }
 
-  function nowSave() {
+  // 列表先用豆瓣建议接口的即时结果，评分/页数等详情再逐条补（两条并发，不阻塞）
+  function nowEnrich(hits) {
+    var queue = hits.filter(function (h) { return !nowState.detailCache[h.kind + ':' + h.id]; });
+    var i = 0;
+    function next() {
+      if (i >= queue.length) return;
+      var h = queue[i++];
+      fetch(NOW_DETAIL + '?kind=' + h.kind + '&id=' + h.id + '&y=' + encodeURIComponent(h.year || ''), { cache: 'force-cache' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) return;
+          nowState.detailCache[h.kind + ':' + h.id] = d;
+          nowRenderHits();
+        }).catch(function () { /* 详情失败就保持列表里的简版信息 */ })
+        .then(next);
+    }
+    next(); next();
+  }
+
+  function nowInlineCover(url) {
+    if (!url) return Promise.resolve('');
+    return fetch(url, { cache: 'force-cache' }).then(function (r) { return r.ok ? r.blob() : null; })
+      .then(function (blob) {
+        if (!blob || blob.size > 200 * 1024) return '';
+        return new Promise(function (resolve) {
+          var fr = new FileReader();
+          fr.onload = function () { resolve(String(fr.result || '')); };
+          fr.onerror = function () { resolve(''); };
+          fr.readAsDataURL(blob);
+        });
+      }).catch(function () { return ''; });
+  }
+
+  function nowPick(idx) {
+    var h = nowState.hits[idx];
+    if (!h || nowState.busy) return;
+    nowState.busy = true;
+    var status = portalRoot.querySelector('#now-status');
+    if (status) status.textContent = '正在读取《' + h.title + '》…';
+    var key = h.kind + ':' + h.id;
+    var cached = nowState.detailCache[key];
+    var detailPromise = cached ? Promise.resolve(cached)
+      : fetch(NOW_DETAIL + '?kind=' + h.kind + '&id=' + h.id + '&y=' + encodeURIComponent(h.year || ''))
+        .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    detailPromise.then(function (d) {
+      d = d || {};
+      var item = {
+        kind: h.kind,
+        label: h.kind === 'book' ? '在读' : '在看',
+        title: d.title || h.title,
+        sub: d.sub || h.sub || '',
+        cover: '',
+        rating: d.rating || 0,
+        votes: d.votes || 0,
+        url: d.url || h.url,
+        source: h.kind === 'book' ? '豆瓣读书' : '豆瓣电影'
+      };
+      if (status) status.textContent = '正在取封面…';
+      return nowInlineCover(h.cover).then(function (dataUrl) {
+        item.cover = dataUrl || '';
+        var items = nowState.items.slice();
+        var same = -1;
+        for (var i = 0; i < items.length; i++) if (items[i].kind === item.kind) same = i;
+        if (same >= 0) items[same] = item; else items.push(item);
+        return commitNow(items, '换成' + item.label + '：' + item.title);
+      });
+    }).catch(function (err) {
+      nowState.busy = false;
+      if (status) status.textContent = '换不上：' + (err && err.message ? err.message : '未知错误');
+    });
+  }
+
+  function nowSaveManual() {
     var item = {
       kind: portalRoot.querySelector('#now-kind').value,
       label: portalRoot.querySelector('#now-kind').value === 'book' ? '在读' : '在看',
@@ -675,24 +771,44 @@
       for (var i = 0; i < items.length; i++) if (items[i].kind === item.kind) same = i;
       if (same >= 0) items[same] = item; else items.push(item);
     }
-    commitNow(items, '更新在读在看');
+    commitNow(items, '手动更新' + item.label);
   }
 
   function commitNow(items, message) {
     var payload = JSON.stringify({ updated: new Date().toISOString().slice(0, 10), items: items }, null, 2) + '\n';
-    portalRoot.querySelector('#now-save').disabled = true;
-    commitRepoFiles([{ path: NOW_PATH, content: payload }], 'now: ' + message).then(function () {
+    var status = portalRoot.querySelector('#now-status');
+    var saveBtn = portalRoot.querySelector('#now-save');
+    if (saveBtn) saveBtn.disabled = true;
+    if (status) status.textContent = '正在提交…';
+    return commitRepoFiles([{ path: NOW_PATH, content: payload }], 'now: ' + message).then(function () {
+      nowState.prev = nowState.items.slice();
       nowState.items = items;
       renderNowCurrent();
-      portalRoot.querySelector('#now-form-card').hidden = true;
-      portalRoot.querySelector('#now-form-hint').textContent = '';
+      var undo = portalRoot.querySelector('#now-undo');
+      if (undo) undo.hidden = false;
+      var card = portalRoot.querySelector('#now-manual');
+      if (card) card.open = false;
+      if (status) status.textContent = '已提交，约 1 分钟自动上线。';
       toast('已提交，等构建完成就更新了');
+      return true;
     }).catch(function (err) {
+      if (status) status.textContent = '提交失败：' + err.message;
       toast('保存失败: ' + err.message, true);
-    }).then(function () {
-      var btn = portalRoot.querySelector('#now-save');
-      if (btn) btn.disabled = false;
+      return false;
+    }).then(function (ok) {
+      nowState.busy = false;
+      if (saveBtn) saveBtn.disabled = false;
+      return ok;
     });
+  }
+
+  function nowUndo() {
+    if (!nowState.prev || nowState.busy) return;
+    var back = nowState.prev;
+    nowState.prev = null;
+    var undo = portalRoot.querySelector('#now-undo');
+    if (undo) undo.hidden = true;
+    commitNow(back, '撤销上一次修改');
   }
 
   function loadNow() {
@@ -700,9 +816,9 @@
     if (current) current.innerHTML = '<p class="portal-hint">加载中…</p>';
     gh('/repos/' + state.repo + '/contents/' + NOW_PATH + '?ref=main').then(function (file) {
       var raw = '';
-      try { raw = decodeURIComponent(escape(atob(file.content))); } catch (_) {}
+      try { raw = decodeURIComponent(escape(atob(file.content))); } catch (_) { /* ignore */ }
       var data = null;
-      try { data = JSON.parse(raw); } catch (_) {}
+      try { data = JSON.parse(raw); } catch (_) { /* ignore */ }
       nowState.items = (data && data.items) || [];
       nowState.loaded = true;
       renderNowCurrent();
@@ -713,34 +829,52 @@
     });
     if (nowState.bound) return;
     nowState.bound = true;
-    var searchBtn = portalRoot.querySelector('#now-search-btn');
-    var searchInput = portalRoot.querySelector('#now-search');
-    if (searchBtn) searchBtn.addEventListener('click', function () { nowSearch(searchInput.value); });
-    if (searchInput) searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); nowSearch(searchInput.value); }
-    });
-    portalRoot.querySelector('#now-results').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-now-pick]');
+
+    var input = portalRoot.querySelector('#now-q');
+    if (input) {
+      input.addEventListener('input', function () {
+        nowState.q = input.value;
+        nowSchedule();
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (nowState.hits.length) nowPick(0);
+        }
+      });
+    }
+    var kinds = portalRoot.querySelector('#now-kinds');
+    if (kinds) kinds.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-now-kind]');
       if (!btn) return;
-      var items = portalRoot.querySelector('#now-results').__items || [];
-      var item = items[Number(btn.dataset.nowPick)];
-      if (item) fillNowForm(item, -1);
+      nowState.kind = btn.getAttribute('data-now-kind');
+      Array.prototype.forEach.call(kinds.querySelectorAll('.now-kind-btn'), function (b) {
+        b.classList.toggle('is-active', b === btn);
+      });
+      nowSearchNow();
+    });
+    var results = portalRoot.querySelector('#now-results');
+    if (results) results.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-now-hit]');
+      if (btn) nowPick(Number(btn.getAttribute('data-now-hit')));
     });
     portalRoot.querySelector('#now-current').addEventListener('click', function (e) {
       var edit = e.target.closest('[data-now-edit]');
       var del = e.target.closest('[data-now-del]');
-      if (edit) { fillNowForm(nowState.items[Number(edit.dataset.nowEdit)], Number(edit.dataset.nowEdit)); return; }
+      if (edit) { fillNowForm(nowState.items[Number(edit.getAttribute('data-now-edit'))], Number(edit.getAttribute('data-now-edit'))); return; }
       if (del) {
-        var idx = Number(del.dataset.nowDel);
+        var idx = Number(del.getAttribute('data-now-del'));
         var next = nowState.items.slice();
         next.splice(idx, 1);
         commitNow(next, '删除在读在看');
       }
     });
-    portalRoot.querySelector('#now-save').addEventListener('click', nowSave);
+    portalRoot.querySelector('#now-save').addEventListener('click', nowSaveManual);
     portalRoot.querySelector('#now-cancel').addEventListener('click', function () {
-      portalRoot.querySelector('#now-form-card').hidden = true;
+      var card = portalRoot.querySelector('#now-manual');
+      if (card) card.open = false;
     });
+    portalRoot.querySelector('#now-undo-btn').addEventListener('click', nowUndo);
   }
 
   function renderShell() {
