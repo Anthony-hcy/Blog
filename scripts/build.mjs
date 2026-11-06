@@ -1709,7 +1709,7 @@ function buildTaxonomyPage(kind, name, posts) {
   const path = kind === 'category'
     ? `/category/${encodeURIComponent(name)}/`
     : `/tag/${encodeURIComponent(name)}/`;
-  const html = headHtml(`${label} - ${site.name}`, { pagePath: path }) + shellStart() + `
+  const html = headHtml(`${label} - ${site.name}`, { pagePath: path, extraHead: ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
 <h1 class="archive-title">${escapeHtml(label)}<span class="archive-count">${posts.length} 篇</span></h1>
 <div class="archives-container">${items}
 </div>
@@ -2161,7 +2161,7 @@ function buildAboutPage() {
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/about.js?v=${hashAssetFile('assets/js/about.js')}`)}"></script>`;
-  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS + CHRONICLE_TABS_CSS : '') }) + shellStart() + `
+  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS + CHRONICLE_TABS_CSS : '') + ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
 <div class="about-page">
 <div class="about-flower" aria-hidden="true">
   <span class="about-flower-text">日安!</span>
@@ -2328,7 +2328,7 @@ function buildFcirclePage() {
     }
   </style>`;
   const scripts = `<script type="module" src="${withBase(`/assets/js/fcircle.js?v=${hashAssetFile('assets/js/fcircle.js')}`)}"></script>`;
-  const html = headHtml(`Fcircle - ${site.name}`, { pagePath: '/fcircle/', extraHead }) + shellStart() + `
+  const html = headHtml(`Fcircle - ${site.name}`, { pagePath: '/fcircle/', extraHead: extraHead + ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
 <section class="fcircle-section">
   <h1 class="sr-only">Fcircle · 朋友动态</h1>
   <div class="fcircle-head">
@@ -2438,7 +2438,7 @@ ${items}
 function build404() {
   const recent = _posts.filter(p => p.type === 'post' && p.title).slice(0, 5);
   const recentList = recent.map(p => `    <li><a href="${withBase(`/archives/${p.slug}/`)}"><span class="not-found-title">${escapeHtml(p.title)}</span><time>${p.dateText}</time></a></li>`).join('\n');
-  const html = headHtml(`页面不存在 - ${site.name}`, { pagePath: '/404.html', pageDescription: '这个地址没有对应的页面。' }) + shellStart() + `
+  const html = headHtml(`页面不存在 - ${site.name}`, { pagePath: '/404.html', pageDescription: '这个地址没有对应的页面。', extraHead: ARCHIVE_CONFETTI_CSS }) + buildArchiveConfetti() + shellStart() + `
 <h1 class="archive-title">404</h1>
 <div class="not-found">
   <p class="not-found-lead">这个地址没有对应的页面，可能链接写错了，或者文章已经改名。</p>
