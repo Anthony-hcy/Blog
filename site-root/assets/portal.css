@@ -311,6 +311,18 @@ body.page-portal .container { padding-top: 10px; }
 .portal-row { display: flex; gap: 12px; }
 .portal-row > .portal-field { flex: 1; }
 @media (max-width: 560px) {
+  /* 五个页签在 375px 下原本总宽 310px，超出容器 287px：压缩内边距并允许横向滚动兜底 */
+  .portal-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .portal-tabs::-webkit-scrollbar { display: none; }
+  /* 平分整行宽度：320px 小屏也能五个页签全部露出，不再横向滚动找 Status */
+  .portal-tab { flex: 1 1 auto; padding: 9px 4px; font-size: 14px; white-space: nowrap; text-align: center; }
   .portal-row { flex-direction: column; gap: 0; }
-  .now-current-row { flex-wrap: wrap; }
+  /* 当前在读：封面 + 文字占第一行，操作按钮换到第二行，避免文字被挤成 47px 窄条 */
+  .now-current-row { flex-wrap: wrap; align-items: flex-start; }
+  .now-current-main { flex: 1 1 120px; }
+  .now-current-actions { width: 100%; justify-content: flex-end; }
 }
