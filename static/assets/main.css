@@ -1804,6 +1804,14 @@ body {
   width: 8px;
 }
 
+/* 归档 / 关于 / 友链页：顶部留白收窄（原 40px 太空） */
+.container:has(> .layout-main > .archive-title),
+.container:has(.archives-container),
+.container:has(.about-page),
+.container:has(.fcircle-section) {
+  padding-top: 14px;
+}
+
 .container::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
