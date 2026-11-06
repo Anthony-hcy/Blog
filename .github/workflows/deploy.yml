@@ -6,7 +6,7 @@ on:
   # 采集 workflow（GITHUB_TOKEN 提交的 chore: update friend circle data）不会触发 push 事件，
   # 用 workflow_run 监听其完成事件来触发部署，保证定时任务采集的数据能自动上线
   workflow_run:
-    workflows: ["Update Friend Circle Data"]
+    workflows: ["Update Friend Circle Data", "Update Theatre Data"]
     types: [completed]
   workflow_dispatch:
 
