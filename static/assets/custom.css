@@ -27,8 +27,27 @@
 /* CDN 未加载成功时自动回退到系统字体，页面不会坏 */
 :root {
   --emoji: 'Haelcy Emoji Native Flag', 'Haelcy Emoji Web Flag', 'Haelcy Emoji Native';
-  --serif: var(--emoji), 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
-  --sans: var(--emoji), 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, sans-serif;
+  /* 全站唯一字体栈：emoji 分层 → 英文/数字 Times New Roman → 中文霞鹜文楷。
+     其余 --serif / --sans / --mono 全部指向它，字号、颜色、字重才是差异来源。 */
+  --font-main: var(--emoji), 'Times New Roman', 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, serif, sans-serif;
+  --serif: var(--font-main);
+  --sans: var(--font-main);
+  --mono: var(--font-main);
+}
+
+/* 表单控件（按钮/输入框/下拉）默认不继承字体，统一压回全站字体，
+   否则浏览器会给它们 Arial，破坏「全站同一套字体」。 */
+button, input, select, textarea, optgroup, option {
+  font-family: var(--font-main);
+}
+
+/* ExSearch 的懒加载 CSS 自带微软雅黑，这里压回全站字体（不影响图标字体） */
+.ins-search .ins-search-input,
+.ins-search .ins-section-header,
+.ins-search .ins-search-item,
+.ins-search .ins-search-preview,
+.ins-search .ins-slug {
+  font-family: var(--font-main) !important;
 }
 
 /* ===== 文章正文：窄屏（手机）并排退化为单列整幅，保持与现状一致 ===== */

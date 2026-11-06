@@ -1725,7 +1725,7 @@ const CHRONICLE_CSS = `<style>
       margin: 0; padding: 18px 16px 0;
       color: var(--text-2); font-size: 1rem; line-height: 1.8;
     }
-    .about-timeline { list-style: none; margin: 0; padding: 10px 16px 18px; }
+    .about-timeline { list-style: none; margin: 0; padding: 6px 16px 10px; }
     .about-timeline-item { display: flex; align-items: flex-start; }
     /* 时间列宽度取 ISO 日期的 10 字符（ch 随字体自适应），右对齐让日期紧贴左内边距；
        留空的日期仍占位，保证竖线与圆点对齐 */
@@ -1750,9 +1750,9 @@ const CHRONICLE_CSS = `<style>
     }
     .about-timeline-item:first-child .about-timeline-mark::before { top: 12px; }
     .about-timeline-item:last-child .about-timeline-mark::before { bottom: auto; height: 11px; }
-    .about-timeline-body { flex: 1 1 auto; min-width: 0; padding-bottom: 22px; }
+    .about-timeline-body { flex: 1 1 auto; min-width: 0; padding-bottom: 14px; }
     .about-timeline-item:last-child .about-timeline-body { padding-bottom: 0; }
-    .about-timeline-head { margin: 0 0 4px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+    .about-timeline-head { margin: 0 0 2px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
     .about-timeline-title { font-weight: 600; color: var(--text); }
     .about-timeline-tag {
       padding: 1px 7px; border: 1px solid var(--rule); border-radius: 999px;
@@ -1773,6 +1773,98 @@ const CHRONICLE_CSS = `<style>
         text-align: left; padding-top: 0;
       }
       .about-timeline-body { grid-area: body; }
+    }
+  </style>`;
+
+const CHRONICLE_TABS_CSS = `<style>
+    /* Chronicle 的两个视图：建站历史 / 观影记录 */
+    .about-chronicle .about-section-head { padding-top: 8px; padding-bottom: 8px; }
+    .chronicle-tabs {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 6px 16px 2px;
+    }
+    .chronicle-tab {
+      appearance: none; cursor: pointer; font: inherit;
+      padding: 5px 14px; border: 1px solid var(--rule); border-radius: 999px;
+      background: transparent; color: var(--text-2); font-size: 13.5px; line-height: 1.7;
+      transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+    }
+    .chronicle-tab:hover { color: var(--text); border-color: var(--text-3); }
+    .chronicle-tab.is-active {
+      color: var(--text); border-color: rgba(217,119,87,.55); background: rgba(217,119,87,.10);
+    }
+    .chronicle-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .chronicle-panel[hidden] { display: none; }
+
+    /* 观影记录：按年分组；年份标题本身是 <summary>，点击即可折叠/展开该年，默认全部展开 */
+    .theatre-year-group { display: block; }
+    .theatre-year {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 12px 16px 0; padding: 7px 0 5px;
+      border-bottom: 1px solid var(--rule);
+      font-size: 1.02rem; font-weight: 600; color: var(--text);
+      cursor: pointer; list-style: none; user-select: none;
+    }
+    .theatre-year::-webkit-details-marker { display: none; }
+    .theatre-year:hover { color: var(--accent); }
+    .theatre-year:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+    .theatre-year-label { flex: 0 0 auto; }
+    .theatre-year-count {
+      flex: 1 1 auto;
+      font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--text-3);
+    }
+    .theatre-year-chevron {
+      flex: 0 0 auto; width: 7px; height: 7px; margin: 0 3px 2px 0;
+      border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2);
+      transform: rotate(45deg); transition: transform .18s ease;
+    }
+    .theatre-year-group:not([open]) .theatre-year-chevron { transform: rotate(-45deg); }
+    .theatre-timeline { padding-top: 3px; }
+    .theatre-entry { display: flex; align-items: flex-start; gap: 12px; }
+    .theatre-poster {
+      flex: 0 0 46px; width: 46px; height: 66px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
+      background: var(--surface);
+    }
+    .theatre-poster img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    /* 封面取不到时（外链失效 / 镜像站没有图片代理）用书名首字占位，不留空洞 */
+    .theatre-poster.is-fallback::after,
+    .theatre-poster:not(:has(img))::after {
+      content: attr(data-initial); font-size: 18px; font-weight: 600; color: var(--text-3);
+    }
+    .theatre-info { flex: 1 1 auto; min-width: 0; }
+    .theatre-head {
+      display: flex; align-items: baseline; flex-wrap: nowrap; gap: 4px 8px;
+      margin: 0 0 3px;
+    }
+    /* 分类 / 片名 / 评分固定同一行：片名占据剩余宽度，过长时末尾省略，不再缩小字号 */
+    .theatre-title {
+      flex: 1 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 600; color: var(--text); text-decoration: none;
+    }
+    .theatre-title:hover { color: var(--accent); }
+    .theatre-cat {
+      flex: 0 0 auto;
+      padding: 1px 7px; border: 1px solid var(--rule); border-radius: 999px;
+      font-size: 11.5px; line-height: 1.6; color: var(--text-3); white-space: nowrap;
+    }
+    .theatre-cat.is-movie { border-color: rgba(217,119,87,.45); color: #d97757; }
+    .theatre-cat.is-anime { border-color: rgba(106,153,208,.45); color: #6a99d0; }
+    .theatre-cat.is-series { border-color: rgba(126,178,126,.45); color: #7eb27e; }
+    .theatre-score {
+      flex: 0 0 auto;
+      font-family: var(--mono); font-size: 12.5px; color: #d97757; white-space: nowrap;
+    }
+    .theatre-meta { margin: 0; font-size: 0.86rem; line-height: 1.7; color: var(--text-3); }
+    @media (max-width: 640px) {
+      .about-chronicle .about-section-head { padding: 8px 12px; }
+      .chronicle-tabs { padding: 6px 4px 2px; }
+      .theatre-year { margin: 12px 4px 2px; }
+      .theatre-year-group .about-timeline { padding-left: 4px; padding-right: 4px; }
+      .theatre-entry { gap: 10px; }
+      .theatre-poster { flex-basis: 40px; width: 40px; height: 58px; }
     }
   </style>`;
 
@@ -1814,14 +1906,132 @@ function buildChronicleSection() {
   const ordered = order === 'asc' ? entries : entries.slice().reverse();
   const intro = String(data.intro || '').trim();
   const introHtml = intro ? `  <p class="about-chronicle-intro">${escapeHtml(intro)}</p>\n` : '';
-  return `<section class="about-section about-chronicle">
-  <div class="about-section-head">
-    <h2>${escapeHtml(String(data.title || 'Chronicle'))}</h2>
-  </div>
-${introHtml}  <ol class="about-timeline">
+  const chroniclePanel = `${introHtml}  <ol class="about-timeline">
 ${renderChronicleItems(ordered)}
   </ol>
+`;
+  const theatrePanel = buildTheatrePanel();
+  const title = escapeHtml(String(data.title || 'Chronicle'));
+  if (!theatrePanel) {
+    return `<section class="about-section about-chronicle">
+  <div class="about-section-head">
+    <h2>${title}</h2>
+  </div>
+${chroniclePanel}</section>
+`;
+  }
+  return `<section class="about-section about-chronicle">
+  <div class="about-section-head">
+    <h2>${title}</h2>
+  </div>
+  <div class="chronicle-tabs" role="tablist" aria-label="Chronicle 视图">
+    <button type="button" class="chronicle-tab is-active" role="tab" id="chrtab-site" aria-selected="true" aria-controls="chrpanel-site">建站历史</button>
+    <button type="button" class="chronicle-tab" role="tab" id="chrtab-theatre" aria-selected="false" aria-controls="chrpanel-theatre" tabindex="-1">观影记录</button>
+  </div>
+  <div class="chronicle-panel" id="chrpanel-site" role="tabpanel" aria-labelledby="chrtab-site">
+${chroniclePanel}  </div>
+  <div class="chronicle-panel" id="chrpanel-theatre" role="tabpanel" aria-labelledby="chrtab-theatre" hidden>
+${theatrePanel}  </div>
 </section>
+`;
+}
+
+// 观影记录：数据来自 content/theatre.json（scripts/fetch-theatre.mjs 从 Workspace 仓库抓取的精简快照）。
+// 图片一律走外链，不下载到本地；时间线按观看日期（currentDate）倒序、按年分组。
+const THEATRE_SOURCE = 'https://anthony-hcy.github.io/Workspace/';
+function theatreImageUrl(image) {
+  const src = String(image || '').trim();
+  if (!src) return '';
+  if (/^https?:\/\//i.test(src)) {
+    // 豆瓣图床有防盗链（无 Referer/外来 Referer 都 418/403），走自己站点上的 /api/now-cover 代理；
+    // GitHub Pages 镜像没有该接口，请求失败时由前端的首字占位兜底。
+    if (/^https?:\/\/[^/]*douban(io)?\.com\//i.test(src)) {
+      return withBase('/api/now-cover?u=' + encodeURIComponent(src));
+    }
+    return src;
+  }
+  return THEATRE_SOURCE + src.replace(/^\/+/, '');
+}
+function readTheatreItems() {
+  const file = join(CONTENT_DIR, 'theatre.json');
+  if (!existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(file, 'utf-8'));
+    const items = Array.isArray(raw) ? raw : (raw.items || []);
+    return items
+      .filter(it => it && it.title && (it.date || it.currentDate))
+      .map(it => ({
+        title: String(it.title).trim(),
+        category: String(it.category || '').trim(),
+        score: Number(it.score) || 0,
+        year: Number(it.year) || 0,
+        date: String(it.date || it.currentDate || '').slice(0, 10),
+        image: theatreImageUrl(it.image),
+        url: String(it.url || it.doubanUrl || '').trim(),
+        director: (Array.isArray(it.director) ? it.director : []).filter(Boolean).slice(0, 2),
+        tags: (Array.isArray(it.tags) ? it.tags : []).filter(Boolean).slice(0, 3),
+        runtime: String(it.runtime || '').trim(),
+        episodes: String(it.episodes || '').trim(),
+      }))
+      .filter(it => it.date)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  } catch (e) {
+    buildWarnings.push(`content/theatre.json 解析失败：${e.message}`);
+    return [];
+  }
+}
+function renderTheatreItem(it) {
+  const catClass = it.category === '电影' ? 'is-movie'
+    : it.category === '动画' ? 'is-anime'
+    : it.category === '剧集' ? 'is-series' : '';
+  const metaParts = [];
+  if (it.director.length) metaParts.push(it.director.join(' / '));
+  if (it.year) metaParts.push(String(it.year));
+  if (it.episodes) metaParts.push(`${it.episodes} 集`);
+  else if (it.runtime) metaParts.push(it.runtime);
+  if (it.tags.length) metaParts.push(it.tags.join(' · '));
+  const titleText = escapeHtml(it.title);
+  const titleHtml = it.url
+    ? `<a class="theatre-title" href="${escapeHtml(it.url)}" target="_blank" rel="noopener noreferrer" title="${titleText}">${titleText}</a>`
+    : `<span class="theatre-title" title="${titleText}">${titleText}</span>`;
+  const poster = it.image
+    ? `<a class="theatre-poster" href="${escapeHtml(it.url || it.image)}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" data-initial="${escapeHtml(it.title.slice(0, 1))}"><img src="${escapeHtml(it.image)}" alt="" width="46" height="66" loading="lazy" decoding="async" referrerpolicy="same-origin" onerror="this.style.display='none';this.parentElement.classList.add('is-fallback')"></a>`
+    : `<span class="theatre-poster" aria-hidden="true" data-initial="${escapeHtml(it.title.slice(0, 1))}"></span>`;
+  return `    <li class="about-timeline-item theatre-item">
+      <span class="about-timeline-time">${escapeHtml(it.date.slice(5))}</span>
+      <span class="about-timeline-mark" aria-hidden="true"></span>
+      <div class="about-timeline-body">
+        <div class="theatre-entry">
+          ${poster}
+          <div class="theatre-info">
+            <p class="theatre-head">${it.category ? `<span class="theatre-cat ${catClass}">${escapeHtml(it.category)}</span>` : ''}${titleHtml}${it.score ? `<span class="theatre-score">★ ${it.score.toFixed(1)}</span>` : ''}</p>
+            ${metaParts.length ? `<p class="theatre-meta">${escapeHtml(metaParts.join(' · '))}</p>` : ''}
+          </div>
+        </div>
+      </div>
+    </li>`;
+}
+function buildTheatrePanel() {
+  const items = readTheatreItems();
+  if (!items.length) return '';
+  const groups = [];
+  for (const it of items) {
+    const y = (it.date || '').slice(0, 4) || '未知';
+    let g = groups[groups.length - 1];
+    if (!g || g.year !== y) { g = { year: y, items: [] }; groups.push(g); }
+    g.items.push(it);
+  }
+  const body = groups.map(g => `  <details class="theatre-year-group" open>
+    <summary class="theatre-year">
+      <span class="theatre-year-label">${escapeHtml(g.year)}</span>
+      <span class="theatre-year-count">${g.items.length} 部</span>
+      <span class="theatre-year-chevron" aria-hidden="true"></span>
+    </summary>
+    <ol class="about-timeline theatre-timeline">
+${g.items.map(renderTheatreItem).join('\n')}
+    </ol>
+  </details>`).join('\n');
+  return `${body}
 `;
 }
 
@@ -1951,7 +2161,7 @@ function buildAboutPage() {
   const scripts = `<script defer src="${withBase(`/assets/katex/katex.min.js`)}"></script>
 <script defer src="${withBase(`/assets/katex/auto-render.min.js`)}"></script>
 <script type="module" src="${withBase(`/assets/js/about.js?v=${hashAssetFile('assets/js/about.js')}`)}"></script>`;
-  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS : '') }) + shellStart() + `
+  const html = headHtml(`About - ${site.name}`, { pagePath: '/about/', extraHead: katexHead() + (chronicleSection ? CHRONICLE_CSS + CHRONICLE_TABS_CSS : '') }) + shellStart() + `
 <div class="about-page">
 <div class="about-flower" aria-hidden="true">
   <span class="about-flower-text">日安!</span>
@@ -2067,7 +2277,6 @@ function mergeAihotIntoFcircle() {
 // 朋友圈页：memo 风格渲染友链聚合数据（data 由 fcircle-data.yml 采集生成，见 site-root/fcircle-data.json）
 function buildFcirclePage() {
   const extraHead = `<style>
-    .fcircle-section { max-width: 720px; }
     .fcircle-head h2 { margin-bottom: 8px; }
     .fcircle-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 20px; font-size: 13px; color: var(--meta); }
     .fcircle-stat b { color: var(--text); font-weight: 600; }
@@ -2258,7 +2467,7 @@ function buildRedirectPage(from, to) {
   <meta http-equiv="refresh" content="0; url=${target}">
   <link rel="canonical" href="${SITE_URL}${stripBase(target)}">
   <title>正在跳转 - ${site.name}</title>
-  <style>body{font-family:system-ui,-apple-system,sans-serif;margin:3rem auto;max-width:560px;padding:0 1rem;line-height:1.8;color:#333}code{background:#f2f2f2;padding:2px 6px;border-radius:4px}</style>
+  <style>body{font-family:'Times New Roman','LXGW WenKai Screen',serif;margin:3rem auto;max-width:560px;padding:0 1rem;line-height:1.8;color:#333}code{background:#f2f2f2;padding:2px 6px;border-radius:4px}</style>
 </head>
 <body>
   <p>这篇文章的地址已更新，正在为你跳转到新地址…</p>

@@ -649,10 +649,11 @@ function initHomeLinkReset() {
   }, true);
 }
 
-// 不蒜子把数字直接塞进 span，这里统一转成 1.2k / 3.4万 这种缩写
+// 不蒜子把数字直接塞进 span，这里统一转成 1.2k / 3.4w 这种缩写
+// 注意：满一万用 w 而不是「万」，与 About 页 Words 卡片的 1.75w 保持一致。
 function formatMetricCount(n) {
   if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w';
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
   return String(n);
 }
@@ -665,6 +666,16 @@ function initMetricFormat() {
     if (!/^\d+$/.test(raw)) return;
     var n = parseInt(raw, 10);
     var text = formatMetricCount(n);
+    // About 页 Views 和 Words 卡片同款：数字用大号，w/亿 用 <small> 小号单位
+    if (el.classList.contains('js-about-views')) {
+      var m = /^([\d.]+)([kw亿])$/.exec(text);
+      if (m) {
+        el.innerHTML = m[1] + '<small>' + m[2] + '</small>';
+        el.title = raw;
+        el.dataset.fmtDone = '1';
+        return;
+      }
+    }
     if (text !== raw) { el.textContent = text; el.title = raw; }
     el.dataset.fmtDone = '1';
   }

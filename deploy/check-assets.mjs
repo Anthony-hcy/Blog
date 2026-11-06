@@ -31,7 +31,8 @@ function walk(dir, out = []) {
 }
 
 // 外部链接、协议链接、纯锚点不检查；相对路径也不检查（站点全部使用绝对路径）
-const SKIP = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
+// /api/* 是 Vercel Serverless 运行时接口（不在 dist 里落文件），也不算缺失
+const SKIP = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#|\/api\/)/i;
 
 const refs = new Set();
 const ATTR = /(?:src|href|data-exsearch-api)="([^"]+)"/g;
@@ -40,6 +41,7 @@ const JSONVAL = /"(?:src|start_url|scope|url|path)"\s*:\s*"([^"]+)"/g; // manife
 
 function add(u) {
   if (!u || SKIP.test(u) || !u.startsWith('/')) return;
+  if (/\/api\//.test(u)) return; // Vercel 运行时接口，不落 dist 文件
   refs.add(u.split('#')[0].split('?')[0]);
 }
 

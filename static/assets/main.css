@@ -99,9 +99,12 @@
   --callout-mask: #000;
   --memo-square-cap: 320px;
   --max-w: 620px;
-  --serif: 'Times New Roman', Times, 'Chiron GoRound TC', system-ui, serif;
-  --sans: 'Times New Roman', Times, 'Chiron GoRound TC', system-ui, sans-serif;
-  --mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono CJK SC', monospace;
+  /* 全站字体唯一入口：中文霞鹜文楷，英文与数字 Times New Roman。
+     其余字体变量都只是别名，任何地方都不再单独指定字体家族。 */
+  --font-main: 'Times New Roman', 'LXGW WenKai Screen', 'Chiron GoRound TC', system-ui, serif, sans-serif;
+  --serif: var(--font-main);
+  --sans: var(--font-main);
+  --mono: var(--font-main);
 }
 
 /* --- Base --- */
@@ -1720,15 +1723,16 @@ figure.pswp-item figcaption {
   --surface-2: #15130f;
   --surface-3: #1f1b16;
   --accent-2: #8db7cb;
-  --main-col-max: 560px;
+  --main-col-max: 600px;
+  /* 全站页面留白统一入口：顶距与侧边距只在这里调，所有页面共用同一套数值 */
+  --page-top-gap: 24px;
+  --page-gutter: 20px;
   --app-frame-max: 960px;
   --side-col-width: min(30vw, 320px);
   --app-frame-radius: 16px;
   --app-frame-border: rgba(71, 62, 54, 0.92);
   --app-frame-shadow: 0 28px 72px rgba(0, 0, 0, 0.55);
-  --serif: 'Times New Roman', Times, 'Chiron GoRound TC', system-ui, serif;
-  --sans: 'Times New Roman', Times, 'Chiron GoRound TC', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', monospace;
+  /* 字体家族只在第一个 :root 的 --font-main 定义一次，这里不再重复。 */
 }
 
 body {
@@ -1790,7 +1794,7 @@ body {
 .container {
   width: 100%;
   margin: 0;
-  padding: 40px 18px 0;
+  padding: var(--page-top-gap) var(--page-gutter) 0;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1802,14 +1806,6 @@ body {
 
 .container::-webkit-scrollbar {
   width: 8px;
-}
-
-/* 归档 / 关于 / 友链页：顶部留白收窄（原 40px 太空） */
-.container:has(> .layout-main > .archive-title),
-.container:has(.archives-container),
-.container:has(.about-page),
-.container:has(.fcircle-section) {
-  padding-top: 14px;
 }
 
 .container::-webkit-scrollbar-thumb {
@@ -2275,8 +2271,9 @@ svg.in-site-link-icon {
     max-height: calc(100dvh - 24px);
   }
 
-  .container {
-    padding: 40px 14px 0;
+  :root {
+    --page-top-gap: 22px;
+    --page-gutter: 16px;
   }
 }
 
@@ -2345,10 +2342,6 @@ svg.in-site-link-icon {
     border-radius: 18px;
   }
 
-  .container {
-    padding: 40px 16px 0;
-  }
-
   .layout-main {
     max-width: 100%;
   }
@@ -2396,8 +2389,9 @@ svg.in-site-link-icon {
     padding: 4px 8px;
   }
 
-  .container {
-    padding: 40px 12px 0;
+  :root {
+    --page-top-gap: 18px;
+    --page-gutter: 16px;
   }
 
   .about-hero {

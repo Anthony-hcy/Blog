@@ -47,9 +47,38 @@ function initAboutStats() {
   }
 }
 
+
+// Chronicle 的两个视图：建站历史 / 观影记录
+function initChronicleTabs() {
+  const tabs = Array.from(document.querySelectorAll('.chronicle-tab'));
+  if (!tabs.length) return;
+  const panels = tabs.map(tab => document.getElementById(tab.getAttribute('aria-controls') || ''));
+  const activate = (index) => {
+    tabs.forEach((tab, i) => {
+      const on = i === index;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.tabIndex = on ? 0 : -1;
+      if (panels[i]) panels[i].hidden = !on;
+    });
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => activate(i));
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const next = (i + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].focus();
+      activate(next);
+    });
+  });
+  activate(0);
+}
+
 function initAboutPage() {
   initPhotoSwipeInScope(document);
   initAboutStats();
+  initChronicleTabs();
   renderKatexWhenReady();
 }
 

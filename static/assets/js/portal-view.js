@@ -329,10 +329,10 @@
     var style = document.createElement('style');
     style.textContent = [
       '#portal-root { --p-bg:#f5f5f7; --p-card:#fff; --p-text:#1c1c1e; --p-text-2:#6e6e73; --p-text-3:#aeaeb2; --p-accent:#0a84ff; --p-danger:#ff3b30; --p-border:#e5e5ea; --p-btn-bg:#f2f2f7; --p-radius:12px; }',
-      // 工具界面刻意用系统字体（iOS 风格）：这里若换成 var(--sans)，手机端按钮/工具栏的
-      // 字宽会变，New post 等元素的位置随之偏移。站点标题的主题字体由页面链入的 webfont 提供，
-      // 不需要在这里覆盖。
-      '#portal-root { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }',
+      // 后台工具页是独立浅色布局：在暗色站壳里也保持一块浅色、可读的卡片，避免标题和正文继承站点浅色文字。
+      '#portal-root { background: var(--p-bg); border-radius: 16px; padding: 16px; color: var(--p-text); box-shadow: 0 8px 30px rgba(0,0,0,.25); }',
+      // 后台工具页也遵守全站统一字体：中文霞鹜、英文数字 Times New Roman。
+      '#portal-root { font-family: var(--font-main); }',
       '#portal-root .portal-view { display:none; }',
       '#portal-root .portal-view.is-active { display:block; }',
       '#portal-root [hidden] { display:none !important; }',
@@ -343,12 +343,12 @@
       '#portal-root .view-switch .view-btn + .view-btn { border-left:1px solid var(--p-border); }',
       '#portal-root .editor-view-row > .view-btn { min-width:44px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-btn-bg); color:var(--p-text); font-size:15px; }',
       '#portal-root .editor-view-row > .view-btn:hover { border-color:var(--p-accent); color:var(--p-accent); }',
-      '#portal-root .edit-body { width:100%; min-height:320px; border:1px solid var(--p-border); border-radius:10px; padding:14px 16px; background:var(--p-card); color:var(--p-text); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; line-height:1.7; outline:none; resize:vertical; }',
+      '#portal-root .edit-body { width:100%; min-height:320px; border:1px solid var(--p-border); border-radius:10px; padding:14px 16px; background:var(--p-card); color:var(--p-text); font-family:var(--font-main); font-size:14px; line-height:1.7; outline:none; resize:vertical; }',
       '#portal-root .edit-body:focus { border-color:var(--p-accent); }',
       '#portal-root .editor-preview-md { border:1px solid var(--p-border); border-radius:10px; padding:14px 16px; min-height:320px; background:var(--p-card); font-size:15px; line-height:1.8; color:var(--p-text); word-break:break-word; overflow-wrap:anywhere; }',
       '#portal-root .editor-preview-md img { max-width:100%; border-radius:8px; margin:0.4em 0; }',
       '#portal-root .editor-preview-md pre { background:var(--p-bg); border:1px solid var(--p-border); border-radius:8px; padding:12px; overflow-x:auto; margin:0.8em 0; }',
-      '#portal-root .editor-preview-md code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; }',
+      '#portal-root .editor-preview-md code { font-family:var(--font-main); font-size:13px; }',
       '#portal-root .editor-preview-md pre code { background:none; padding:0; }',
       '#portal-root .editor-preview-md blockquote { border-left:3px solid var(--p-accent); margin:0.8em 0; padding:4px 14px; color:var(--p-text-2); background:var(--p-bg); border-radius:0 8px 8px 0; }',
       '#portal-root .editor-preview-md table { border-collapse:collapse; margin:0.8em 0; }',
