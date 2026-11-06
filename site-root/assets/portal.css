@@ -29,6 +29,11 @@
 
 /* Portal 页顶部留白收紧（覆盖主题 .container 的 40px） */
 body.page-portal .container { padding-top: 10px; }
+/* 手机端：站点 .container / #portal-root / .portal-shell 三层横向内边距叠加会把内容压到 287px，
+   统一收到 8px+8px+8px=24px，375px 下正文可用宽度从 287px 提升到 327px。 */
+@media (max-width: 700px) {
+  body.page-portal .container { padding-left: 8px; padding-right: 8px; }
+}
 
 /* --- 顶部：标题 + Sign Out 蓝色链接 --- */
 .portal-header {
