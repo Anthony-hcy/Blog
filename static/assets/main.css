@@ -3091,7 +3091,7 @@ body:not([data-reading-progress]) .reading-progress { display: none; }
 .article-body h3,
 .entry-article h1,
 .archive-title,
-.memo-byline + .memo-content p { text-wrap: balance; }
+.entry-memo .memo-byline + .memo-content p { text-wrap: balance; }
 .article-body p,
 .memo-content p { text-wrap: pretty; }
 /* ==========================================================================
