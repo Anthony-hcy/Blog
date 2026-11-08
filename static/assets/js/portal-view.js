@@ -368,6 +368,9 @@
       '#portal-root .memo-photo-add:hover { color:var(--p-accent); }',
       '#portal-root .memo-loc-row { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--p-border); color:var(--p-text-3); }',
       '#portal-root .memo-tag-row { margin-top:8px; padding-top:0; border-top:0; }',
+      '#portal-root .memo-dir-row { margin-top:8px; padding-top:0; border-top:0; }',
+      '#portal-root .memo-dir-label { flex:0 0 auto; color:var(--p-text-3); font-size:14px; }',
+      '#portal-root .memo-dir-select { flex:0 0 auto; min-width:100px; padding:4px 6px; border:1px solid var(--p-border); border-radius:6px; background:var(--p-btn-bg); color:var(--p-text); font-size:14px; font-family:inherit; cursor:pointer; }',
       '#portal-root .memo-loc-input { flex:1; border:0; outline:none; background:transparent; font-size:15px; color:var(--p-text); }',
       '#portal-root .memo-loc-input::placeholder { color:var(--p-text-3); }',
       '#portal-root .memo-loc-btn { background:none; border:0; padding:4px 6px; color:var(--p-accent); cursor:pointer; font-size:15px; }',
@@ -988,6 +991,15 @@
           '</div>' +
           '<textarea id="memo-text" class="memo-textarea" placeholder="这一刻的想法…"></textarea>' +
           '<div class="memo-photos" id="memo-photos"></div>' +
+          '<div class="memo-loc-row memo-dir-row">' +
+            '<i class="fa-solid fa-folder-open" aria-hidden="true"></i>' +
+            '<span class="memo-dir-label">图片存放</span>' +
+            '<select id="memo-img-dir" class="memo-dir-select" aria-label="图片存放目录">' +
+              '<option value="gallery">gallery</option>' +
+              '<option value="movies">movies</option>' +
+              '<option value="books">books</option>' +
+            '</select>' +
+          '</div>' +
           '<div class="memo-loc-row">' +
             '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>' +
             '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置（手动填写）">' +
@@ -1369,6 +1381,8 @@
     // 位置默认留空：以前会回填上次用的位置，手机端容易被误当成「定位」自动填写
     portalRoot.querySelector('#memo-loc').value = '';
     portalRoot.querySelector('#memo-tags').value = '';
+    var memoDirSel = portalRoot.querySelector('#memo-img-dir');
+    if (memoDirSel) memoDirSel.value = 'gallery';
     switchTab('edit');
   }
 
@@ -1406,6 +1420,11 @@
         while ((m = re.exec(parsed.body)) !== null) {
           memoPhotos.push({ url: m[1], name: m[1].split('/').pop() });
         }
+      }
+      var memoDirSel = portalRoot.querySelector('#memo-img-dir');
+      if (memoDirSel) {
+        var dirMatch = isMemo && memoPhotos.length ? /\/assets\/img\/(gallery|movies|books)\//.exec(memoPhotos[0].url || '') : null;
+        memoDirSel.value = dirMatch ? dirMatch[1] : 'gallery';
       }
       renderMemoPhotos();
       portalRoot.querySelector('#edit-body').value = parsed.body;
@@ -2145,7 +2164,9 @@
       // 说说模式：只本地暂存（拆分/压缩 + dataUrl 预览），发表时统一上传
       if (editMode === 'memo') {
         overlay.querySelector('#picker-file-name').textContent = '确认中…';
-        handleFilesForUpload(files, 'memoStage', 'gallery', overlay.querySelector('#picker-progress')).then(function (entries) {
+        var memoDirSel = portalRoot.querySelector('#memo-img-dir');
+        var memoDir = memoDirSel && /^(gallery|movies|books)$/.test(memoDirSel.value) ? memoDirSel.value : 'gallery';
+        handleFilesForUpload(files, 'memoStage', memoDir, overlay.querySelector('#picker-progress')).then(function (entries) {
           overlay.querySelector('#picker-file-name').textContent = entries
             ? '已暂存，发表时统一上传'
             : '选取文件：未选择文件';
