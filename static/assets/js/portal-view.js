@@ -367,6 +367,7 @@
       '#portal-root .memo-photo-add { aspect-ratio:1/1; background:var(--p-btn-bg); border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:26px; color:var(--p-text-3); }',
       '#portal-root .memo-photo-add:hover { color:var(--p-accent); }',
       '#portal-root .memo-loc-row { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--p-border); color:var(--p-text-3); }',
+      '#portal-root .memo-tag-row { margin-top:8px; padding-top:0; border-top:0; }',
       '#portal-root .memo-loc-input { flex:1; border:0; outline:none; background:transparent; font-size:15px; color:var(--p-text); }',
       '#portal-root .memo-loc-input::placeholder { color:var(--p-text-3); }',
       '#portal-root .memo-loc-btn { background:none; border:0; padding:4px 6px; color:var(--p-accent); cursor:pointer; font-size:15px; }',
@@ -991,6 +992,10 @@
             '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>' +
             '<input type="text" id="memo-loc" class="memo-loc-input" placeholder="所在位置（手动填写）">' +
           '</div>' +
+          '<div class="memo-loc-row memo-tag-row">' +
+            '<i class="fa-solid fa-tags" aria-hidden="true"></i>' +
+            '<input type="text" id="memo-tags" class="memo-loc-input" placeholder="标签（逗号分隔，可留空）">' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="portal-edit-actions">' +
@@ -1363,6 +1368,7 @@
     portalRoot.querySelector('#memo-text').value = '';
     // 位置默认留空：以前会回填上次用的位置，手机端容易被误当成「定位」自动填写
     portalRoot.querySelector('#memo-loc').value = '';
+    portalRoot.querySelector('#memo-tags').value = '';
     switchTab('edit');
   }
 
@@ -1391,6 +1397,7 @@
       portalRoot.querySelector('#edit-banner').value = d.banner || '';
       portalRoot.querySelector('#memo-text').value = isMemo ? parsed.body.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim() : '';
       portalRoot.querySelector('#memo-loc').value = isMemo ? (d.location || '') : '';
+      portalRoot.querySelector('#memo-tags').value = isMemo && Array.isArray(d.tags) ? d.tags.join(', ') : '';
       // 提取 memo 图片
       memoPhotos = [];
       if (isMemo) {
@@ -1538,6 +1545,7 @@
         ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':00+08:00';
     }
     var locVal = portalRoot.querySelector('#memo-loc').value.trim();
+    var tags = portalRoot.querySelector('#memo-tags').value.split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
     var md = buildPostMarkdown({
       title: text.slice(0, 40) || 'memo',
       date: dateStr,
@@ -1545,7 +1553,7 @@
       type: 'memo',
       category: '碎碎念',
       location: locVal,
-      tags: [],
+      tags: tags,
       excerpt: '',
       banner: '',
       body: body,

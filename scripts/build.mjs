@@ -1191,6 +1191,11 @@ function entryArticle(post) {
   </div>`;
 }
 
+function memoTagsHtml(post) {
+  if (!post.tags || !post.tags.length) return '';
+  return `<div class="memo-tags">${post.tags.map(t => `<a href="${withBase(`/tag/${encodeURIComponent(t)}/`)}">#${escapeHtml(t)}</a>`).join('')}</div>`;
+}
+
 function entryMemo(post) {
   const rendered = renderMarkdown(post.body);
   const figures = figuresFromHtml(rendered);
@@ -1228,6 +1233,7 @@ function entryMemo(post) {
       })()}
     </div>
     ${contentBlock}
+    ${memoTagsHtml(post)}
     ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
     ${photosHtml}
   </div>`;
@@ -1477,6 +1483,7 @@ function buildMemoPage(post, prev, next) {
     ${post.category ? `<a class="memo-byline-cat" href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a>` : ''}
   </div>
   <div class="memo-content">${contentHtml}</div>
+  ${memoTagsHtml(post)}
   ${post.location ? `<div class="memo-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(post.location)}</div>` : ''}
   ${photosHtml}
   <div class="memo-meta">

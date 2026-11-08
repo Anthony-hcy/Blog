@@ -78,6 +78,11 @@ button, input, select, textarea, optgroup, option {
 .memo-location { margin-top: 10px; font-size: 13px; color: #0a84ff; }
 .memo-location i { margin-right: 4px; }
 
+/* ===== 说说标签（#标签，可点进标签页） ===== */
+.memo-tags { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; font-size: 13px; line-height: 1.7; }
+.memo-tags a { color: var(--accent); text-decoration: none; }
+.memo-tags a:hover { text-decoration: underline; }
+
 /* ===== 实况照片（Live Photo）：点开大图后左下角 ▶ 播放，播一遍自动停 ===== */
 figure.pswp-item.live-photo {
   position: relative;
