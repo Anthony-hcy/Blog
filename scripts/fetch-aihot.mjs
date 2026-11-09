@@ -59,6 +59,7 @@ if (existsSync(FC)) {
   const data = JSON.parse(readFileSync(FC, 'utf-8'));
   const articles = Array.isArray(data.article_data) ? data.article_data : [];
   const seen = new Set(articles.map(x => String(x.link || '')));
+  const hadAuthor = articles.some(x => x.author === 'AIHOT 日报');
   let added = 0;
   for (const it of items) {
     if (seen.has(it.url)) continue;
@@ -78,8 +79,11 @@ if (existsSync(FC)) {
     data.article_data = articles;
     if (data.statistical_data) {
       data.statistical_data.article_num = Number(data.statistical_data.article_num || 0) + added;
-      data.statistical_data.friends_num = Number(data.statistical_data.friends_num || 0) + 1;
-      data.statistical_data.active_num = Number(data.statistical_data.active_num || 0) + 1;
+      // 同一个「博客源」只计一次订阅，之后每天新增的文章不再把订阅数加一。
+      if (!hadAuthor) {
+        data.statistical_data.friends_num = Number(data.statistical_data.friends_num || 0) + 1;
+        data.statistical_data.active_num = Number(data.statistical_data.active_num || 0) + 1;
+      }
     }
     writeFileSync(FC, JSON.stringify(data, null, 0) + '\n');
   }

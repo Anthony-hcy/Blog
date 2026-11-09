@@ -19,11 +19,18 @@ const strip = s => String(s || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+const beijingStamp = d => new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hour12: false,
+}).format(d || new Date());
+
 const beijingDate = pub => {
   if (!pub) return '';
   const d = new Date(pub);
   if (Number.isNaN(d.getTime())) return '';
-  return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  return beijingStamp(d).slice(0, 10);
 };
 
 const res = await fetch(FEED, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; haelcy-blog build)' } });
@@ -55,7 +62,7 @@ items.sort((a, b) => b.date.localeCompare(a.date));
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({
   source: 'https://www.foreverblog.cn/daily.html',
-  updated: new Date().toISOString().slice(0, 10),
+  updated: beijingStamp().slice(0, 10),
   items,
 }, null, 2) + '\n');
 console.log('wrote', OUT, items.length, 'days');
@@ -66,6 +73,7 @@ if (existsSync(FC)) {
   const data = JSON.parse(readFileSync(FC, 'utf-8'));
   const articles = Array.isArray(data.article_data) ? data.article_data : [];
   const seen = new Set(articles.map(x => String(x.link || '')));
+  const hadAuthor = articles.some(x => x.author === AUTHOR);
   let added = 0;
   for (const it of items) {
     if (seen.has(it.url)) continue;
@@ -81,14 +89,18 @@ if (existsSync(FC)) {
     seen.add(it.url);
     added++;
   }
-  if (added) {
-    data.article_data = articles;
-    if (data.statistical_data) {
+  if (added) data.article_data = articles;
+  if (data.statistical_data) {
+    if (added) {
       data.statistical_data.article_num = Number(data.statistical_data.article_num || 0) + added;
-      data.statistical_data.friends_num = Number(data.statistical_data.friends_num || 0) + 1;
-      data.statistical_data.active_num = Number(data.statistical_data.active_num || 0) + 1;
+      // 同一个「博客源」只计一次订阅，之后每天新增的文章不再把订阅数加一。
+      if (!hadAuthor) {
+        data.statistical_data.friends_num = Number(data.statistical_data.friends_num || 0) + 1;
+        data.statistical_data.active_num = Number(data.statistical_data.active_num || 0) + 1;
+      }
     }
-    writeFileSync(FC, JSON.stringify(data, null, 0) + '\n');
+    data.statistical_data.last_updated_time = beijingStamp();
   }
+  writeFileSync(FC, JSON.stringify(data, null, 0) + '\n');
   console.log('merged', added, 'ForeverBlog items into', FC);
 }
