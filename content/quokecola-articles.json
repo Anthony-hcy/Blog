@@ -1,0 +1,84 @@
+{
+  "source": "https://www.quokecola.com/",
+  "updated": "2026-11-09",
+  "items": [
+    {
+      "date": "2025-12-01",
+      "title": "PLC Programming III: Global Variables",
+      "url": "https://www.quokecola.com/#BLOG#GlobVar.md",
+      "summary": "Globals never mind their own business."
+    },
+    {
+      "date": "2025-11-27",
+      "title": "PLC Programming II: Variables",
+      "url": "https://www.quokecola.com/#BLOG#PLCVar.md",
+      "summary": "Declare it or it doesn’t happen."
+    },
+    {
+      "date": "2024-09-30",
+      "title": "PLC Programming I: Prelude",
+      "url": "https://www.quokecola.com/#BLOG#IntroToPLC.md",
+      "summary": "Logic rules and wires obey!"
+    },
+    {
+      "date": "2022-08-12",
+      "title": "Haptic Device II",
+      "url": "https://www.quokecola.com/#BLOG#SeniorDesign.md",
+      "summary": "Loft to death QwQ"
+    },
+    {
+      "date": "2022-02-12",
+      "title": "Haptic Device",
+      "url": "https://www.quokecola.com/#BLOG#Haptic2RR_Arm.md",
+      "summary": "I choose the form of Gundam!"
+    },
+    {
+      "date": "2022-02-07",
+      "title": "meta-team.github.io",
+      "url": "https://www.quokecola.com/#BLOG#MetaTeamGitHubIO.md",
+      "summary": "New website is cool! Check it out!"
+    },
+    {
+      "date": "2022-01-22",
+      "title": "Recent Projects Preview",
+      "url": "https://www.quokecola.com/#BLOG#RecentProjectsUpdatePreview.md",
+      "summary": "Recent projects, maybe delayed QwQ"
+    },
+    {
+      "date": "2021-12-16",
+      "title": "Website Update",
+      "url": "https://www.quokecola.com/#BLOG#WebsiteUpdateOverview.md",
+      "summary": "Website updated!"
+    },
+    {
+      "date": "2021-12-13",
+      "title": "VBUS on ChibiOS",
+      "url": "https://www.quokecola.com/#BLOG#OpenVirtualCOMPortforChibiOS.md",
+      "summary": "First time to use virtual COM port on STM32!"
+    },
+    {
+      "date": "2021-12-12",
+      "title": "Article Browser",
+      "url": "https://www.quokecola.com/#BLOG#article_browser.md",
+      "summary": "A frontend application that allows you deploy your personal blog."
+    },
+    {
+      "date": "2021-12-12",
+      "title": "Adaptive CoreXY 4Z Moving Platform",
+      "url": "https://www.quokecola.com/#BLOG#Adaptive_CoreXY_4Z_Moving_Platform.md",
+      "summary": "An CoreXY 4z moving platform in any size."
+    },
+    {
+      "date": "2021-12-11",
+      "title": "3D printer extruder",
+      "url": "https://www.quokecola.com/#BLOG#Extruder.md",
+      "summary": "A CFRP extruder based on Voron Afterburner extruder"
+    },
+    {
+      "date": "2021-12-09",
+      "title": "Hello, World!",
+      "url": "https://www.quokecola.com/#BLOG#HelloWorld.md",
+      "summary": "Hi! Welcome to my personal blog!"
+    }
+  ]
+}
