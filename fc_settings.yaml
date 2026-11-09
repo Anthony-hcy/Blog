@@ -59,6 +59,7 @@ SETTINGS_FRIENDS_LINKS: {
         ["Haofei Ma · 博客", "https://haofei.ma/zh/", "https://haofei.ma/favicon.png", "rss.xml"],
         ["LQQ / 记录所见，思考未完", "https://lqq.ai/", "https://lqq.ai/favicon.ico", "rss.xml"],
         ["四通八達 · Fred's Blog", "https://www.ooowl.net/", "https://avatars.githubusercontent.com/u/120368045?v=4", "atom.xml"],
+        ["印记", "https://yinji.org/", "https://yinji.org/img/favicon.png", "feed.xml"],
         ["宇哥", "https://kisxy.com/", "https://kisxy.com/favicon.ico"],
         ["鹅玉", "https://eyu.at/", "https://eyu.at/favicon.png"],
         ["银河铁道之夜", "https://nostalgia.bearblog.dev/", "https://nostalgia.bearblog.dev/favicon.ico"],
