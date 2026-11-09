@@ -1,7 +1,79 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-05",
+  "updated": "2026-11-09",
   "items": [
+    {
+      "date": "2026-11-09",
+      "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
+      "url": "https://aihot.news/daily/2026-11-09",
+      "lead": "NVIDIA 董事会于 11 月 8 日发布声明，就近期有关创始人兼 CEO 黄仁勋成为外国情报行动目标的报道启动独立调查。调查由独立董事组成的委员会在外部独立律师协助下监督，黄仁勋全力配合。董事会表示没有理由认为国家安全或 NVIDIA 机密已受损，但调查将审视所有可用信息，并表示对黄仁勋及其领导团队有信心。",
+      "links": [
+        {
+          "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
+          "url": "https://aihot.news/items/mg4znyraf1xbbwg1vd915wqoi"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "title": "美国家长起诉谷歌 Gemini 被指协助 13 岁女孩制定轻生计划",
+      "url": "https://aihot.news/daily/2026-11-08",
+      "lead": "美国北卡罗来纳州一对夫妇起诉谷歌，其 13 岁女儿通过学校配发的 Chromebook 与 Gemini 和搜索 AI 模式进行数千条涉及自杀内容的交互。谷歌发言人表示正在审查指控，并称已将心理健康防护机制引入搜索 AI 功能。本周谷歌宣布对 K-12 学生账户默认关闭 AI 工具，但学校重新启用谷歌搜索须捆绑接受附带 AI 功能，Fairplay 批评该政策是在强迫学校接纳 AI。",
+      "links": [
+        {
+          "title": "美国家长起诉谷歌 Gemini 被指协助 13 岁女孩制定轻生计划",
+          "url": "https://aihot.news/items/r0hypv8lgeq3nhx29eby0y3uv"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-07",
+      "title": "Bloomberg：OpenAI 完成 110 亿美元融资首批到账，估值达 1.25 万亿美元",
+      "url": "https://aihot.news/daily/2026-11-07",
+      "lead": "据 Bloomberg，OpenAI 完成 110 亿美元新融资，这是估值 1.25 万亿美元一轮的首笔资金。投资者当日已打款，剩余部分总额最高 200 亿美元，预计数周内到账。",
+      "links": [
+        {
+          "title": "百度发布 ERNIE-5.5-Flash-Base 开源 Base 模型，280B 总参数每 token 激活 14B",
+          "url": "https://aihot.news/items/r3360gkpmqpyyt2ii9cp1k9rz"
+        },
+        {
+          "title": "蚂蚁百灵发布 Ling-3.2-flash：原生多模态，560B 总参数单步激活 25B",
+          "url": "https://aihot.news/items/apnpwouw9phkt81pijcxcl1a1"
+        },
+        {
+          "title": "OpenRouter 发布新一代 Auto Router 与 Auto Code 路由器",
+          "url": "https://aihot.news/items/ed4gnfu2f09xz5t7ur690iadn"
+        },
+        {
+          "title": "Meta 在 Muse 应用中推出 spaces 自定义个性化体验",
+          "url": "https://aihot.news/items/f3hogz1c4bmgbcwblqblumxpv"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "title": "OpenAI 发布 GPT-6 Cyber 网络安全模型",
+      "url": "https://aihot.news/daily/2026-11-06",
+      "lead": "OpenAI 发布网络安全模型 GPT-6 Cyber，针对漏洞发现、验证与修复训练，并通过 Daybreak Red/Blue 平台向审核通过的安全团队开放。",
+      "links": [
+        {
+          "title": "OpenAI 发布 GPT-6 Cyber 网络安全模型",
+          "url": "https://aihot.news/items/u904yv6dn7sw6lwjgxxedqd3b"
+        },
+        {
+          "title": "Thinking Machines Lab 发布 Inkling 2 Small：594B 参数 MoE 模型，下周开放 Apache 2.0 权重",
+          "url": "https://aihot.news/items/bu8612ca3e1uyxjppk56ef1wl"
+        },
+        {
+          "title": "Google 发布 Gemini Omni 1.2 Flash：15 秒视频生成，降价 30% 至 $0.07/秒",
+          "url": "https://aihot.news/items/yjwroxww17lcg4ntcu9ruo105"
+        },
+        {
+          "title": "Cursor 推出应用构建功能，描述需求即可构建、部署并分享在线应用",
+          "url": "https://aihot.news/items/m5s02uukcl0id6rn7t08f6ya3"
+        }
+      ]
+    },
     {
       "date": "2026-11-05",
       "title": "腾讯混元 Hy4 正式发布，首次引入视觉与电脑操作能力",
@@ -71,98 +143,6 @@
         {
           "title": "Anthropic 季度营收增长十二倍至近 170 亿美元，但净亏损达 233 亿美元",
           "url": "https://aihot.news/items/owfopy087lszd1cpfp3c82pxv"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-02",
-      "title": "OpenAI 12月起将ChatGPT与Codex合并为统一Token额度",
-      "url": "https://aihot.news/daily/2026-11-02",
-      "lead": "作者引述OpenAI凌晨更新的帮助文档称，从12月开始Plus和Pro用户的ChatGPT聊天与Codex用量将合并为同一Token额度，仅Instant聊天不受影响。作者回顾此前按条数计费的历史、一个月内Codex Pro额度先降后恢复的运营反复，以及社区在GitHub上提issue抗议的反应，认为合并与IPO预期下的算力成本压力有关。",
-      "links": [
-        {
-          "title": "OpenAI 12月起将ChatGPT与Codex合并为统一Token额度",
-          "url": "https://aihot.news/items/f6dxzur6d4pwjdhvm1x6m5rfp"
-        },
-        {
-          "title": "OpenRouter 教程：用 Responses API 构建可在 Linux 沙箱验证 bug 的 AI 代码审查脚本",
-          "url": "https://aihot.news/items/yww15c701iat30p8ttjf029ij"
-        },
-        {
-          "title": "Claude Code 技巧：任务变难时输入 ultrathink 提升当前回合推理努力",
-          "url": "https://aihot.news/items/mhw3rtr5o13p5777y7el9tczk"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-01",
-      "title": "Wiz 报告“黑色十月”：九个 AI 开发者平台接连披露安全事件",
-      "url": "https://aihot.news/daily/2026-11-01",
-      "lead": "Wiz 研究团队梳理 10 月内至少九个 AI 开发者平台披露的安全事件，包括 Fireworks AI、Lightning AI、Railway、Warp、OpenCode 等，多起报告指向凭据窃取、agent swarm 攻击和以“蒸馏”为目的的窃取。",
-      "links": [
-        {
-          "title": "Figma 发布 Weave 创作平台，用节点化工作流让创意流程可复用",
-          "url": "https://aihot.news/items/akdeq33m7cpr8m7zsfgvfiz5c"
-        },
-        {
-          "title": "Nvidia 洽谈为 Nscale 西弗吉尼亚 Anthropic 数据中心提供债务担保",
-          "url": "https://aihot.news/items/hx5dsruslfiiqhbsro2tvg1n8"
-        },
-        {
-          "title": "彭博社统计：Alphabet、Meta、微软、亚马逊、甲骨文承诺投入超3万亿美元建AI基础设施",
-          "url": "https://aihot.news/items/htfc0ler37j2h4hoqll6jewz3"
-        },
-        {
-          "title": "Wiz 报告“黑色十月”：九个 AI 开发者平台接连披露安全事件",
-          "url": "https://aihot.news/items/la0qb77ds4znf2r7ub14a3bqz"
-        }
-      ]
-    },
-    {
-      "date": "2026-10-31",
-      "title": "Cursor 披露 Claude Code VS Code 扩展被植入恶意软件事件，最多影响 5000 用户",
-      "url": "https://aihot.news/daily/2026-10-31",
-      "lead": "Cursor 发现通过其 IDE 扩展市场分发的 Claude Code VS Code 扩展被修改并植入恶意软件，最多影响 5000 用户，恶意版本并非 Anthropic 开发。Cursor 已于当日下午下线扩展市场，与相关提供方合作清除恶意软件并确认无进一步风险后重新上线，建议受影响用户参考博客说明排查，并升级到 Claude Code for VS Code 2.1.314。",
-      "links": [
-        {
-          "title": "Anthropic 将 Claude Max 套餐更名为 Max 与 Ultra，Ultra 认证账号取消 5 小时限制",
-          "url": "https://aihot.news/items/pd3dehdyyhzkyrjsw4b6bmcyj"
-        },
-        {
-          "title": "Gemini API 的 Computer Use 工具正式开放（GA）",
-          "url": "https://aihot.news/items/qit1hgequ8pknedqqvuei5wfh"
-        },
-        {
-          "title": "Cursor 披露 Claude Code VS Code 扩展被植入恶意软件事件，最多影响 5000 用户",
-          "url": "https://aihot.news/items/iu7xvjx1c2c5wqrpn0rwfxcb5"
-        },
-        {
-          "title": "阿里巴巴：Apple 智能国行用户可自主选择是否开通千问集成功能",
-          "url": "https://aihot.news/items/yrdu4gxaoljhhbkvw1xlvzc3p"
-        }
-      ]
-    },
-    {
-      "date": "2026-10-30",
-      "title": "Mistral Large 4（Le Chonk）登陆 Hugging Face：1T 参数 MoE 多模态开源权重模型",
-      "url": "https://aihot.news/daily/2026-10-30",
-      "lead": "Hugging Face 发布 Mistral Large 4（Le Chonk）的上线博客，模型为多模态多语言 MoE 架构，总参数约 1T、激活 49B、上下文窗口 1M token。",
-      "links": [
-        {
-          "title": "Mistral Large 4（Le Chonk）登陆 Hugging Face：1T 参数 MoE 多模态开源权重模型",
-          "url": "https://aihot.news/items/upsd8u37hkkquohy3w3sjvszi"
-        },
-        {
-          "title": "Pika 基于MiniMax H3后训练并开源 Pika H3 Flex 视频生成模型",
-          "url": "https://aihot.news/items/eq47lph0rzobf8cr950saiu8r"
-        },
-        {
-          "title": "Codex 宣布即日起 Pro 及 Business Premium 各档位用量上限翻倍",
-          "url": "https://aihot.news/items/funx6p4g0gju509j6n0oyxmqu"
-        },
-        {
-          "title": "Factory 发布 Droid 1.0，以程序化工具调用构建企业级 Agent harness",
-          "url": "https://aihot.news/items/gjz7lj8j6ojjyj80vkkhy786v"
         }
       ]
     }

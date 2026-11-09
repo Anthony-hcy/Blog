@@ -1,11 +1,12 @@
 # 朋友圈数据采集（FriendCircle 极简模式）
-# 每天北京时间 04:00（UTC 20:00）跑一次：下载官方 fcircle_core 二进制，采集友链 RSS，生成 data.json 提交回仓库，
+# 每天北京时间 08:40（UTC 00:40）跑一次：下载官方 fcircle_core 二进制，采集友链 RSS，
+# 同时抓取 AIHOT 日报当作一个博客来源并入同批数据，生成 data.json 提交回仓库，
 # 触发 deploy.yml 构建部署，前端 /fcircle/ 页面读取 site-root/fcircle-data.json。
 name: Update Friend Circle Data
 
 on:
   schedule:
-    - cron: "0 20 * * *"
+    - cron: "40 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Download fcircle_core binary
         run: |
@@ -57,10 +62,15 @@ jobs:
       - name: Merge anti-bot sites
         run: python scripts/fetch_antibot.py site-root/fcircle-data.json
 
+      # AIHOT 日报就是一份普通博客 RSS：抓下来直接并入同一个 fcircle-data.json，
+      # 不再单独跑 workflow，也不再依赖构建期合并。
+      - name: Merge AIHOT daily
+        run: node scripts/fetch-aihot.mjs
+
       - name: Commit updated data
         uses: EndBug/add-and-commit@v9
         with:
-          add: "site-root/fcircle-data.json site-root/fcircle-errors.json"
+          add: "site-root/fcircle-data.json site-root/fcircle-errors.json content/aihot-daily.json"
           message: "chore: update friend circle data"
           default_author: github_actions
           push: true
