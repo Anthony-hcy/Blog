@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "items": [
+    {
+      "date": "2026-11-10",
+      "title": "Anthropic 发布 Claude Fable 5.2 与 Claude Mythos 5.2",
+      "url": "https://aihot.news/daily/2026-11-10",
+      "lead": "Anthropic 发布 Claude Fable 5.2 和 Claude Mythos 5.2，两者为同一底层模型，Mythos 需通过 Cyber 或 Life Sciences Verification Program 申请访问。",
+      "links": [
+        {
+          "title": "Anthropic 发布 Claude Fable 5.2 与 Claude Mythos 5.2",
+          "url": "https://aihot.news/items/va9trgwaw3r4por6vdqbjxrhd"
+        },
+        {
+          "title": "Meta 发布最小最高效模型 Muse Ember，主打智能体高频任务",
+          "url": "https://aihot.news/items/cox936nwax49rkiimi1oicgzu"
+        },
+        {
+          "title": "字节发布 Seedream 5.5 图像创作模型：支持 100 轮编辑与原生 RGBA 透明输出",
+          "url": "https://aihot.news/items/xsvt2hlwuovul9sdvazcw7cxk"
+        },
+        {
+          "title": "Zyphra 发布开源 TTS 模型 ZONOS3-Mini，可在手机浏览器实时运行",
+          "url": "https://aihot.news/items/r5h0cwwdh1peqbg2rk6k9ljrh"
+        }
+      ]
+    },
     {
       "date": "2026-11-09",
       "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
@@ -119,30 +143,6 @@
         {
           "title": "Revolut 将约 2000 名工程师迁移到自托管 GLM 编码",
           "url": "https://aihot.news/items/op93lgz2xx0ck3znfm724ebfu"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-03",
-      "title": "OpenAI 推出 Grid Protectors 计划，从 Georgia 校园开始支持电网削峰",
-      "url": "https://aihot.news/daily/2026-11-03",
-      "lead": "OpenAI 推出 Grid Protectors 计划，与电力公司、监管机构和政策制定者合作，让未来算力校园在电网紧张时降低用电需求，首站为 Effingham County 校园。",
-      "links": [
-        {
-          "title": "Claude Platform 推出 message threads 公测，降低长会话智能体延迟",
-          "url": "https://aihot.news/items/sg5u3u91kw42j1grtyp3ny65n"
-        },
-        {
-          "title": "腾讯混元发布 Hyra 2.0：让通用 agent 研发可复用的科学工具与模型",
-          "url": "https://aihot.news/items/l37ydaic43icz85huclc2io6c"
-        },
-        {
-          "title": "OpenAI 推出 Grid Protectors 计划，从 Georgia 校园开始支持电网削峰",
-          "url": "https://aihot.news/items/sxbs5a90fgybhyucacmzvrc6w"
-        },
-        {
-          "title": "Anthropic 季度营收增长十二倍至近 170 亿美元，但净亏损达 233 亿美元",
-          "url": "https://aihot.news/items/owfopy087lszd1cpfp3c82pxv"
         }
       ]
     }
