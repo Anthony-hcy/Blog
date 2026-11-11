@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "items": [
+    {
+      "date": "2026-11-11",
+      "title": "Google DeepMind 发布 Gemini 4 Carbon 前沿模型",
+      "url": "https://aihot.news/daily/2026-11-11",
+      "lead": "Google DeepMind 正式向开发者、企业、科学家和普通用户开放 Gemini 4 Carbon，定位为其最强前沿模型，主打网络安全能力与复杂知识工作、软件工程、科学推理中的长程智能体工作流。",
+      "links": [
+        {
+          "title": "Google DeepMind 发布 Gemini 4 Carbon 前沿模型",
+          "url": "https://aihot.news/items/w8cvkd1j2o1c3m8ikh8x2kpfx"
+        },
+        {
+          "title": "MiniMax 发布开源图像生成模型 H3-Image，10 秒内生成 4K 图像",
+          "url": "https://aihot.news/items/eel6o8sxfldx5itfa8f8wigc0"
+        },
+        {
+          "title": "Anthropic 发布 Claude Whiteboards 和 Claude Sheets，Claude Dashboards 转正为 Claude Data",
+          "url": "https://aihot.news/items/c1fodrvts3po1pprz70weooju"
+        },
+        {
+          "title": "Gemini 4 Carbon 上线 Gemini API、AI Studio 和 Antigravity",
+          "url": "https://aihot.news/items/o6jzg6bjiaufh8no2rf1tep7u"
+        }
+      ]
+    },
     {
       "date": "2026-11-10",
       "title": "Anthropic 发布 Claude Fable 5.2 与 Claude Mythos 5.2",
@@ -119,30 +143,6 @@
         {
           "title": "OpenAI 发布 Images 2.6 并向所有档位开放 Codex",
           "url": "https://aihot.news/items/o915zd1u1eq13gyo9x3nsgoq8"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-04",
-      "title": "AMD 发布 2026 年三季度财报，预计 2027 年营收增长超 80%",
-      "url": "https://aihot.news/daily/2026-11-04",
-      "lead": "AMD 公布 2026 年三季度财报，预计 2027 年营收增长超 80%，高于分析师建模的 77%，CEO Lisa Su 称数据中心芯片将占明年销售额的 80%。",
-      "links": [
-        {
-          "title": "Mistral Large 4 以开放权重发布并附技术报告",
-          "url": "https://aihot.news/items/bfx52184e0ssnqgdq42o8dg36"
-        },
-        {
-          "title": "Google AI Studio 弃用 Gemini 2.5 Pro 与 2.5 Flash，API 请求将于 12 月 1 日起自动路由",
-          "url": "https://aihot.news/items/ewvepczpb5fewcbzo2tkqdldm"
-        },
-        {
-          "title": "AMD 发布 2026 年三季度财报，预计 2027 年营收增长超 80%",
-          "url": "https://aihot.news/items/ir9nzccipff0uowu3tghi4n3o"
-        },
-        {
-          "title": "Revolut 将约 2000 名工程师迁移到自托管 GLM 编码",
-          "url": "https://aihot.news/items/op93lgz2xx0ck3znfm724ebfu"
         }
       ]
     }

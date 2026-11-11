@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "items": [
+    {
+      "date": "2026-11-11",
+      "title": "无常，离别",
+      "url": "https://ssshooter.com/impermanence-and-parting/"
+    },
     {
       "date": "2026-11-10",
       "title": "十月十月",
@@ -41,16 +46,6 @@
       "date": "2026-11-03",
       "title": "10-文学：苦难是创造文学的温床？",
       "url": "https://blog.awaae001.top/%E9%9A%8F%E7%AC%94/%E8%A8%80%E8%AE%BA/page-10-gonan"
-    },
-    {
-      "date": "2026-11-02",
-      "title": "Visioning — Project Alpha Lyrae",
-      "url": "https://nocoding.life/archives/visioning-project-alpha-lyrae"
-    },
-    {
-      "date": "2026-11-01",
-      "title": "[胶囊日常] 在有限时间里守住生活的核心",
-      "url": "https://matrixcore.love/article/261030"
     }
   ]
 }
