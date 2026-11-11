@@ -119,10 +119,12 @@ jobs:
           ffmpeg -version | head -1
       - run: node scripts/build.mjs
       # configure-pages 已省略：Pages 站点早已配置好（build_type=workflow），省 ~1s
+      # 注意：上传留在 build job，部署拆到下一个 job。这样 deploy-pages 查询产物列表
+      # 发生在 build job 全部结束之后（晚几秒），规避 actions/deploy-pages#451 的竞态：
+      # 产物刚 finalize 的瞬间去查，偶尔会返回 0 个 artifact。
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - uses: actions/deploy-pages@v4
 
       # ============================================================
       # 国内直连（haelcy.cn）：同一份源码、同一个 commit 再构建一次「根路径版」做自检。
@@ -151,3 +153,14 @@ jobs:
 
       - name: Self-check built assets
         run: node deploy/check-assets.mjs
+
+  # GitHub Pages 部署拆成独立 job：
+  # 1) 部署查询发生在 build job 全部结束之后（晚几秒），规避“刚上传就查不到产物”的竞态；
+  # 2) 若部署失败，Re-run failed jobs 只重跑本 job，不会重复上传同名产物（否则会报 Multiple artifacts）。
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
