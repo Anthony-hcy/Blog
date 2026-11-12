@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "items": [
+    {
+      "date": "2026-11-12",
+      "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
+      "url": "https://aihot.news/daily/2026-11-12",
+      "lead": "Google 推出 Gemini Decisions API，由新模型 Gemini Decision 1 驱动，可在 150-250ms 端到端延迟内对文本、图像、音频、视频和 PDF（最多 256K tokens）一次性评估最多 1000 个是/否、多选和评分题。",
+      "links": [
+        {
+          "title": "百度发布 ERNIE 5.5 Flash Preview，权重将于 11 月 25 日前开源",
+          "url": "https://aihot.news/items/qd3f4j2hd0t98tqf28iv7pu2j"
+        },
+        {
+          "title": "Runway 开源 27B 世界动作模型 Praxis-1，权重采用 Apache 2.0 许可",
+          "url": "https://aihot.news/items/bx3sq4dxfqblyztkuiktiz0wv"
+        },
+        {
+          "title": "Google DeepMind 发布 AlphaGenome 2，预测基因变异对特定细胞类型的影响",
+          "url": "https://aihot.news/items/wp91dm5fgirnzvh99js3vv6j2"
+        },
+        {
+          "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
+          "url": "https://aihot.news/items/r8hsm3m3munjwk1n3u885zszw"
+        }
+      ]
+    },
     {
       "date": "2026-11-11",
       "title": "Google DeepMind 发布 Gemini 4 Carbon 前沿模型",
@@ -119,30 +143,6 @@
         {
           "title": "Cursor 推出应用构建功能，描述需求即可构建、部署并分享在线应用",
           "url": "https://aihot.news/items/m5s02uukcl0id6rn7t08f6ya3"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-05",
-      "title": "腾讯混元 Hy4 正式发布，首次引入视觉与电脑操作能力",
-      "url": "https://aihot.news/daily/2026-11-05",
-      "lead": "腾讯混元发布 Hy4 正式版，相比 Hy4 preview 扩展预训练与后训练规模，首次引入视觉能力和电脑操作支持，GameDev 与 GameLogic 评测分别提升 19.1% 和 9.8%。",
-      "links": [
-        {
-          "title": "腾讯混元 Hy4 正式发布，首次引入视觉与电脑操作能力",
-          "url": "https://aihot.news/items/z6j7q1gcuwsjjpx3qbtnvl2b3"
-        },
-        {
-          "title": "Moonshot AI 在 HuggingFace 开放 2.8T 参数 Kimi K3.1 Pro 权重",
-          "url": "https://aihot.news/items/se9yjzn1asv817vcahsxd5zpw"
-        },
-        {
-          "title": "Cognition 发布编码模型 SWE-2 Flash，Terminal-Bench 4.0 从 0.9% 提升至 20.0%",
-          "url": "https://aihot.news/items/ten7xip5406iqarfs8tj8pa22"
-        },
-        {
-          "title": "OpenAI 发布 Images 2.6 并向所有档位开放 Codex",
-          "url": "https://aihot.news/items/o915zd1u1eq13gyo9x3nsgoq8"
         }
       ]
     }
