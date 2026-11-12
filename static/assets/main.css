@@ -3728,3 +3728,29 @@ html[data-theme="light"] .now-row .now-kind.is-watching { background: rgba(50, 1
   .article-meta .card-views, .memo-metrics .card-views { font-size: 11.5px; }
 }
 
+/* ==========================================================================
+   液体浇灌式主题揭示（theme pour · View Transitions）
+   - 只作用于 ::view-transition-* 伪元素，不改动任何已有规则与主题变量
+   - 视觉完全由 layout.js 逐帧写入的 --pour-clip（液体轮廓 path）驱动
+   - 关闭：URL 加 ?nomotion=1 / <html data-theme-motion="off"> / 系统「减少动态效果」
+   ========================================================================== */
+
+/* 旧主题铺底不动（默认会淡出，这里停掉），新主题靠液体 clip-path 逐帧露出 */
+html[data-pour="on"]::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-pour="on"]::view-transition-new(root) {
+  /* 用一条“看不见”的动画撑住过渡时长，否则伪元素会立刻结束、液体来不及展开 */
+  animation: pourHold var(--pour-dur, 1470ms) linear forwards;
+  mix-blend-mode: normal;
+  clip-path: var(--pour-clip, inset(100% 0 0 0));
+  will-change: clip-path;
+}
+
+@keyframes pourHold {
+  from { opacity: 1; }
+  to { opacity: 1; }
+}
+

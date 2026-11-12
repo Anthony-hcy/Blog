@@ -493,21 +493,37 @@ function initSearchLazyLoad() {
 
 // ---------- 主题切换（auto → light → dark 循环，localStorage 持久化） ----------
 // 首帧由 <head> 内联脚本解析，这里只负责交互与跨标签页/系统偏好变化时的同步。
+// 「液体浇灌」揭示：点按钮且 data-theme 真的翻转时，用 View Transitions 的新主题快照
+// 套一条逐帧生成的液体 clip-path（液柱 → 触底飞溅 → 波浪上涨），每帧只写 --pour-clip。
+// 关闭：URL 加 ?nomotion=1，或 <html data-theme-motion="off">，或系统「减少动态效果」。
 function initThemeToggle() {
   var root = document.documentElement;
   var btn = document.querySelector('.js-theme-toggle');
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+  var mqReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   var ORDER = ['auto', 'light', 'dark'];
   var LABEL = { auto: '跟随系统', light: '亮色', dark: '暗色' };
   var THEME_COLOR = { dark: '#000000', light: '#f7f7f9' };
+  // 液体动效时序（ms）：下落 → 触底飞溅 → 上涨铺满
+  var POUR = { fall: 180, rise: 1010, total: 1350 };
+
+  var pouring = false;
+  var activeVT = null;
+  var rafId = 0;
+  var splash = null;
+  var historyPatched = false;
 
   function currentPref() {
     var p = root.getAttribute('data-theme-pref');
     return ORDER.indexOf(p) >= 0 ? p : 'auto';
   }
 
+  function effectiveOf(pref) {
+    return pref === 'auto' ? (mq && mq.matches ? 'light' : 'dark') : pref;
+  }
+
   function apply(pref, persist) {
-    var effective = pref === 'auto' ? (mq && mq.matches ? 'light' : 'dark') : pref;
+    var effective = effectiveOf(pref);
     root.setAttribute('data-theme-pref', pref);
     root.setAttribute('data-theme', effective);
     if (persist) {
@@ -522,24 +538,345 @@ function initThemeToggle() {
     }
   }
 
+  // ---- 液体揭示：开关与降级（不支持 View Transitions 就瞬时切换，不做圆形扩散） ----
+  function motionDisabled() {
+    if (root.getAttribute('data-theme-motion') === 'off') return true;
+    if (/[?&]nomotion(?:=1)?(?:&|$)/.test(window.location.search)) return true;
+    // 验收/录屏专用：?pourforce=1 只对这一次打开忽略系统「减少动态效果」，不改系统设置
+    if (/[?&]pourforce=1(?:&|$)/.test(window.location.search)) return false;
+    if (mqReduce && mqReduce.matches) return true;
+    return false;
+  }
+
+  function canPour() {
+    return !motionDisabled() && typeof document.startViewTransition === 'function';
+  }
+
+  // 排查用：主题切换被降级成瞬切时，把原因打到控制台
+  function motionReason() {
+    if (root.getAttribute('data-theme-motion') === 'off') return 'html 上设了 data-theme-motion="off"';
+    if (/[?&]nomotion(?:=1)?(?:&|$)/.test(window.location.search)) return '地址带了 ?nomotion=1';
+    if (typeof document.startViewTransition !== 'function') return '这个浏览器不支持 View Transitions';
+    if (mqReduce && mqReduce.matches) return '系统「减少动态效果」开着（prefers-reduced-motion: reduce）';
+    return '未知原因';
+  }
+
+  // 调试/演示用：?pourslow=8 把同一段动效放慢 8 倍看细节（默认 1，不影响正常体验）
+  function pourSpeed() {
+    var m = /[?&]pourslow=([\d.]+)/.exec(window.location.search);
+    var v = m ? parseFloat(m[1]) : 1;
+    return isFinite(v) && v > 1 ? Math.min(v, 20) : 1;
+  }
+
+  // ---- 几何：全部实时测量，移动端/窗口变化都不写死坐标 ----
+  function px(v, fallback) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function readFrame() {
+    var shell = document.querySelector('.app-shell');
+    if (!shell) return { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight, radius: 0 };
+    var r = shell.getBoundingClientRect();
+    var cs = window.getComputedStyle(shell);
+    var radius = Math.min(px(cs.borderTopLeftRadius, 16), r.width / 2, r.height / 2);
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, radius: radius };
+  }
+
+  function num(n) {
+    var v = Math.round(n * 10) / 10;
+    return v === 0 ? 0 : v;
+  }
+
+  // 液柱：s = 0 在按钮底边中点，s = 1 在液柱末端
+  function halfWidth(t, s) {
+    return Math.max(2.2, 3.4 + 1.15 * Math.sin(t * 0.021) + 1.0 * Math.sin(s * 4.7 + t * 0.017));
+  }
+
+  function sway(t, s, amp) {
+    return amp * Math.sin(Math.PI * s) * Math.sin(t * 0.0086 - s * 2.2);
+  }
+
+  function waveY(x, level, amp, phase) {
+    var k = x * 0.021;
+    return level + amp * (0.62 * Math.sin(k + phase) + 0.38 * Math.sin(k * 1.87 - phase * 1.35));
+  }
+
+  // 圆：绕向必须和主体一致（同为负面积），否则与非零填充规则下的主体重叠处会挖成洞
+  function circle(cx, cy, r) {
+    var k = r * 0.5523;
+    return 'M' + num(cx - r) + ' ' + num(cy) +
+      'C' + num(cx - r) + ' ' + num(cy + k) + ' ' + num(cx - k) + ' ' + num(cy + r) + ' ' + num(cx) + ' ' + num(cy + r) +
+      'C' + num(cx + k) + ' ' + num(cy + r) + ' ' + num(cx + r) + ' ' + num(cy + k) + ' ' + num(cx + r) + ' ' + num(cy) +
+      'C' + num(cx + r) + ' ' + num(cy - k) + ' ' + num(cx + k) + ' ' + num(cy - r) + ' ' + num(cx) + ' ' + num(cy - r) +
+      'C' + num(cx - k) + ' ' + num(cy - r) + ' ' + num(cx - r) + ' ' + num(cy - k) + ' ' + num(cx - r) + ' ' + num(cy) + 'Z';
+  }
+
+  function makeSplash(x, y) {
+    var items = [];
+    for (var i = 0; i < 7; i++) {
+      var dir = i / 3 - 1;                      // -1 … 1，向两侧散开
+      var ang = -Math.PI / 2 + dir * 0.8;
+      var sp = 0.9 + 0.5 * Math.abs(Math.sin(i * 2.3));
+      items.push({
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        r: 1.8 + 1.7 * Math.abs(Math.sin(i * 1.7)),
+        life: 340 + 120 * Math.abs(Math.cos(i * 1.3)),
+        delay: i * 7
+      });
+    }
+    splash = { x: x, y: y, t0: POUR.fall, items: items };
+  }
+
+  // 一帧一条 path：液体轮廓（液面以下的主体 + 液柱 + 液滴）全部塞进同一条 clip-path
+  function clipAt(t, geo, o) {
+    var L = geo.left, R = geo.right, T = geo.top, B = geo.bottom;
+    var x0 = o.x, y0 = o.y;
+    var fallP = Math.min(1, t / POUR.fall);
+    // 触底后先留 120ms 让飞溅飞起来，再开始涨液面（否则液面比液滴涨得快，飞溅会被埋掉）
+    var roseT = Math.max(0, t - POUR.fall - 120);
+    var riseP = Math.min(1, roseT / (POUR.rise - 120));
+    var fallEnd = y0 + (B - y0) * fallP * fallP;      // 下落加速
+    var poolOn = t >= POUR.fall;
+    var streamOn = t < POUR.total - 80;
+
+    // 最后 14% 让液体溢出圆角框，把框外那圈页面底色一起翻掉，避免收尾帧突变
+    var spill = Math.max(0, (riseP - 0.86) / 0.14);
+    var gapMax = Math.max(L, window.innerWidth - R, T, window.innerHeight - B) + 2;
+    var inset = spill * gapMax;
+    var Lp = L - inset, Rp = R + inset, Tp = T - inset, Bp = B + inset;
+    var rp = Math.max(0, geo.radius - inset);
+
+    // 起步缓、中段匀、收尾稳（smoothstep 与线性各一半），液面不会一触底就猛跳
+    var riseEase = 0.5 * riseP + 0.5 * (riseP * riseP * (3 - 2 * riseP));
+    var level = (B - 9) + ((Tp - 4) - (B - 9)) * riseEase;
+    var amp = 9 * Math.pow(1 - riseP, 0.9) + 1.2;
+    var phase = t * 0.0125;
+    var swayAmp = Math.min(9, 3 + (B - y0) * 0.012);
+
+    function surface(x) {
+      var y = waveY(x, level, amp, phase);
+      if (splash) {
+        var age = t - splash.t0;
+        if (age >= 0 && age < 340) {
+          var dx = x - splash.x;
+          var env = Math.exp(-(dx * dx) / 7200) * (1 - age / 340);
+          y += 3.4 * env * Math.sin(dx * 0.13 - age * 0.045);
+        }
+      }
+      return Math.min(y, Bp - 1);
+    }
+
+    var d = [];
+
+    if (poolOn) {
+      var hwB = halfWidth(t, 1);
+      var bandR = x0 + hwB, bandL = x0 - hwB;
+      // 液面涨过按钮时液柱被吞没，此时不再挖出凸起（否则轮廓会自交）
+      var useStream = streamOn && surface(x0) > y0 + 4 && bandR < Rp - 2 && bandL > Lp + 2;
+      var steps = 42;
+      var i, x, s, hw, sw;
+
+      d.push('M' + num(Lp + rp) + ' ' + num(Bp));
+      d.push('L' + num(Rp - rp) + ' ' + num(Bp));
+      d.push('A' + num(rp) + ' ' + num(rp) + ' 0 0 0 ' + num(Rp) + ' ' + num(Bp - rp));
+      d.push('L' + num(Rp) + ' ' + num(surface(Rp)));
+
+      var entered = false;
+      for (i = 1; i <= steps; i++) {
+        x = Rp + (Lp - Rp) * (i / steps);
+        if (useStream) {
+          if (!entered && x <= bandR) {
+            entered = true;
+            var yR = surface(bandR), yL = surface(bandL);
+            for (s = 1; s >= 0; s -= 0.125) {          // 液面 → 按钮底（右边缘）
+              hw = halfWidth(t, s); sw = sway(t, s, swayAmp);
+              d.push('L' + num(x0 + hw + sw) + ' ' + num(y0 + (yR - y0) * s));
+            }
+            d.push('Q' + num(x0) + ' ' + num(y0 + 3) + ' ' + num(x0 - halfWidth(t, 0)) + ' ' + num(y0));
+            for (s = 0.125; s <= 1.0001; s += 0.125) {  // 按钮底 → 液面（左边缘）
+              hw = halfWidth(t, s); sw = sway(t, s, swayAmp);
+              d.push('L' + num(x0 - hw + sw) + ' ' + num(y0 + (yL - y0) * s));
+            }
+            continue;
+          }
+          if (entered && x > bandL) continue;
+        }
+        d.push('L' + num(x) + ' ' + num(surface(x)));
+      }
+
+      d.push('L' + num(Lp) + ' ' + num(Bp - rp));
+      d.push('A' + num(rp) + ' ' + num(rp) + ' 0 0 0 ' + num(Lp + rp) + ' ' + num(Bp));
+      d.push('Z');
+    } else if (streamOn) {
+      // 下落段：只有一根带摆动的液柱 + 末端分离的 1~2 颗液滴
+      var bottom = fallEnd;
+      var s2;
+      d.push('M' + num(x0 - halfWidth(t, 0)) + ' ' + num(y0));
+      for (s2 = 0.125; s2 <= 1.0001; s2 += 0.125) {
+        d.push('L' + num(x0 + halfWidth(t, s2) + sway(t, s2, swayAmp)) + ' ' + num(y0 + (bottom - y0) * s2));
+      }
+      var hwE = halfWidth(t, 1);
+      d.push('Q' + num(x0) + ' ' + num(bottom + hwE * 1.9) + ' ' + num(x0 - hwE) + ' ' + num(bottom));
+      for (s2 = 1; s2 >= -0.0001; s2 -= 0.125) {
+        d.push('L' + num(x0 - halfWidth(t, s2) + sway(t, s2, swayAmp)) + ' ' + num(y0 + (bottom - y0) * s2));
+      }
+      d.push('Z');
+
+      if (t > 70) {
+        var gap = 13 + 6 * (0.5 + 0.5 * Math.sin(t * 0.028));
+        d.push(circle(x0 + Math.sin(t * 0.02) * 2.2, fallEnd + gap, 2.1 + 0.6 * Math.sin(t * 0.04)));
+        if (fallEnd - y0 > 46) d.push(circle(x0 - 1.6, fallEnd + gap + 11, 1.6));
+      }
+    }
+
+    // 触底飞溅：几颗小液滴（落回液面就不再画，避免和液面重叠）
+    if (t >= POUR.fall && !splash) makeSplash(x0, level);
+    if (splash) {
+      var age2 = t - splash.t0;
+      for (var j = 0; j < splash.items.length; j++) {
+        var it = splash.items[j];
+        var a = age2 - it.delay;
+        if (a <= 0 || a > it.life) continue;
+        var dx2 = splash.x + it.vx * a;
+        var dy2 = splash.y + it.vy * a + 0.004 * a * a;
+        if (dy2 > surface(dx2) - 1.5) continue;
+        d.push(circle(dx2, dy2, it.r * (1 - a / it.life * 0.5)));
+      }
+    }
+
+    // clip-path 需要 path("…") 包一层，裸路径会被当成非法值丢弃
+    return d.length ? 'path("' + d.join('') + '")' : 'path("M0 0Z")';
+  }
+
+  function cleanupPour() {
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = 0; }
+    root.removeAttribute('data-pour');
+    root.style.removeProperty('--pour-clip');
+    root.style.removeProperty('--pour-dur');
+    splash = null;
+    activeVT = null;
+    pouring = false;
+  }
+
+  function abortPour() {
+    if (!pouring) return;
+    var vt = activeVT;
+    cleanupPour();
+    if (vt && vt.skipTransition) {
+      try { vt.skipTransition(); } catch (e) { /* 已经结束 */ }
+    }
+  }
+
+  function startPour(nextPref, anchor) {
+    var geo = readFrame();
+    var o = {
+      x: Math.min(Math.max(anchor.x, geo.left + 6), geo.right - 6),
+      y: Math.min(Math.max(anchor.y, geo.top + 2), geo.bottom - 8)
+    };
+
+    var k = pourSpeed();
+
+    pouring = true;
+    splash = null;
+    root.setAttribute('data-pour', 'on');
+    root.style.setProperty('--pour-dur', (POUR.total * k + 120) + 'ms');
+    root.style.setProperty('--pour-clip', clipAt(0, geo, o));
+
+    var vt;
+    try {
+      vt = document.startViewTransition(function () { apply(nextPref, true); });
+    } catch (e) {
+      cleanupPour();
+      apply(nextPref, true);
+      return;
+    }
+    activeVT = vt;
+
+    var t0 = 0;
+    function frame(now) {
+      if (!pouring) return;
+      if (!t0) t0 = now;
+      var t = (now - t0) / k;
+      if (t >= POUR.total) {
+        root.style.setProperty('--pour-clip', clipAt(POUR.total, geo, o));
+        rafId = 0;
+        return;
+      }
+      root.style.setProperty('--pour-clip', clipAt(t, geo, o));
+      rafId = window.requestAnimationFrame(frame);
+    }
+
+    function begin() {
+      if (!pouring) return;
+      t0 = 0;
+      rafId = window.requestAnimationFrame(frame);
+    }
+
+    if (vt.ready && vt.ready.then) vt.ready.then(begin, function () { /* 被跳过 */ });
+    else begin();
+
+    if (vt.finished && vt.finished.then) {
+      vt.finished.then(cleanupPour, cleanupPour);
+    } else {
+      window.setTimeout(cleanupPour, POUR.total * k + 200);
+    }
+  }
+
+  // 动画中点站内链接 / 锚点跳转：立刻收掉动效，不带着遮罩跳走
+  function hookAbort() {
+    if (historyPatched) return;
+    historyPatched = true;
+    ['pushState', 'replaceState'].forEach(function (key) {
+      var orig = history[key];
+      if (typeof orig !== 'function') return;
+      history[key] = function () {
+        if (pouring) abortPour();
+        return orig.apply(history, arguments);
+      };
+    });
+    document.addEventListener('click', function (event) {
+      if (!pouring) return;
+      var el = event.target;
+      if (el && el.closest && el.closest('a[href]')) abortPour();
+    }, true);
+    window.addEventListener('popstate', function () { if (pouring) abortPour(); });
+  }
+
   // 首屏把 <head> 里算出的结果再同步一次（补上 theme-color 与按钮文案）
   apply(currentPref(), false);
+  hookAbort();
 
   if (btn) {
     btn.addEventListener('click', function () {
+      if (pouring) return;                       // 动画中再点：忽略，绝不叠加
       var next = ORDER[(ORDER.indexOf(currentPref()) + 1) % ORDER.length];
-      apply(next, true);
+      var nextEff = effectiveOf(next);
+      var curEff = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      // 只有 data-theme 真的翻转才播动画（如系统暗色下 dark → auto 仍是暗色，直接切）
+      if (nextEff === curEff) {
+        apply(next, true);                       // 主题没真翻转：按规则不播
+        return;
+      }
+      if (!canPour()) {
+        console.info('[theme-pour] 跳过液体动效：' + motionReason() + '（想临时看效果可在地址后加 ?pourforce=1）');
+        apply(next, true);
+        return;
+      }
+      var rect = btn.getBoundingClientRect();    // 原点实时测，不写死
+      startPour(next, { x: rect.left + rect.width / 2, y: rect.bottom });
     });
   }
 
-  // 跟随系统时，系统亮暗变化要实时生效
+  // 跟随系统时，系统亮暗变化要实时生效（不播动画）
   if (mq) {
     var onChange = function () { if (currentPref() === 'auto') apply('auto', false); };
     if (mq.addEventListener) mq.addEventListener('change', onChange);
     else if (mq.addListener) mq.addListener(onChange);
   }
 
-  // 其它标签页改了主题，这里同步
+  // 其它标签页改了主题，这里同步（不播动画）
   window.addEventListener('storage', function (event) {
     if (event.key !== 'theme') return;
     var pref = event.newValue;
