@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-12",
+  "updated": "2026-11-13",
   "items": [
+    {
+      "date": "2026-11-13",
+      "title": "NVIDIA 宣布 CEO 变动：Jensen Huang 辞任，CFO Colette Kress 出任临时 CEO",
+      "url": "https://aihot.news/daily/2026-11-13",
+      "lead": "NVIDIA 董事会宣布 Jensen Huang 即刻辞去总裁、CEO 及董事职务，CFO Colette Kress 被任命为临时 CEO，直至选定永久继任者，董事会已启动内外部人选遴选。",
+      "links": [
+        {
+          "title": "Google DeepMind 发布 Gemini 4 Hydrogen",
+          "url": "https://aihot.news/items/uy1ayrrlqx1snqsv4lub7whsa"
+        },
+        {
+          "title": "Anthropic 推出 Claude Meetings，Claude 以参会者身份加入视频会议",
+          "url": "https://aihot.news/items/l36ne5q2gsdx6thyia7fi10kn"
+        },
+        {
+          "title": "Anthropic 建议把 Claude Opus 5.5 作为知识工作的日常主力模型",
+          "url": "https://aihot.news/items/t5pucqx6ac58z0ed1b0875ci0"
+        },
+        {
+          "title": "Google 智能眼镜开放预购，12 月 10 日发货",
+          "url": "https://aihot.news/items/hjhcsj440ym8b7ynttcx4433j"
+        }
+      ]
+    },
     {
       "date": "2026-11-12",
       "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
@@ -119,30 +143,6 @@
         {
           "title": "Meta 在 Muse 应用中推出 spaces 自定义个性化体验",
           "url": "https://aihot.news/items/f3hogz1c4bmgbcwblqblumxpv"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-06",
-      "title": "OpenAI 发布 GPT-6 Cyber 网络安全模型",
-      "url": "https://aihot.news/daily/2026-11-06",
-      "lead": "OpenAI 发布网络安全模型 GPT-6 Cyber，针对漏洞发现、验证与修复训练，并通过 Daybreak Red/Blue 平台向审核通过的安全团队开放。",
-      "links": [
-        {
-          "title": "OpenAI 发布 GPT-6 Cyber 网络安全模型",
-          "url": "https://aihot.news/items/u904yv6dn7sw6lwjgxxedqd3b"
-        },
-        {
-          "title": "Thinking Machines Lab 发布 Inkling 2 Small：594B 参数 MoE 模型，下周开放 Apache 2.0 权重",
-          "url": "https://aihot.news/items/bu8612ca3e1uyxjppk56ef1wl"
-        },
-        {
-          "title": "Google 发布 Gemini Omni 1.2 Flash：15 秒视频生成，降价 30% 至 $0.07/秒",
-          "url": "https://aihot.news/items/yjwroxww17lcg4ntcu9ruo105"
-        },
-        {
-          "title": "Cursor 推出应用构建功能，描述需求即可构建、部署并分享在线应用",
-          "url": "https://aihot.news/items/m5s02uukcl0id6rn7t08f6ya3"
         }
       ]
     }
