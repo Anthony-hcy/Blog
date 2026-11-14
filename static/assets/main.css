@@ -3754,3 +3754,27 @@ html[data-pour="on"]::view-transition-new(root) {
   to { opacity: 1; }
 }
 
+
+/* ==========================================================================
+   主题切换按钮图标：换成 ooowl.net 的三态图标（2026-11-14）
+   - 按钮外观保持原样（正方形边框 + 底色 + hover 变强调色），只换图标
+   - 三态图标（system / sun / moon）仍由上面的 data-theme-pref 规则切换
+   ========================================================================== */
+.js-theme-toggle .theme-icon {
+  width: 18px;
+  height: 18px;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.js-theme-toggle .theme-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 420px) {
+  .js-theme-toggle .theme-icon,
+  .js-theme-toggle .theme-icon svg { width: 16px; height: 16px; }
+}
+
