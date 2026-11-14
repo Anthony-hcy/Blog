@@ -75,6 +75,9 @@ SETTINGS_FRIENDS_LINKS: {
 
         # 2026-11-12 新增：Jame（随笔与诗，RSS 在 /feed）
         ["Jame", "https://jame.work/", "https://jame.work/favicon.ico", "feed"],
+
+        # 2026-11-14 新增：故人故事故纸堆（Waku 静态站，Atom 在 /atom.xml）
+        ["故人故事故纸堆", "https://land.hash.moe/", "https://land.hash.moe/favicon.svg", "atom.xml"],
     ]
 }
 
