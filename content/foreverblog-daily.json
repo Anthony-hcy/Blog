@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-13",
+  "updated": "2026-11-14",
   "items": [
+    {
+      "date": "2026-11-14",
+      "title": "向云端｜西南自驾14 - 北盘江",
+      "url": "https://blog.ops-coffee.com/r/2026-southwest-road-trip-14-beipanjiang.html"
+    },
     {
       "date": "2026-11-13",
       "title": "认真做一件事，究竟能有多大不同？",
@@ -36,16 +41,6 @@
       "date": "2026-11-07",
       "title": "知识小镇：给女儿做的数学大富翁",
       "url": "https://flashj.cn/studytown.html"
-    },
-    {
-      "date": "2026-11-06",
-      "title": "没有“电子阳痿”，只是电量耗尽",
-      "url": "https://blog.veitzn.top/%E6%B2%A1%E6%9C%89%E7%94%B5%E5%AD%90%E9%98%B3%E7%97%BF%EF%BC%8C%E5%8F%AA%E6%98%AF%E7%94%B5%E9%87%8F%E8%80%97%E5%B0%BD/"
-    },
-    {
-      "date": "2026-11-05",
-      "title": "红果短剧，根本停不下来！",
-      "url": "https://www.munue.com/822.html"
     }
   ]
 }

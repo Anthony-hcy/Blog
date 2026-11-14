@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-13",
+  "updated": "2026-11-14",
   "items": [
+    {
+      "date": "2026-11-14",
+      "title": "Nvidia 领导层变动引发以色列科技界关注，投资人认为挑战者或有机会",
+      "url": "https://aihot.news/daily/2026-11-14",
+      "lead": "Nvidia 前CEO黄仁勋辞职后，以色列科技界关注这家在其拥有6000名员工和最大海外研发中心的公司是否会继续深耕以色列。多位以色列投资人认为，Nvidia 决策放缓可能给 AI 芯片和推理软件领域的竞争者留出空间，但如果不确定性也拖慢 AI 支出，竞争者面对的可能是更小的市场机会。",
+      "links": [
+        {
+          "title": "Edge0 开源 145B 端侧模型，可在笔记本本地运行",
+          "url": "https://aihot.news/items/icmwp7qazk244f7fn6zlw8882"
+        },
+        {
+          "title": "DeepSeek 开放全家桶应用 API：联网搜索、文件输入、阅读链接等能力面向开发者",
+          "url": "https://aihot.news/items/nnbnoebf6mvo97usmwj5wziyl"
+        },
+        {
+          "title": "ChatGPT 推出 ChatGPT Wallet，dot 可在用户批准下代为完成购买",
+          "url": "https://aihot.news/items/vot1htumxjgnb0i88rbq3zsuq"
+        },
+        {
+          "title": "llama.cpp v1.0.0 发布，本地运行 AI 模型迎来首个稳定大版本",
+          "url": "https://aihot.news/items/um8pmpa91qn1ymvx3pux0sq1x"
+        }
+      ]
+    },
     {
       "date": "2026-11-13",
       "title": "NVIDIA 宣布 CEO 变动：Jensen Huang 辞任，CFO Colette Kress 出任临时 CEO",
@@ -119,30 +143,6 @@
         {
           "title": "美国家长起诉谷歌 Gemini 被指协助 13 岁女孩制定轻生计划",
           "url": "https://aihot.news/items/r0hypv8lgeq3nhx29eby0y3uv"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-07",
-      "title": "Bloomberg：OpenAI 完成 110 亿美元融资首批到账，估值达 1.25 万亿美元",
-      "url": "https://aihot.news/daily/2026-11-07",
-      "lead": "据 Bloomberg，OpenAI 完成 110 亿美元新融资，这是估值 1.25 万亿美元一轮的首笔资金。投资者当日已打款，剩余部分总额最高 200 亿美元，预计数周内到账。",
-      "links": [
-        {
-          "title": "百度发布 ERNIE-5.5-Flash-Base 开源 Base 模型，280B 总参数每 token 激活 14B",
-          "url": "https://aihot.news/items/r3360gkpmqpyyt2ii9cp1k9rz"
-        },
-        {
-          "title": "蚂蚁百灵发布 Ling-3.2-flash：原生多模态，560B 总参数单步激活 25B",
-          "url": "https://aihot.news/items/apnpwouw9phkt81pijcxcl1a1"
-        },
-        {
-          "title": "OpenRouter 发布新一代 Auto Router 与 Auto Code 路由器",
-          "url": "https://aihot.news/items/ed4gnfu2f09xz5t7ur690iadn"
-        },
-        {
-          "title": "Meta 在 Muse 应用中推出 spaces 自定义个性化体验",
-          "url": "https://aihot.news/items/f3hogz1c4bmgbcwblqblumxpv"
         }
       ]
     }
