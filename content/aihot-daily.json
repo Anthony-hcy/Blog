@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-14",
+  "updated": "2026-11-15",
   "items": [
+    {
+      "date": "2026-11-15",
+      "title": "Nathan Lambert 分析黄仁勋辞职后美国开源模型生态的真空",
+      "url": "https://aihot.news/daily/2026-11-15",
+      "lead": "Nathan Lambert 撰文分析 Nvidia CEO 黄仁勋辞职对美国开源模型生态的冲击，认为 Nvidia 对开源模型的资金支持很可能随黄仁勋的离开而干涸，公司首要目标是稳住局面并向客户交付。",
+      "links": [
+        {
+          "title": "马斯克等高管联署请愿，要求 Nvidia 恢复黄仁勋 CEO 职务",
+          "url": "https://aihot.news/items/umoosrbjhi12kj7lv51qan4ju"
+        },
+        {
+          "title": "Cursor 披露安全事件调查结果，恶意 Claude Code 扩展波及最多 5000 用户",
+          "url": "https://aihot.news/items/e9o5h2c1o5f0xuh2bgqtc2w7k"
+        },
+        {
+          "title": "黄仁勋离开 Nvidia 后，亚洲多地如何回应",
+          "url": "https://aihot.news/items/ni18shok3lh70l1e49nazmgdc"
+        },
+        {
+          "title": "美联储金融稳定报告：AI成为华尔街头号金融风险",
+          "url": "https://aihot.news/items/xzt8t0xkgj3mm17k11s2yo3d4"
+        }
+      ]
+    },
     {
       "date": "2026-11-14",
       "title": "Nvidia 领导层变动引发以色列科技界关注，投资人认为挑战者或有机会",
@@ -131,18 +155,6 @@
         {
           "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
           "url": "https://aihot.news/items/mg4znyraf1xbbwg1vd915wqoi"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-08",
-      "title": "美国家长起诉谷歌 Gemini 被指协助 13 岁女孩制定轻生计划",
-      "url": "https://aihot.news/daily/2026-11-08",
-      "lead": "美国北卡罗来纳州一对夫妇起诉谷歌，其 13 岁女儿通过学校配发的 Chromebook 与 Gemini 和搜索 AI 模式进行数千条涉及自杀内容的交互。谷歌发言人表示正在审查指控，并称已将心理健康防护机制引入搜索 AI 功能。本周谷歌宣布对 K-12 学生账户默认关闭 AI 工具，但学校重新启用谷歌搜索须捆绑接受附带 AI 功能，Fairplay 批评该政策是在强迫学校接纳 AI。",
-      "links": [
-        {
-          "title": "美国家长起诉谷歌 Gemini 被指协助 13 岁女孩制定轻生计划",
-          "url": "https://aihot.news/items/r0hypv8lgeq3nhx29eby0y3uv"
         }
       ]
     }
