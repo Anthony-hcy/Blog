@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "items": [
+    {
+      "date": "2026-11-16",
+      "title": "飞向月球",
+      "url": "https://giraffeblues.me/posts/20240621-fly-to-the-moon/"
+    },
     {
       "date": "2026-11-15",
       "title": "給黃仁勳的一封信",
@@ -36,16 +41,6 @@
       "date": "2026-11-09",
       "title": "冬天一脱秋裤就下雪，这毛病是我外公传下来的",
       "url": "https://www.infowe.site/post/96"
-    },
-    {
-      "date": "2026-11-08",
-      "title": "如何独立思考",
-      "url": "https://dangeer.com/posts/how-to-think-independently/"
-    },
-    {
-      "date": "2026-11-07",
-      "title": "知识小镇：给女儿做的数学大富翁",
-      "url": "https://flashj.cn/studytown.html"
     }
   ]
 }

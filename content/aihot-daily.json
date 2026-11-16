@@ -1,7 +1,14 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "items": [
+    {
+      "date": "2026-11-16",
+      "title": "今日安静，无大事发生",
+      "url": "https://aihot.news/daily/2026-11-16",
+      "lead": "北京时间 11 月 15 日 08:00 至 11 月 16 日 08:00，没有新的 AI 大事。",
+      "links": []
+    },
     {
       "date": "2026-11-15",
       "title": "Nathan Lambert 分析黄仁勋辞职后美国开源模型生态的真空",
@@ -143,18 +150,6 @@
         {
           "title": "Zyphra 发布开源 TTS 模型 ZONOS3-Mini，可在手机浏览器实时运行",
           "url": "https://aihot.news/items/r5h0cwwdh1peqbg2rk6k9ljrh"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-09",
-      "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
-      "url": "https://aihot.news/daily/2026-11-09",
-      "lead": "NVIDIA 董事会于 11 月 8 日发布声明，就近期有关创始人兼 CEO 黄仁勋成为外国情报行动目标的报道启动独立调查。调查由独立董事组成的委员会在外部独立律师协助下监督，黄仁勋全力配合。董事会表示没有理由认为国家安全或 NVIDIA 机密已受损，但调查将审视所有可用信息，并表示对黄仁勋及其领导团队有信心。",
-      "links": [
-        {
-          "title": "NVIDIA 董事会宣布就 CEO 黄仁勋遭外国情报行动瞄准一事启动独立调查",
-          "url": "https://aihot.news/items/mg4znyraf1xbbwg1vd915wqoi"
         }
       ]
     }
