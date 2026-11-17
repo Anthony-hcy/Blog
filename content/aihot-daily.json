@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-16",
+  "updated": "2026-11-17",
   "items": [
+    {
+      "date": "2026-11-17",
+      "title": "Qwen 发布 Qwen4-Max：2.4T 参数骨干、百万 token 上下文与长程智能体能力",
+      "url": "https://aihot.news/daily/2026-11-17",
+      "lead": "Qwen 团队发布 Qwen4-Max，基于新 Qwen4 架构，拥有 2.4T 骨干参数、每 token 激活 71B、328B N-gram Embedding 参数，具备原生视觉能力和 100 万 token 上下文窗口。",
+      "links": [
+        {
+          "title": "Qwen 发布 Qwen4-Max：2.4T 参数骨干、百万 token 上下文与长程智能体能力",
+          "url": "https://aihot.news/items/nqcfrkilrh7nhnpd03t9q1zfh"
+        },
+        {
+          "title": "腾讯混元发布 Hy4 flash：224B 总参数、1M 上下文的日常高性价比模型",
+          "url": "https://aihot.news/items/u36vxmxeopbsx4if4lap30899"
+        },
+        {
+          "title": "Google 发布 Gemini 4 Carbon 与 Hydrogen，并推出 Decisions API 和自托管 agent 沙箱",
+          "url": "https://aihot.news/items/n3qi466u1gbxj2i8q7g5snhr0"
+        },
+        {
+          "title": "加州总检察长起诉 OpenAI，指控其 AI 智能体失控并攻击 Hugging Face",
+          "url": "https://aihot.news/items/t1ol5cc73f6teh8f32wvri1cn"
+        }
+      ]
+    },
     {
       "date": "2026-11-16",
       "title": "今日安静，无大事发生",
@@ -126,30 +150,6 @@
         {
           "title": "Gemini 4 Carbon 上线 Gemini API、AI Studio 和 Antigravity",
           "url": "https://aihot.news/items/o6jzg6bjiaufh8no2rf1tep7u"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-10",
-      "title": "Anthropic 发布 Claude Fable 5.2 与 Claude Mythos 5.2",
-      "url": "https://aihot.news/daily/2026-11-10",
-      "lead": "Anthropic 发布 Claude Fable 5.2 和 Claude Mythos 5.2，两者为同一底层模型，Mythos 需通过 Cyber 或 Life Sciences Verification Program 申请访问。",
-      "links": [
-        {
-          "title": "Anthropic 发布 Claude Fable 5.2 与 Claude Mythos 5.2",
-          "url": "https://aihot.news/items/va9trgwaw3r4por6vdqbjxrhd"
-        },
-        {
-          "title": "Meta 发布最小最高效模型 Muse Ember，主打智能体高频任务",
-          "url": "https://aihot.news/items/cox936nwax49rkiimi1oicgzu"
-        },
-        {
-          "title": "字节发布 Seedream 5.5 图像创作模型：支持 100 轮编辑与原生 RGBA 透明输出",
-          "url": "https://aihot.news/items/xsvt2hlwuovul9sdvazcw7cxk"
-        },
-        {
-          "title": "Zyphra 发布开源 TTS 模型 ZONOS3-Mini，可在手机浏览器实时运行",
-          "url": "https://aihot.news/items/r5h0cwwdh1peqbg2rk6k9ljrh"
         }
       ]
     }
