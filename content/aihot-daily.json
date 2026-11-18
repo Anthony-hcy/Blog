@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-17",
+  "updated": "2026-11-18",
   "items": [
+    {
+      "date": "2026-11-18",
+      "title": "OpenAI 发布 GPT-6.2 Astra 与 GPT-6.2 Sol",
+      "url": "https://aihot.news/daily/2026-11-18",
+      "lead": "OpenAI 发布面向复杂专业工作的 GPT-6.2 Astra 和面向日常工作的 GPT-6.2 Sol，两者在更少输出 token 下取得更好结果。",
+      "links": [
+        {
+          "title": "OpenAI 发布 GPT-6.2 Astra 与 GPT-6.2 Sol",
+          "url": "https://aihot.news/items/jr7fqw95e5ihuevr1rzib208l"
+        },
+        {
+          "title": "Perplexity 上线 GPT-6.2 Astra 和 GPT-6.2 Sol，并公布 WANDR 基准成绩",
+          "url": "https://aihot.news/items/zy931jr86bk2nk5cv8ww6seah"
+        },
+        {
+          "title": "Microsoft MAI 发布七款新模型，主打极致性价比",
+          "url": "https://aihot.news/items/z9zhvfj8o8zp2yp433eizf3uk"
+        },
+        {
+          "title": "Microsoft AI 发布 MAI Code 2 与 MAI Code 2 Flash 编码模型",
+          "url": "https://aihot.news/items/c3qj65urfo345mc80xz5jdefb"
+        }
+      ]
+    },
     {
       "date": "2026-11-17",
       "title": "Qwen 发布 Qwen4-Max：2.4T 参数骨干、百万 token 上下文与长程智能体能力",
@@ -126,30 +150,6 @@
         {
           "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
           "url": "https://aihot.news/items/r8hsm3m3munjwk1n3u885zszw"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-11",
-      "title": "Google DeepMind 发布 Gemini 4 Carbon 前沿模型",
-      "url": "https://aihot.news/daily/2026-11-11",
-      "lead": "Google DeepMind 正式向开发者、企业、科学家和普通用户开放 Gemini 4 Carbon，定位为其最强前沿模型，主打网络安全能力与复杂知识工作、软件工程、科学推理中的长程智能体工作流。",
-      "links": [
-        {
-          "title": "Google DeepMind 发布 Gemini 4 Carbon 前沿模型",
-          "url": "https://aihot.news/items/w8cvkd1j2o1c3m8ikh8x2kpfx"
-        },
-        {
-          "title": "MiniMax 发布开源图像生成模型 H3-Image，10 秒内生成 4K 图像",
-          "url": "https://aihot.news/items/eel6o8sxfldx5itfa8f8wigc0"
-        },
-        {
-          "title": "Anthropic 发布 Claude Whiteboards 和 Claude Sheets，Claude Dashboards 转正为 Claude Data",
-          "url": "https://aihot.news/items/c1fodrvts3po1pprz70weooju"
-        },
-        {
-          "title": "Gemini 4 Carbon 上线 Gemini API、AI Studio 和 Antigravity",
-          "url": "https://aihot.news/items/o6jzg6bjiaufh8no2rf1tep7u"
         }
       ]
     }
