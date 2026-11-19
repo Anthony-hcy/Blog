@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-18",
+  "updated": "2026-11-19",
   "items": [
+    {
+      "date": "2026-11-19",
+      "title": "Google DeepMind 发布 Gemini 4 Neon",
+      "url": "https://aihot.news/daily/2026-11-19",
+      "lead": "Google DeepMind 发布 Gemini 4 Neon，主打前沿智能与快速端到端任务完成，覆盖软件工程、知识工作和科学工作流。模型在 Artificial Analysis Intelligence Index 得 61 分排第 3，Vals Index 排第 2，Agent Arena Index 以 1336 分全球第 2。",
+      "links": [
+        {
+          "title": "Google DeepMind 发布 Gemini 4 Neon",
+          "url": "https://aihot.news/items/lp0snt9lfrx5ju7mg3wma6hnw"
+        },
+        {
+          "title": "OpenAI 发布 GPT-6.2 Astra 和 Sol：更便宜但口碑分化，Anthropic 仍握最强模型",
+          "url": "https://aihot.news/items/oisr0dfay736le62g425urn8l"
+        },
+        {
+          "title": "Google DeepMind 开放 Project Genie 新体验，首次提供 Genie 4 世界模型",
+          "url": "https://aihot.news/items/rubpebtbkzpp1fpbtvw0kt8v2"
+        },
+        {
+          "title": "Anthropic IPO 定价每股 $83.00，11 月 19 日以代码 ANT 登陆纳斯达克",
+          "url": "https://aihot.news/items/o0z8uukw36ic6txpxi29o96ep"
+        }
+      ]
+    },
     {
       "date": "2026-11-18",
       "title": "OpenAI 发布 GPT-6.2 Astra 与 GPT-6.2 Sol",
@@ -126,30 +150,6 @@
         {
           "title": "Google 智能眼镜开放预购，12 月 10 日发货",
           "url": "https://aihot.news/items/hjhcsj440ym8b7ynttcx4433j"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-12",
-      "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
-      "url": "https://aihot.news/daily/2026-11-12",
-      "lead": "Google 推出 Gemini Decisions API，由新模型 Gemini Decision 1 驱动，可在 150-250ms 端到端延迟内对文本、图像、音频、视频和 PDF（最多 256K tokens）一次性评估最多 1000 个是/否、多选和评分题。",
-      "links": [
-        {
-          "title": "百度发布 ERNIE 5.5 Flash Preview，权重将于 11 月 25 日前开源",
-          "url": "https://aihot.news/items/qd3f4j2hd0t98tqf28iv7pu2j"
-        },
-        {
-          "title": "Runway 开源 27B 世界动作模型 Praxis-1，权重采用 Apache 2.0 许可",
-          "url": "https://aihot.news/items/bx3sq4dxfqblyztkuiktiz0wv"
-        },
-        {
-          "title": "Google DeepMind 发布 AlphaGenome 2，预测基因变异对特定细胞类型的影响",
-          "url": "https://aihot.news/items/wp91dm5fgirnzvh99js3vv6j2"
-        },
-        {
-          "title": "Google 发布 Gemini Decisions API 与 Gemini Decision 1 模型，专注快速多模态封闭式决策",
-          "url": "https://aihot.news/items/r8hsm3m3munjwk1n3u885zszw"
         }
       ]
     }
