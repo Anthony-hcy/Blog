@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-19",
+  "updated": "2026-11-20",
   "items": [
+    {
+      "date": "2026-11-20",
+      "title": "FoxThinking #42: 最中幻想",
+      "url": "https://blog.southfox.me/2026/11/fox-thinking-42/index.html"
+    },
     {
       "date": "2026-11-19",
       "title": "同一份讲话稿我录了 5 遍，AI 打了 5 个分",
@@ -36,11 +41,6 @@
       "date": "2026-11-13",
       "title": "认真做一件事，究竟能有多大不同？",
       "url": "https://www.tortorse.com/archives/doing-one-thing-well/"
-    },
-    {
-      "date": "2026-11-12",
-      "title": "17",
-      "url": "https://jame.work/html/post/60"
     }
   ]
 }

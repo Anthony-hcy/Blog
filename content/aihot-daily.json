@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-19",
+  "updated": "2026-11-20",
   "items": [
+    {
+      "date": "2026-11-20",
+      "title": "Anthropic 登陆纳斯达克，开盘价 111 美元较发行价高出 33%",
+      "url": "https://aihot.news/daily/2026-11-20",
+      "lead": "Anthropic 在纳斯达克完成 IPO，开盘几分钟内股价达 111.50 美元，较 83 美元发行价高出 33%，发行价已超过公司此前 70 至 78 美元的预期区间。本次发行募资超过 810 亿美元，叠加同期私募融资后公司现金储备预计达 2200 亿美元；按开盘价计算市值超过 2 万亿美元，CEO Dario Amodei 在开盘致辞中强调公司对安全的承诺。",
+      "links": [
+        {
+          "title": "Mac 版 Gemini 应用上线计算机操作功能，可代用户执行跨应用任务",
+          "url": "https://aihot.news/items/h5xjk79bhcu8vgnbrynj208uj"
+        },
+        {
+          "title": "Google 在 Gemini API 推出 Tool Retrieval 预览",
+          "url": "https://aihot.news/items/n3npoqbr48wu58cke5p3ox18l"
+        },
+        {
+          "title": "Anthropic 登陆纳斯达克，开盘价 111 美元较发行价高出 33%",
+          "url": "https://aihot.news/items/gklqioeodqeuqgz3lttg83ztv"
+        },
+        {
+          "title": "Nadella 解释向 6 万员工提供买断的原因：转型为 AI 优先的组织而非裁员",
+          "url": "https://aihot.news/items/g47lsydtqfsi16e0z920ghe2y"
+        }
+      ]
+    },
     {
       "date": "2026-11-19",
       "title": "Google DeepMind 发布 Gemini 4 Neon",
@@ -126,30 +150,6 @@
         {
           "title": "llama.cpp v1.0.0 发布，本地运行 AI 模型迎来首个稳定大版本",
           "url": "https://aihot.news/items/um8pmpa91qn1ymvx3pux0sq1x"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-13",
-      "title": "NVIDIA 宣布 CEO 变动：Jensen Huang 辞任，CFO Colette Kress 出任临时 CEO",
-      "url": "https://aihot.news/daily/2026-11-13",
-      "lead": "NVIDIA 董事会宣布 Jensen Huang 即刻辞去总裁、CEO 及董事职务，CFO Colette Kress 被任命为临时 CEO，直至选定永久继任者，董事会已启动内外部人选遴选。",
-      "links": [
-        {
-          "title": "Google DeepMind 发布 Gemini 4 Hydrogen",
-          "url": "https://aihot.news/items/uy1ayrrlqx1snqsv4lub7whsa"
-        },
-        {
-          "title": "Anthropic 推出 Claude Meetings，Claude 以参会者身份加入视频会议",
-          "url": "https://aihot.news/items/l36ne5q2gsdx6thyia7fi10kn"
-        },
-        {
-          "title": "Anthropic 建议把 Claude Opus 5.5 作为知识工作的日常主力模型",
-          "url": "https://aihot.news/items/t5pucqx6ac58z0ed1b0875ci0"
-        },
-        {
-          "title": "Google 智能眼镜开放预购，12 月 10 日发货",
-          "url": "https://aihot.news/items/hjhcsj440ym8b7ynttcx4433j"
         }
       ]
     }
