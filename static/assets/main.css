@@ -592,7 +592,10 @@ figure.pswp-item figcaption {
   text-align: center;
 }
 
-.photoset { margin: 24px 0; }
+.photoset { margin: 16px 0; }
+/* 段落与相框之间的缝要真的是 16px：段落自身 margin-bottom 20px 会与相框外边距
+   折叠取大值（20px），所以让「后面紧跟相框」的段落底边距归零。 */
+.article-body p:has(+ .photoset) { margin-bottom: 0; }
 /* 正文里隔一行写另一组图片时会变成两个 .photoset；
    紧挨着的时候收成和组内一样的 4px 缝，看起来才是同一片图。
    注意 margin 会折叠（取两者最大值），所以上下两边都要压到 4px，
