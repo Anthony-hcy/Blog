@@ -82,7 +82,7 @@ SETTINGS_FRIENDS_LINKS: {
         # 2026-11-15 新增：宙と木（Koimsurai 手记，RSS 在 /rss.xml）
         ["宙と木", "https://koimsurai.com/", "https://koimsurai.com/favicon.svg", "rss.xml"],
         # 2026-11-20 新增：Victor42（Hugo + IPFS/eth.limo，RSS 在 /index.xml）
-        ["Victor42", "https://victor42.eth.limo/", "https://cdn.victor42.work/assets/favicon.ico", "index.xml"],
+        ["Victor42", "https://victor42.eth.limo/index.xml", "https://cdn.victor42.work/assets/favicon.ico"],
     ]
 }
 
