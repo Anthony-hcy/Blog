@@ -191,7 +191,7 @@ renderer.image = (token) => {
   const srcsetAttr = thumb
     ? ` srcset="${withBase(thumb)} 480w, ${fullSrc} ${dim ? dim.width : 1024}w" sizes="auto"`
     : '';
-  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${dimAttrs}${imgRatioAttr}${srcsetAttr} src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
+  return `<figure class="pswp-item${liveClass}"${avcAttr} style="flex: ${flex}"${sizeAttrs}><img loading="lazy" decoding="async"${dimAttrs}${imgRatioAttr}${srcsetAttr} referrerpolicy="no-referrer" src="${fullSrc}" alt="${escapeHtml(text)}" />${videoTag}</figure>`;
 };
 
 // ---------- 自定义行内标记：((补充说明)) → 灰色小字 ----------
@@ -924,6 +924,8 @@ function headHtml(title, { bodyData = '', extraHead = '', pageType = '', pagePat
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 不向第三方发 Referer：微信公众平台图（mmbiz.qpic.cn）按 Referer 防盗链，带了就返回「此图片来自微信公众平台」占位图 -->
+  <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#000000">
   <!-- 主题：首帧前解析 localStorage/系统偏好并写 data-theme，避免亮暗切换时闪白 -->
   <script>
@@ -1172,7 +1174,7 @@ ${extraScripts}
 function entryArticle(post) {
   const banner = post.banner
     ? `<a class="article-banner" href="${withBase(`/archives/${post.slug}/`)}">
-      <img src="${withBase(post.banner)}" alt="${post.title}" loading="eager" fetchpriority="high" decoding="async">
+      <img src="${withBase(post.banner)}" alt="${post.title}" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer">
       <span class="article-banner-shade" aria-hidden="true"></span>
       <h2 class="article-title article-title-overlay">${post.title}</h2>
     </a>`
