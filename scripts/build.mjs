@@ -635,12 +635,16 @@ function photosetHtml(figures) {
   ).join('')}</div>`;
 }
 
-// 只把「段落里仅有图片、且连着 2 张以上」包成并排相框；单张保持整幅，与原站一致
+// 把「段落里仅有图片」的块一律包成相框（含单张）。
+// 为什么单张也要包：不包时单图是 <p><figure>…</figure></p>，figure 自身 margin 20px，
+// 两张图各占一段就有 20px 的缝；而相框之间 CSS 只留 4px（.photoset + .photoset）。
+// 于是同一篇文章里「并排的图」缝很小、「各占一段的图」缝很大，看起来不统一。
+// 统一包成相框后，所有相邻图片的缝都是 4px；单张图在相框里仍占满整幅（flex 撑满一行）。
 function wrapFigureRuns(html) {
   // 只合并同一段落内的连续 figure：figure 内容匹配加 (?:(?!</p>|<p>)[\s\S]) 禁止跨越段落边界，
   // 否则 [\s\S]*?</figure> 会回溯穿过文字段落，把前面单图段落整段吸进后面的相框（图位置错乱）。
   return html.replace(
-    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"(?:(?!<\/p>|<p>)[\s\S])*?<\/figure>(?:\s|<br\s*\/?>)*){2,}<\/p>/g,
+    /<p>(?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"(?:(?!<\/p>|<p>)[\s\S])*?<\/figure>(?:\s|<br\s*\/?>)*){1,}<\/p>/g,
     (block) => photosetHtml(figuresFromHtml(block))
   );
 }
