@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-20",
+  "updated": "2026-11-21",
   "items": [
+    {
+      "date": "2026-11-21",
+      "title": "Thinking Machines Lab 发布可跑在笔记本上的开源权重模型 Inkling 2 Mini",
+      "url": "https://aihot.news/daily/2026-11-21",
+      "lead": "Thinking Machines Lab 发布开源权重模型 Inkling 2 Mini，采用循环 Transformer 架构，将中间 12 层每 token 运行三次，总参数 26.4B、激活 3.4B，内存占用约 20GB，可在 32GB 内存以上的 Mac 本地运行。",
+      "links": [
+        {
+          "title": "Thinking Machines Lab 发布可跑在笔记本上的开源权重模型 Inkling 2 Mini",
+          "url": "https://aihot.news/items/y7nk77dxae51qwi826gpmvbho"
+        },
+        {
+          "title": "腾讯混元开放 Hy4 权重",
+          "url": "https://aihot.news/items/jl6m0eymz9z0kleh54c3guowx"
+        },
+        {
+          "title": "Google 发布 Gemini 4 Hydrogen，已上线 Gemini 应用和 Search",
+          "url": "https://aihot.news/items/wlcnqahdyb61gpeoddwj45yyy"
+        },
+        {
+          "title": "ChatGPT 推出 Space：统一管理页面、幻灯片、图片与文件",
+          "url": "https://aihot.news/items/ekf0so0xitc52thkrxx3mwax1"
+        }
+      ]
+    },
     {
       "date": "2026-11-20",
       "title": "Anthropic 登陆纳斯达克，开盘价 111 美元较发行价高出 33%",
@@ -126,30 +150,6 @@
         {
           "title": "Thinking Machines Lab 发布端到端 4-bit 训练技术报告",
           "url": "https://aihot.news/items/sk6b7wgji4vbbkaa197ys334v"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-14",
-      "title": "Nvidia 领导层变动引发以色列科技界关注，投资人认为挑战者或有机会",
-      "url": "https://aihot.news/daily/2026-11-14",
-      "lead": "Nvidia 前CEO黄仁勋辞职后，以色列科技界关注这家在其拥有6000名员工和最大海外研发中心的公司是否会继续深耕以色列。多位以色列投资人认为，Nvidia 决策放缓可能给 AI 芯片和推理软件领域的竞争者留出空间，但如果不确定性也拖慢 AI 支出，竞争者面对的可能是更小的市场机会。",
-      "links": [
-        {
-          "title": "Edge0 开源 145B 端侧模型，可在笔记本本地运行",
-          "url": "https://aihot.news/items/icmwp7qazk244f7fn6zlw8882"
-        },
-        {
-          "title": "DeepSeek 开放全家桶应用 API：联网搜索、文件输入、阅读链接等能力面向开发者",
-          "url": "https://aihot.news/items/nnbnoebf6mvo97usmwj5wziyl"
-        },
-        {
-          "title": "ChatGPT 推出 ChatGPT Wallet，dot 可在用户批准下代为完成购买",
-          "url": "https://aihot.news/items/vot1htumxjgnb0i88rbq3zsuq"
-        },
-        {
-          "title": "llama.cpp v1.0.0 发布，本地运行 AI 模型迎来首个稳定大版本",
-          "url": "https://aihot.news/items/um8pmpa91qn1ymvx3pux0sq1x"
         }
       ]
     }

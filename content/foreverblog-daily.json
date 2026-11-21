@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-20",
+  "updated": "2026-11-21",
   "items": [
+    {
+      "date": "2026-11-21",
+      "title": "2009，九宫格里的宝箱",
+      "url": "https://www.tortorse.com/archives/treasure-chest-in-the-nine-square-grid-2009/"
+    },
     {
       "date": "2026-11-20",
       "title": "FoxThinking #42: 最中幻想",
@@ -31,16 +36,6 @@
       "date": "2026-11-15",
       "title": "給黃仁勳的一封信",
       "url": "https://koimsurai.com/blog/a-letter-to-jensen-huang"
-    },
-    {
-      "date": "2026-11-14",
-      "title": "向云端｜西南自驾14 - 北盘江",
-      "url": "https://blog.ops-coffee.com/r/2026-southwest-road-trip-14-beipanjiang.html"
-    },
-    {
-      "date": "2026-11-13",
-      "title": "认真做一件事，究竟能有多大不同？",
-      "url": "https://www.tortorse.com/archives/doing-one-thing-well/"
     }
   ]
 }
