@@ -309,7 +309,11 @@ function convertCallouts(md, depth) {
 
 function renderMarkdown(md, depth = 0) {
   // 先把 Obsidian 的 > [!note] 折叠块换成 <details>，否则 marked 会输出字面量引用块
-  const source = depth < 4 ? convertCallouts(md, depth) : md;
+  let source = depth < 4 ? convertCallouts(md, depth) : md;
+  // 「假空行」：只有空格 / Tab 的行，marked 不认作空行，会把作者用空行隔开的多条引用并成一个块
+  // （`>甲` / 一个 Tab / `>乙` 会渲染成 <blockquote><p>甲</p><p>乙</p></blockquote>）。
+  // 统一清成真空行，引用/段落才按作者写的空行分开；代码块里被清掉也只是空行，无副作用。
+  source = source.replace(/^[ \t]+(?=\r?$)/gm, '');
   let html = marked.parse(source, { renderer });
   // 音乐卡片：{{music <链接>}} → 官方外链播放器 iframe
   // 先处理独立成段（<p>{{music …}}</p>），再处理行内残余
