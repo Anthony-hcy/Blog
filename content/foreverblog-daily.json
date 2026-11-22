@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-21",
+  "updated": "2026-11-22",
   "items": [
+    {
+      "date": "2026-11-22",
+      "title": "高山蜂蜜：崖壁上挂着的一罐甜",
+      "url": "https://www.wushanren.com/wushanfood/80.html"
+    },
     {
       "date": "2026-11-21",
       "title": "2009，九宫格里的宝箱",
@@ -31,11 +36,6 @@
       "date": "2026-11-16",
       "title": "飞向月球",
       "url": "https://giraffeblues.me/posts/20240621-fly-to-the-moon/"
-    },
-    {
-      "date": "2026-11-15",
-      "title": "給黃仁勳的一封信",
-      "url": "https://koimsurai.com/blog/a-letter-to-jensen-huang"
     }
   ]
 }

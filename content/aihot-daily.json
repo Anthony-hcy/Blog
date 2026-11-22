@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-21",
+  "updated": "2026-11-22",
   "items": [
+    {
+      "date": "2026-11-22",
+      "title": "Anthropic 数学家称与 Claude 完成黎曼猜想证明，斯坦福数小时后发布纯人类竞争草稿",
+      "url": "https://aihot.news/daily/2026-11-22",
+      "lead": "Anthropic 数学家 Levent Alpöge 周五宣布与 Claude 合作得到黎曼猜想及广义黎曼猜想的证明，证明以 Lean 语言分 14 个数据包发布，打印将超 25 万页。",
+      "links": [
+        {
+          "title": "Qwen4 Max 上线 Together AI，单次调用修复 Tornado 整仓 bug",
+          "url": "https://aihot.news/items/rlj39tzyujneo0u35iyrfb4uc"
+        },
+        {
+          "title": "Together AI 通报 2026 年 6-7 月 serverless 推理服务提示词泄露事件",
+          "url": "https://aihot.news/items/xqe6lbb5zsjp9xbsc1o912cs0"
+        },
+        {
+          "title": "Anthropic 数学家称与 Claude 完成黎曼猜想证明，斯坦福数小时后发布纯人类竞争草稿",
+          "url": "https://aihot.news/items/tje8i8y21ttk7jjmqet5bpxuq"
+        },
+        {
+          "title": "研究者向 AI 供应链埋入 200 万个金丝雀，揭露敏感数据泄露",
+          "url": "https://aihot.news/items/agm7klro03kcu9weuix1bt4su"
+        }
+      ]
+    },
     {
       "date": "2026-11-21",
       "title": "Thinking Machines Lab 发布可跑在笔记本上的开源权重模型 Inkling 2 Mini",
@@ -128,30 +152,6 @@
       "url": "https://aihot.news/daily/2026-11-16",
       "lead": "北京时间 11 月 15 日 08:00 至 11 月 16 日 08:00，没有新的 AI 大事。",
       "links": []
-    },
-    {
-      "date": "2026-11-15",
-      "title": "Nathan Lambert 分析黄仁勋辞职后美国开源模型生态的真空",
-      "url": "https://aihot.news/daily/2026-11-15",
-      "lead": "Nathan Lambert 撰文分析 Nvidia CEO 黄仁勋辞职对美国开源模型生态的冲击，认为 Nvidia 对开源模型的资金支持很可能随黄仁勋的离开而干涸，公司首要目标是稳住局面并向客户交付。",
-      "links": [
-        {
-          "title": "马斯克等高管联署请愿，要求 Nvidia 恢复黄仁勋 CEO 职务",
-          "url": "https://aihot.news/items/umoosrbjhi12kj7lv51qan4ju"
-        },
-        {
-          "title": "Cursor 披露安全事件调查结果，恶意 Claude Code 扩展波及最多 5000 用户",
-          "url": "https://aihot.news/items/e9o5h2c1o5f0xuh2bgqtc2w7k"
-        },
-        {
-          "title": "美联储金融稳定报告：AI成为华尔街头号金融风险",
-          "url": "https://aihot.news/items/xzt8t0xkgj3mm17k11s2yo3d4"
-        },
-        {
-          "title": "Thinking Machines Lab 发布端到端 4-bit 训练技术报告",
-          "url": "https://aihot.news/items/sk6b7wgji4vbbkaa197ys334v"
-        }
-      ]
     }
   ]
 }
