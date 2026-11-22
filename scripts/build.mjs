@@ -653,6 +653,20 @@ function wrapFigureRuns(html) {
   );
 }
 
+// 「图在前、文字在后」同处一个段落：作者在图下面直接接一行字（中间没有空行），
+// marked 会渲染成 <p><figure>…</figure><br>文字</p>。但 <p> 里不能放 figure，
+// 浏览器解析时会把 <p> 提前闭合，得到「空 <p> + figure + <br> + 裸文字 + 空 <p>」，
+// 那个 <br> 在裸文字前多撑出一整行（行高 1.8 ≈ 29px），于是图和下面那段话之间
+// 凭空多出一大段空白。这里把图拆出来单独成相框、文字包回 <p>，间距回到 16px。
+function splitFigureParagraphs(html) {
+  const re = /<p>((?:\s|<br\s*\/?>)*(?:<figure class="pswp-item[^"]*"(?:(?!<\/p>)[\s\S])*?<\/figure>(?:\s|<br\s*\/?>)*)+)([\s\S]*?)<\/p>/g;
+  return html.replace(re, (block, figs, rest) => {
+    const text = String(rest).replace(/^(?:\s|<br\s*\/?>)+/, '').trim();
+    if (!text) return block; // 纯图段落交给 wrapFigureRuns
+    return photosetHtml(figuresFromHtml(figs)) + '<p>' + text + '</p>';
+  });
+}
+
 // ---------- memo 随机头像池 ----------
 // 把头像图放进 static/assets/img/avatars/（命名任意），每条 memo 按 slug 稳定分配一张
 let _avatarPool = null;
@@ -1382,7 +1396,7 @@ function buildPostPage(post, prev, next) {
     ? `<div class="tag"><a href="${withBase(`/category/${post.category}/`)}">${escapeHtml(post.category)}</a></div>`
     : '';
   // 同一段落里连着的多张图片 → 并排相框（Obsidian 里 ![[a]]![[b]]![[c]] 的语义）
-  const withToc = withHeadingAnchors(wrapFigureRuns(renderMarkdown(post.body)));
+  const withToc = withHeadingAnchors(splitFigureParagraphs(wrapFigureRuns(renderMarkdown(post.body))));
   const bodyHtml = withToc.html;
   // 阅读时长：中文约 400 字/分钟，至少 1 分钟
   const charCount = memoTextLength(post.body);
