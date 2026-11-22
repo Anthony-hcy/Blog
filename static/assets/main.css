@@ -690,6 +690,11 @@ figure.pswp-item figcaption {
 .article-body {
   font-size: 1rem;
   line-height: 1.8;
+  /* 正文里常出现一长串不可断的链接（微信/知乎分享链、音乐外链），
+     手机上会把整页顶宽、出现左右滑动；允许在任意位置断行来兜住。
+     min-width: 0 是为了让正文作为 flex/grid 子项时不被 min-content 撑开。 */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* 行内小字注释（语法迁移自 Eyu.at）：((补充说明)) → <small>(补充说明)</small>
