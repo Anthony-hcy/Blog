@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-22",
+  "updated": "2026-11-23",
   "items": [
+    {
+      "date": "2026-11-23",
+      "title": "损失厌恶：为何赚一点就跑、亏了死扛",
+      "url": "https://ankuaifu.cn/2026/11/sun-shi-yan-wu-wei-he-zhuan-yi-dian-jiu-pao-kui-le-si-kang.html"
+    },
     {
       "date": "2026-11-22",
       "title": "高山蜂蜜：崖壁上挂着的一罐甜",
@@ -31,11 +36,6 @@
       "date": "2026-11-17",
       "title": "Thanks，广州",
       "url": "https://juanla.space/archives/571/"
-    },
-    {
-      "date": "2026-11-16",
-      "title": "飞向月球",
-      "url": "https://giraffeblues.me/posts/20240621-fly-to-the-moon/"
     }
   ]
 }

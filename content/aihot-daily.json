@@ -1,7 +1,27 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-22",
+  "updated": "2026-11-23",
   "items": [
+    {
+      "date": "2026-11-23",
+      "title": "OpenAI 提议以困惑度作为行业共享指标并公开内部预训练测量数据",
+      "url": "https://aihot.news/daily/2026-11-23",
+      "lead": "OpenAI 撰文提议将 perplexity（交叉熵损失）确立为跨模型开发者比较和安全标准的共享指标，并公开其内部预训练测量数据。",
+      "links": [
+        {
+          "title": "MiniCPM 8B 成为老挝国家模型，端侧小模型加速落地多国",
+          "url": "https://aihot.news/items/dr26culfdd1cb21w56i8iruts"
+        },
+        {
+          "title": "OpenAI 提议以困惑度作为行业共享指标并公开内部预训练测量数据",
+          "url": "https://aihot.news/items/r7kb35fpdwc1m2iqsmd310tdj"
+        },
+        {
+          "title": "用户实测用 MiniCPM5-2B 在 Mac 上本地跑通体检报告分析",
+          "url": "https://aihot.news/items/g3vdho0vzm8rzriiz5grruy3m"
+        }
+      ]
+    },
     {
       "date": "2026-11-22",
       "title": "Anthropic 数学家称与 Claude 完成黎曼猜想证明，斯坦福数小时后发布纯人类竞争草稿",
@@ -145,13 +165,6 @@
           "url": "https://aihot.news/items/t1ol5cc73f6teh8f32wvri1cn"
         }
       ]
-    },
-    {
-      "date": "2026-11-16",
-      "title": "今日安静，无大事发生",
-      "url": "https://aihot.news/daily/2026-11-16",
-      "lead": "北京时间 11 月 15 日 08:00 至 11 月 16 日 08:00，没有新的 AI 大事。",
-      "links": []
     }
   ]
 }
