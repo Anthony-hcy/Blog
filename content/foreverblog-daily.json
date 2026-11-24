@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-23",
+  "updated": "2026-11-24",
   "items": [
+    {
+      "date": "2026-11-24",
+      "title": "《情绪星球》",
+      "url": "https://citydatum.cn/archives/3582"
+    },
     {
       "date": "2026-11-23",
       "title": "损失厌恶：为何赚一点就跑、亏了死扛",
@@ -31,11 +36,6 @@
       "date": "2026-11-18",
       "title": "南京民国&动物园周末游3天3夜",
       "url": "https://victor42.eth.limo/post/trip-to-nanjing/"
-    },
-    {
-      "date": "2026-11-17",
-      "title": "Thanks，广州",
-      "url": "https://juanla.space/archives/571/"
     }
   ]
 }
