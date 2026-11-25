@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-24",
+  "updated": "2026-11-25",
   "items": [
+    {
+      "date": "2026-11-25",
+      "title": "孩子近视，最怕一句「再观察」",
+      "url": "https://www.iliu.org/posts/child-myopia-wait-and-see/"
+    },
     {
       "date": "2026-11-24",
       "title": "《情绪星球》",
@@ -31,11 +36,6 @@
       "date": "2026-11-19",
       "title": "同一份讲话稿我录了 5 遍，AI 打了 5 个分",
       "url": "http://xiejava.ishareread.com/posts/bb794271/"
-    },
-    {
-      "date": "2026-11-18",
-      "title": "南京民国&动物园周末游3天3夜",
-      "url": "https://victor42.eth.limo/post/trip-to-nanjing/"
     }
   ]
 }
