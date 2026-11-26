@@ -1,7 +1,12 @@
 {
   "source": "https://www.foreverblog.cn/daily.html",
-  "updated": "2026-11-25",
+  "updated": "2026-11-26",
   "items": [
+    {
+      "date": "2026-11-26",
+      "title": "北碚桃垭村",
+      "url": "https://macin.org/2026/11/23/bei-pei-tao-wu-cun/"
+    },
     {
       "date": "2026-11-25",
       "title": "孩子近视，最怕一句「再观察」",
@@ -31,11 +36,6 @@
       "date": "2026-11-20",
       "title": "FoxThinking #42: 最中幻想",
       "url": "https://blog.southfox.me/2026/11/fox-thinking-42/index.html"
-    },
-    {
-      "date": "2026-11-19",
-      "title": "同一份讲话稿我录了 5 遍，AI 打了 5 个分",
-      "url": "http://xiejava.ishareread.com/posts/bb794271/"
     }
   ]
 }

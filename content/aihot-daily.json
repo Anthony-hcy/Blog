@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-25",
+  "updated": "2026-11-26",
   "items": [
+    {
+      "date": "2026-11-26",
+      "title": "Anthropic 复盘 Messages API 从 Python 迁移到 Rust 的校验方法",
+      "url": "https://aihot.news/daily/2026-11-26",
+      "lead": "Anthropic 介绍如何将 Messages API 从 Python 迁移到 Rust，并把生产系统本身当作校验器。该 API 流量从 2024 年初到 2026 年秋增长约 1800 倍，迁移后每请求 CPU 降低约 70%，首 token 中位时间缩短约 20%，且未停服或冻结功能开发。",
+      "links": [
+        {
+          "title": "Sand.ai 发布 480B 视频模型 MAGI-2，作者实测称质量接近 Seedance 2.3 水准且价格仅为其 1/10",
+          "url": "https://aihot.news/items/u71y2i8e6zhwauu7gpuyxrp4z"
+        },
+        {
+          "title": "腾讯开源模型 Hy4 Flash 上线 Fireworks serverless",
+          "url": "https://aihot.news/items/dvu6olan4q58k1evvnp8t60t2"
+        },
+        {
+          "title": "千问APP免费开放千问Go打电话服务，经授权可代打电话和定时来电",
+          "url": "https://aihot.news/items/cebavio3uyjwli5r3imsuq1si"
+        },
+        {
+          "title": "Pydantic AI 发布终端编码智能体 Pax 与 Harness beta，迈向 1.0",
+          "url": "https://aihot.news/items/i5qr52169dlque8rb2sl4i5jo"
+        }
+      ]
+    },
     {
       "date": "2026-11-25",
       "title": "Claude 推出 Install as app：artifacts 可安装为 Mac 和 Windows 桌面应用",
@@ -139,30 +163,6 @@
         {
           "title": "Nadella 解释向 6 万员工提供买断的原因：转型为 AI 优先的组织而非裁员",
           "url": "https://aihot.news/items/g47lsydtqfsi16e0z920ghe2y"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-19",
-      "title": "Google DeepMind 发布 Gemini 4 Neon",
-      "url": "https://aihot.news/daily/2026-11-19",
-      "lead": "Google DeepMind 发布 Gemini 4 Neon，主打前沿智能与快速端到端任务完成，覆盖软件工程、知识工作和科学工作流。模型在 Artificial Analysis Intelligence Index 得 61 分排第 3，Vals Index 排第 2，Agent Arena Index 以 1336 分全球第 2。",
-      "links": [
-        {
-          "title": "Google DeepMind 发布 Gemini 4 Neon",
-          "url": "https://aihot.news/items/lp0snt9lfrx5ju7mg3wma6hnw"
-        },
-        {
-          "title": "OpenAI 发布 GPT-6.2 Astra 和 Sol：更便宜但口碑分化，Anthropic 仍握最强模型",
-          "url": "https://aihot.news/items/oisr0dfay736le62g425urn8l"
-        },
-        {
-          "title": "Google DeepMind 开放 Project Genie 新体验，首次提供 Genie 4 世界模型",
-          "url": "https://aihot.news/items/rubpebtbkzpp1fpbtvw0kt8v2"
-        },
-        {
-          "title": "Anthropic IPO 定价每股 $83.00，11 月 19 日以代码 ANT 登陆纳斯达克",
-          "url": "https://aihot.news/items/o0z8uukw36ic6txpxi29o96ep"
         }
       ]
     }
