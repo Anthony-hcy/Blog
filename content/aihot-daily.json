@@ -1,7 +1,31 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-26",
+  "updated": "2026-11-27",
   "items": [
+    {
+      "date": "2026-11-27",
+      "title": "FT 报道 Nvidia 暂停向东南亚四国发运服务器",
+      "url": "https://aihot.news/daily/2026-11-27",
+      "lead": "据 FT 报道，Nvidia 已通知 Dell、Supermicro 等制造伙伴停止向马来西亚、新加坡、泰国和印尼发运服务器，原因是美国要求这些国家及巴西的先进 AI 芯片需申请许可。此前中国 AI 实验室通过当地云厂商租用 Nvidia 算力绕开直接出口禁令，云厂商现有 90 天证明无受限用户但缺乏申请指引；Nvidia 2025 年经新加坡部门入账 $104B，同比增长 72%。",
+      "links": [
+        {
+          "title": "蚂蚁 inclusionAI 开源 Ming-Image-0.2-Design 图像生成模型",
+          "url": "https://aihot.news/items/hdvt6wswzycj78wnr7r43xn6o"
+        },
+        {
+          "title": "OpenAI 测试私有推理功能",
+          "url": "https://aihot.news/items/lewbr91m3z1dyea1n7pbm3bnl"
+        },
+        {
+          "title": "FT 报道 Nvidia 暂停向东南亚四国发运服务器",
+          "url": "https://aihot.news/items/rlt60gq96bl1cf5b88o8rbj30"
+        },
+        {
+          "title": "OEMpocalypse Part 2：利用 Knox DualDAR 漏洞链 root Galaxy S23 与 S26 旗舰机",
+          "url": "https://aihot.news/items/g5yjacklnlbp3v51hkzciksjy"
+        }
+      ]
+    },
     {
       "date": "2026-11-26",
       "title": "Anthropic 复盘 Messages API 从 Python 迁移到 Rust 的校验方法",
@@ -139,30 +163,6 @@
         {
           "title": "ChatGPT 推出 Space：统一管理页面、幻灯片、图片与文件",
           "url": "https://aihot.news/items/ekf0so0xitc52thkrxx3mwax1"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-20",
-      "title": "Anthropic 登陆纳斯达克，开盘价 111 美元较发行价高出 33%",
-      "url": "https://aihot.news/daily/2026-11-20",
-      "lead": "Anthropic 在纳斯达克完成 IPO，开盘几分钟内股价达 111.50 美元，较 83 美元发行价高出 33%，发行价已超过公司此前 70 至 78 美元的预期区间。本次发行募资超过 810 亿美元，叠加同期私募融资后公司现金储备预计达 2200 亿美元；按开盘价计算市值超过 2 万亿美元，CEO Dario Amodei 在开盘致辞中强调公司对安全的承诺。",
-      "links": [
-        {
-          "title": "Mac 版 Gemini 应用上线计算机操作功能，可代用户执行跨应用任务",
-          "url": "https://aihot.news/items/h5xjk79bhcu8vgnbrynj208uj"
-        },
-        {
-          "title": "Google 在 Gemini API 推出 Tool Retrieval 预览",
-          "url": "https://aihot.news/items/n3npoqbr48wu58cke5p3ox18l"
-        },
-        {
-          "title": "Anthropic 登陆纳斯达克，开盘价 111 美元较发行价高出 33%",
-          "url": "https://aihot.news/items/gklqioeodqeuqgz3lttg83ztv"
-        },
-        {
-          "title": "Nadella 解释向 6 万员工提供买断的原因：转型为 AI 优先的组织而非裁员",
-          "url": "https://aihot.news/items/g47lsydtqfsi16e0z920ghe2y"
         }
       ]
     }
