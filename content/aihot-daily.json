@@ -1,7 +1,27 @@
 {
   "source": "https://aihot.news/daily",
-  "updated": "2026-11-27",
+  "updated": "2026-11-28",
   "items": [
+    {
+      "date": "2026-11-28",
+      "title": "实测支付宝 SkillPay：手把手教你怎么把 Skill 挂上去卖钱",
+      "url": "https://aihot.news/daily/2026-11-28",
+      "lead": "作者完整实测支付宝 SkillPay 平台的 Skill 变现流程，该平台7月上线，支持买断和订阅两种售卖模式。买断制将 Skill 完整内容交付本地，订阅制把 Skill 保留在云端沙盒中、Agent 看不到明文；买断定价 0.01-50 元，订阅按周月季度收费上限 50 元，免费试用最低 5 次。",
+      "links": [
+        {
+          "title": "OpenBMB 点评 InternLM 基于 MiniCPM-o 4.5 打造的 Sage-Interaction",
+          "url": "https://aihot.news/items/l9md8ugx8e2zlm5g1tuqthmaw"
+        },
+        {
+          "title": "实测支付宝 SkillPay：手把手教你怎么把 Skill 挂上去卖钱",
+          "url": "https://aihot.news/items/cdkswjz368inpelrz3f52rekx"
+        },
+        {
+          "title": "Antigravity 实用技巧：在 GEMINI.md 加一句话让模型边干活边汇报",
+          "url": "https://aihot.news/items/tiqf353lek6sib8ktn8uvc6nc"
+        }
+      ]
+    },
     {
       "date": "2026-11-27",
       "title": "FT 报道 Nvidia 暂停向东南亚四国发运服务器",
@@ -139,30 +159,6 @@
         {
           "title": "研究者向 AI 供应链埋入 200 万个金丝雀，揭露敏感数据泄露",
           "url": "https://aihot.news/items/agm7klro03kcu9weuix1bt4su"
-        }
-      ]
-    },
-    {
-      "date": "2026-11-21",
-      "title": "Thinking Machines Lab 发布可跑在笔记本上的开源权重模型 Inkling 2 Mini",
-      "url": "https://aihot.news/daily/2026-11-21",
-      "lead": "Thinking Machines Lab 发布开源权重模型 Inkling 2 Mini，采用循环 Transformer 架构，将中间 12 层每 token 运行三次，总参数 26.4B、激活 3.4B，内存占用约 20GB，可在 32GB 内存以上的 Mac 本地运行。",
-      "links": [
-        {
-          "title": "Thinking Machines Lab 发布可跑在笔记本上的开源权重模型 Inkling 2 Mini",
-          "url": "https://aihot.news/items/y7nk77dxae51qwi826gpmvbho"
-        },
-        {
-          "title": "腾讯混元开放 Hy4 权重",
-          "url": "https://aihot.news/items/jl6m0eymz9z0kleh54c3guowx"
-        },
-        {
-          "title": "Google 发布 Gemini 4 Hydrogen，已上线 Gemini 应用和 Search",
-          "url": "https://aihot.news/items/wlcnqahdyb61gpeoddwj45yyy"
-        },
-        {
-          "title": "ChatGPT 推出 Space：统一管理页面、幻灯片、图片与文件",
-          "url": "https://aihot.news/items/ekf0so0xitc52thkrxx3mwax1"
         }
       ]
     }
